@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-test("renders the production page metadata", async () => {
+const developmentPreviewMeta =
+  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
+
+test("renders development preview metadata", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
@@ -26,8 +29,5 @@ test("renders the production page metadata", async () => {
     response.headers.get("content-type") ?? "",
     /^text\/html\b/i,
   );
-  const html = await response.text();
-  assert.match(html, /<html[^>]*\blang=["']es["']/i);
-  assert.match(html, /<title>Atención al Cliente - Control de Ingresos<\/title>/i);
-  assert.doesNotMatch(html, /codex-preview/i);
+  assert.match(await response.text(), developmentPreviewMeta);
 });

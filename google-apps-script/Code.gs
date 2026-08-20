@@ -1,8 +1,8 @@
 // ATENCION AL CLIENTE - SCRIPT FINAL COMPATIBLE CON GOOGLE APPS SCRIPT
-// VERSION: ATENCION-2026-08-19-V8 - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
+// VERSION: ATENCION-2026-08-20-V9 - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
 // VERIFICACION: este archivo usa sintaxis ES5 compatible, sin operadores modernos.
 
-var SCRIPT_VERSION = 'ATENCION-2026-08-19-V8';
+var SCRIPT_VERSION = 'ATENCION-2026-08-20-V9';
 var WRITE_LOCK_MS = 1500;
 
 var CFG = Object.freeze({
@@ -27,7 +27,7 @@ function doPost(e) {
         auth_(body.apiKey);
         var p_1 = body.payload || {};
         var actions = {
-            health: function () { return health_(); }, searchPerson: function () { return searchPerson_(p_1.dni); }, recent: function () { return search_(p_1.query || '', p_1.limit || 8); },
+            health: function () { return health_(); }, searchPerson: function () { return searchPerson_(p_1.dni); }, recent: function () { return search_(p_1.query || '', p_1.limit || 8); }, today: function () { return today_(); },
             search: function () { return search_(p_1.query || '', p_1.limit || 30); }, pending: function () { return pending_(); }, listPeople: function () { return listPeople_(p_1.limit); },
             getEvent: function () { return getEvent_(p_1.id); }, saveEvent: function () { return saveEvent_(p_1); }, regularizeEvent: function () { return regularize_(p_1); },
             syncBatch: function () { return syncBatch_(p_1.items || []); }
@@ -192,6 +192,19 @@ function search_(query, limit) {
     }).sort(function (a, b) { return new Date(groups[b][0].dateTime) - new Date(groups[a][0].dateTime); }).slice(0, Math.min(Number(limit) || 30, 50));
     var clients = clientMap_(), states = pendingMap_();
     return ids.map(function (id) { return eventFromRows_(id, groups[id], clients, allCodes.byPerson, states); });
+}
+function today_() {
+    ensureTech_();
+    var sheet = sheet_(CFG.MATRIX), m = map_(sheet, MF), groups = {}, today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    matrixRows_(sheet, m).forEach(function (row) {
+        if (Utilities.formatDate(new Date(row.dateTime), Session.getScriptTimeZone(), 'yyyy-MM-dd') !== today)
+            return;
+        if (!groups[row.id])
+            groups[row.id] = [];
+        groups[row.id].push(row);
+    });
+    var clients = clientMap_(), states = pendingMap_(), codes = lotCodeMaps_().byPerson;
+    return Object.keys(groups).sort(function (a, b) { return new Date(groups[b][0].dateTime) - new Date(groups[a][0].dateTime); }).map(function (id) { return eventFromRows_(id, groups[id], clients, codes, states); });
 }
 function pending_() {
     ensureTech_();

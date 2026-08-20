@@ -7,10 +7,11 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: "Atención al Cliente - Control de Ingresos",
-  description: "Registro y regularización de ingresos a planta con sincronización offline-first.",
+  description: "Prototipo para el registro y regularización de ingresos a planta.",
   manifest: "/manifest.webmanifest",
   applicationName: "Atención al Cliente",
   themeColor: "#143a37",
+  other: { "codex-preview": "development" },
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };
 

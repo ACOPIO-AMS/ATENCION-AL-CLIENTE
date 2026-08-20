@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
-type View = "registro" | "pendientes" | "buscar" | "personas";
+type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas";
 type PersonRecord = { name: string; phone: string; license?: string; category?: string };
 type Participant = { id: number; dni: string; name: string; phone: string; role: Role; license: string; category: string; found: boolean | null; newPerson: boolean; automaticDriver: boolean; expectedLater: boolean; lots: string; detail: string; lotCodes: string[]; cargoRegularize: boolean };
 type EventForm = { motive: string; plate: string; zone: string; guard: string; shift: string; responsible: string };
@@ -18,7 +18,7 @@ type ModalAlertType = Exclude<AlertType, "warning">;
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
-const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-19-V8"];
+const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-19-V8", "ATENCION-2026-08-20-V9"];
 
 class SheetsApiError extends Error {
   status: number;
@@ -35,20 +35,19 @@ function requestId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-const PEOPLE: Record<string, PersonRecord> = {
-  "46281937": { name: "JUAN TAPIA GUTIÉRREZ", phone: "973928453", license: "Q46281937", category: "A-IIb" },
-  "78541236": { name: "FIDEL VARGAS FUSTER", phone: "922342486" },
-  "73420951": { name: "NELSY RI RIM", phone: "964108225" },
-};
-
 const CASES = [
-  { id: 1, title: "General", note: "Vehículo, proveedor y acompañantes", tag: "COMPLETO" },
-  { id: 2, title: "Solo conductor", note: "El conductor reporta lotes y carga", tag: "DIRECTO" },
-  { id: 3, title: "Vehículo solo", note: "Proveedor llegará después", tag: "PENDIENTE" },
+  { id: 1, title: "Ingreso general", note: "Conductor solo o con proveedor y acompañantes", tag: "GENERAL" },
   { id: 4, title: "Proveedor solo", note: "Vehículo y conductor llegarán después", tag: "PENDIENTE" },
   { id: 5, title: "Retiro de lote", note: "Vehículo retira lotes registrados", tag: "RETIRO" },
   { id: 6, title: "RM / Muestreo / Recoger muestra", note: "Proveedor sin vehículo", tag: "ESPECIAL" },
 ];
+
+const OPTION_NUMBER: Record<number, number> = { 1: 1, 4: 2, 5: 3, 6: 4, 2: 1, 3: 1 };
+
+const LEGACY_CASES: Record<number, (typeof CASES)[number]> = {
+  2: { id: 2, title: "Solo conductor", note: "Registro anterior compatible", tag: "ANTERIOR" },
+  3: { id: 3, title: "Vehículo solo", note: "Registro anterior compatible", tag: "ANTERIOR" },
+};
 
 function normalizeCategory(value?: string) {
   const raw = String(value ?? "").trim().toUpperCase().replace(/[–—]/g, "-").replace(/\s+/g, "");
@@ -57,11 +56,15 @@ function normalizeCategory(value?: string) {
   return categories[compact] ?? raw;
 }
 
+function normalizeLicense(value?: string) {
+  return String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9);
+}
+
 function compactWritePayload(payload: Record<string, unknown>) {
   const source = payload as Record<string, unknown> & { participants?: Array<Partial<Participant>> };
   const compactParticipants = (source.participants || []).filter(person => /^\d{8}$/.test(String(person.dni || ""))).map(person => ({
     dni: String(person.dni || ""), name: String(person.name || ""), phone: String(person.phone || ""), role: person.role,
-    license: person.role === "CONDUCTOR" ? String(person.license || "") : "",
+    license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "",
     category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "",
     lots: String(person.lots || ""), detail: String(person.detail || ""), lotCodes: (person.lotCodes || []).filter(Boolean),
   }));
@@ -69,22 +72,6 @@ function compactWritePayload(payload: Record<string, unknown>) {
 }
 
 const blankPerson = (id: number, role: Role, automaticDriver = false): Participant => ({ id, dni: "", name: "", phone: "", role, license: "", category: "", found: null, newPerson: false, automaticDriver, expectedLater: false, lots: "", detail: "", lotCodes: [], cargoRegularize: false });
-const knownPerson = (id: number, dni: string, role: Role, automaticDriver = false): Participant => {
-  const person = PEOPLE[dni];
-  return {
-    ...blankPerson(id, role, automaticDriver),
-    dni,
-    name: person.name,
-    phone: person.phone,
-    license: role === "CONDUCTOR" ? person.license ?? "" : "",
-    category: role === "CONDUCTOR" ? normalizeCategory(person.category) : "",
-    found: true,
-  };
-};
-
-function withCargo(person: Participant, lots: string, detail = "", lotCodes: string[] = []) {
-  return { ...person, lots, detail, lotCodes };
-}
 
 function cargoMode(caseId: number, role: Role, providerCount = 1): "detail" | "codes" | null {
   if (role === "CONDUCTOR" && providerCount > 0) return null;
@@ -143,6 +130,11 @@ function recentFromSheet(item: SheetEvent): RecentItem {
   return { id: item.id, time: new Date(item.dateTime).toLocaleString("es-PE"), plate: item.plate || "SIN PLACA", status: item.status === "PENDIENTE" ? "Pendiente" : "Registrado", persons: item.persons };
 }
 
+function isTodayInPeru(value: string) {
+  const options: Intl.DateTimeFormatOptions = { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit" };
+  return new Date(value).toLocaleDateString("es-PE", options) === new Date().toLocaleDateString("es-PE", options);
+}
+
 function queuePreview(item: QueueItem) {
   const payload = item.payload as { event?: Partial<EventForm>; participants?: Array<Partial<Participant>> };
   const persons = payload.participants || [];
@@ -153,7 +145,6 @@ function queuePreview(item: QueueItem) {
 }
 
 function readCachedPerson(dni: string): PersonRecord | undefined {
-  if (PEOPLE[dni]) return PEOPLE[dni];
   if (typeof window === "undefined") return undefined;
   try {
     const cache = JSON.parse(window.localStorage.getItem(CLIENT_CACHE_KEY) || "{}") as Record<string, PersonRecord>;
@@ -179,8 +170,8 @@ export default function Home() {
   const [activeCase, setActiveCase] = useState(1);
   const [activeView, setActiveView] = useState<View>("registro");
   const [dateTime, setDateTime] = useState(nowValue());
-  const [event, setEvent] = useState<EventForm>(() => ({ motive: "PROCESO", plate: "VEF-803", zone: "HUANCAYO", guard: "A", shift: shiftFromDateTime(nowValue()), responsible: "LIZETH SURICHAQUI" }));
-  const [participants, setParticipants] = useState<Participant[]>([knownPerson(1, "46281937", "CONDUCTOR", true), withCargo(knownPerson(2, "78541236", "PROVEEDOR"), "2", "60 20"), knownPerson(3, "73420951", "ACOMPAÑANTE")]);
+  const [event, setEvent] = useState<EventForm>(() => ({ motive: "PROCESO", plate: "", zone: "", guard: "", shift: shiftFromDateTime(nowValue()), responsible: "" }));
+  const [participants, setParticipants] = useState<Participant[]>(() => emptyParticipantsForCase(1));
   const [toast, setToast] = useState<{ message: string; type: ModalAlertType } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
@@ -199,21 +190,20 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [regularizingId, setRegularizingId] = useState<string | null>(null);
   const [pendingEvents, setPendingEvents] = useState<SheetEvent[]>([]);
+  const [todayEvents, setTodayEvents] = useState<SheetEvent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SheetEvent[]>([]);
   const [clients, setClients] = useState<Array<PersonRecord & { dni: string; role?: string }>>([]);
-  const [recent, setRecent] = useState<RecentItem[]>([
-    { id: "ING-00842", time: "10:18", plate: "VEF-803", status: "Registrado", persons: [{ dni: "46281937", name: "JUAN TAPIA GUTIÉRREZ", role: "CONDUCTOR", lots: "", detail: "", lotCodes: [] }, { dni: "78541236", name: "FIDEL VARGAS FUSTER", role: "PROVEEDOR", lots: "2", detail: "60 20", lotCodes: [] }] },
-    { id: "ING-00841", time: "09:54", plate: "ABC-890", status: "Pendiente", persons: [{ dni: "46281937", name: "JUAN TAPIA GUTIÉRREZ", role: "CONDUCTOR", lots: "4", detail: "2 5 80 20", lotCodes: [] }] },
-  ]);
+  const [recent, setRecent] = useState<RecentItem[]>([]);
 
-  const caseInfo = CASES.find((item) => item.id === activeCase) ?? CASES[0];
+  const caseInfo = CASES.find((item) => item.id === activeCase) ?? LEGACY_CASES[activeCase] ?? CASES[0];
   const hasVehicle = activeCase !== 6;
   const drivers = participants.filter((person) => person.role === "CONDUCTOR");
   const providers = participants.filter((person) => person.role === "PROVEEDOR");
   const totalLots = participants.reduce((total, person) => total + (Number(person.lots) || 0), 0);
   const motiveOptions = activeCase === 5 ? ["RETIRO DE LOTE"] : activeCase === 6 ? ["PROCESO", "RM", "MUESTREO", "RECOGER MUESTRA"] : ["PROCESO"];
   const motiveIsSelectable = activeCase === 5 || activeCase === 6;
+  const todayRows = useMemo(() => todayEvents.flatMap(item => item.persons.filter(person => person.role === "PROVEEDOR" || person.role === "CONDUCTOR").map((person, index) => ({ event: item, person, key: `${item.id}-${person.dni}-${index}` }))), [todayEvents]);
   const connectionLabel = connection === "online" ? "CONECTADO" : connection === "outdated" ? "SCRIPT ANTERIOR" : connection === "unconfigured" ? "SIN CONFIGURAR" : connection === "checking" ? "VERIFICANDO" : "SIN INTERNET";
   const backendShort = backendVersion.match(/V\d+$/)?.[0] || "";
   const connectionTitle = connection === "online" ? `Google Sheets conectado${backendShort ? ` · Servidor ${backendShort}` : ""}` : connection === "outdated" ? "Apps Script desactualizado" : connection === "unconfigured" ? "Google Sheets sin configurar" : connection === "checking" ? "Verificando conexión" : "Trabajo sin conexión";
@@ -221,6 +211,7 @@ export default function Home() {
   const pendingReasons = useMemo(() => {
     const reasons: string[] = [];
     if (!event.responsible.trim()) reasons.push("Responsable de atención");
+    if (!event.guard) reasons.push("Guardia");
     if (hasVehicle && !event.plate.trim()) reasons.push("Placa del vehículo");
     if (hasVehicle && !event.zone.trim()) reasons.push("Zona del vehículo");
     if ((activeCase === 3 || activeCase === 6) && providers.length === 0) reasons.push("Al menos un proveedor");
@@ -238,6 +229,7 @@ export default function Home() {
         }
         if (person.role === "CONDUCTOR") {
           if (!person.license.trim()) reasons.push("Número de licencia del conductor");
+          if (person.license.length > 9) reasons.push("Licencia del conductor de máximo 9 caracteres");
           if (!person.category) reasons.push("Categoría de licencia del conductor");
         }
       }
@@ -402,9 +394,31 @@ export default function Home() {
   }
 
   useEffect(() => {
+    let active = true;
+    let refreshing = false;
+    let serviceWorkerRegistration: ServiceWorkerRegistration | undefined;
+    let serviceWorkerUpdateTimer: number | undefined;
+    const reloadForNewVersion = () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+    const checkForAppUpdate = () => {
+      if (navigator.onLine && serviceWorkerRegistration) void serviceWorkerRegistration.update();
+    };
+    const checkVisibleVersion = () => {
+      if (document.visibilityState === "visible") checkForAppUpdate();
+    };
     if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then((registration) => registration.update());
+      navigator.serviceWorker.addEventListener("controllerchange", reloadForNewVersion);
+      void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then((registration) => {
+        if (!active) return;
+        serviceWorkerRegistration = registration;
+        void registration.update();
+        serviceWorkerUpdateTimer = window.setInterval(checkForAppUpdate, 60_000);
+      });
     }
+    document.addEventListener("visibilitychange", checkVisibleVersion);
     const online = () => { void checkConnection(true); };
     const offline = () => setConnection("offline");
     window.addEventListener("online", online);
@@ -421,12 +435,29 @@ export default function Home() {
       if (queueRef.current.length) void syncQueue();
       else void checkConnection(false);
     }, 15_000);
-    return () => { window.removeEventListener("online", online); window.removeEventListener("offline", offline); window.clearTimeout(initialCheck); if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current); if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current); if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current); window.clearInterval(timer); };
+    return () => {
+      active = false;
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+      document.removeEventListener("visibilitychange", checkVisibleVersion);
+      if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("controllerchange", reloadForNewVersion);
+      window.clearTimeout(initialCheck);
+      if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
+      if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      if (serviceWorkerUpdateTimer) window.clearInterval(serviceWorkerUpdateTimer);
+      window.clearInterval(timer);
+    };
     // La comprobación se inicia una sola vez; las funciones usan referencias estables para la cola.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function updateParticipant(id: number, changes: Partial<Participant>) { setParticipants((current) => current.map((person) => person.id === id ? { ...person, ...changes } : person)); }
+  function deferProvider(person: Participant) {
+    const hasEnteredData = Boolean(person.dni || person.name || person.phone || person.lots || person.detail || person.lotCodes.some(Boolean));
+    if (hasEnteredData && !window.confirm("Se limpiarán los datos de este proveedor para registrarlo cuando llegue. ¿Continuar?")) return;
+    updateParticipant(person.id, { dni: "", name: "", phone: "", found: null, newPerson: false, expectedLater: true, lots: "", detail: "", lotCodes: [], cargoRegularize: true });
+  }
   function resizeLotCodes(id: number, value: string) {
     const count = Math.min(Number(value) || 0, 30);
     setParticipants((current) => current.map((person) => person.id === id ? { ...person, lots: value, lotCodes: Array.from({ length: count }, (_, index) => person.lotCodes[index] ?? "") } : person));
@@ -447,7 +478,7 @@ export default function Home() {
         found: true,
         newPerson: false,
         expectedLater: false,
-        license: person.role === "CONDUCTOR" ? result.license ?? "" : "",
+        license: person.role === "CONDUCTOR" ? normalizeLicense(result.license) : "",
         category: person.role === "CONDUCTOR" ? normalizeCategory(result.category) : "",
       });
       cachePerson(person.dni, result);
@@ -464,7 +495,7 @@ export default function Home() {
         if (result.found && result.person) {
           updateParticipant(person.id, {
             name: result.person.name, phone: result.person.phone, role: person.role, found: true, newPerson: false, expectedLater: false,
-            license: person.role === "CONDUCTOR" ? result.person.license ?? "" : "",
+            license: person.role === "CONDUCTOR" ? normalizeLicense(result.person.license) : "",
             category: person.role === "CONDUCTOR" ? normalizeCategory(result.person.category) : "",
           });
           cachePerson(person.dni, result.person);
@@ -499,19 +530,16 @@ export default function Home() {
       if (person.phone && !/^\d{9}$/.test(person.phone)) return flash("El celular del acompañante debe tener 9 números o quedar vacío");
     } else if (!/^\d{9}$/.test(person.phone)) return flash("El celular debe tener exactamente 9 números");
     if (person.role === "CONDUCTOR" && (!person.license.trim() || !person.category)) return flash("Completa el número y la categoría de licencia");
+    if (person.role === "CONDUCTOR" && person.license.length > 9) return flash("La licencia debe tener como máximo 9 caracteres");
     updateParticipant(person.id, { found: true, newPerson: false });
     flash("La persona se añadirá a BD CLIENTES al guardar el ingreso", "warning");
   }
 
   function applyCase(caseId: number) {
-    setRegularizingId(null); setActiveCase(caseId); setDateTime(nowValue());
-    const baseEvent = { ...event, motive: "PROCESO", plate: "VEF-803", zone: "HUANCAYO" };
-    if (caseId === 1) { setEvent(baseEvent); setParticipants([knownPerson(1, "46281937", "CONDUCTOR", true), withCargo(knownPerson(2, "78541236", "PROVEEDOR"), "2", "60 20"), knownPerson(3, "73420951", "ACOMPAÑANTE")]); }
-    if (caseId === 2) { setEvent({ ...baseEvent, plate: "ABC-890" }); setParticipants([withCargo(knownPerson(1, "46281937", "CONDUCTOR", true), "4", "2 5 80 20")]); }
-    if (caseId === 3) { setParticipants([knownPerson(1, "46281937", "CONDUCTOR", true), { ...blankPerson(2, "PROVEEDOR"), expectedLater: true, cargoRegularize: true }]); }
-    if (caseId === 4) { setEvent({ ...baseEvent, plate: "", zone: "" }); setParticipants([{ ...blankPerson(1, "CONDUCTOR", true), expectedLater: true }, withCargo(knownPerson(2, "78541236", "PROVEEDOR"), "3", "100 50 20")]); }
-    if (caseId === 5) { setEvent({ ...baseEvent, motive: "RETIRO DE LOTE", plate: "ABC-890", zone: "JAUJA" }); setParticipants([withCargo(knownPerson(1, "46281937", "CONDUCTOR", true), "2", "", ["L-204", "L-205"]), knownPerson(2, "73420951", "ACOMPAÑANTE")]); }
-    if (caseId === 6) { setEvent({ ...baseEvent, motive: "MUESTREO", plate: "", zone: "" }); setParticipants([withCargo(knownPerson(1, "73420951", "PROVEEDOR"), "3", "", ["RM-120", "RM-121", "RM-122"])]); }
+    const nextDateTime = nowValue();
+    setRegularizingId(null); setActiveCase(caseId); setDateTime(nextDateTime);
+    setEvent(current => ({ ...current, motive: caseId === 5 ? "RETIRO DE LOTE" : "PROCESO", plate: "", zone: "", shift: shiftFromDateTime(nextDateTime) }));
+    setParticipants(emptyParticipantsForCase(caseId));
   }
 
   function clearEntryKeepingGeneral() {
@@ -529,7 +557,7 @@ export default function Home() {
     const clientRequestId = requestId();
     const compactParticipants = participants.filter(person => /^\d{8}$/.test(person.dni)).map(person => ({
       dni: person.dni, name: person.name, phone: person.phone, role: person.role,
-      license: person.role === "CONDUCTOR" ? person.license : "",
+      license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "",
       category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "",
       lots: person.lots, detail: person.detail, lotCodes: person.lotCodes.filter(Boolean),
     }));
@@ -553,6 +581,23 @@ export default function Home() {
     finally { setBusy(false); }
   }
 
+  async function loadToday() {
+    setBusy(true);
+    try {
+      try {
+        setTodayEvents(await sheetsApi<SheetEvent[]>("today"));
+      } catch (error) {
+        if (!(error instanceof Error) || !/Acción no permitida/i.test(error.message)) throw error;
+        const recentRows = await sheetsApi<SheetEvent[]>("recent", { limit: 50 });
+        setTodayEvents(recentRows.filter(item => isTodayInPeru(item.dateTime)));
+      }
+    } catch (error) {
+      flash(error instanceof Error ? error.message : "No se pudo cargar el reporte de hoy", "warning");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function runSearch() {
     if (!searchQuery.trim()) return flash("Escribe una placa, código, nombre, DNI o ID");
     setBusy(true); try { setSearchResults(await sheetsApi<SheetEvent[]>("search", { query: searchQuery, limit: 30 })); }
@@ -569,7 +614,7 @@ export default function Home() {
   function openRegularization(item: SheetEvent) {
     setRegularizingId(item.id); setActiveCase(item.caseId || 1); setDateTime(nowValue());
     setEvent({ motive: item.motive, plate: item.plate, zone: item.zone, guard: item.guard, shift: item.shift, responsible: item.responsible });
-    const loaded = item.persons.map((person, index) => ({ ...blankPerson(index + 1, person.role, person.role === "CONDUCTOR"), ...person, category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "", found: true }));
+    const loaded = item.persons.map((person, index) => ({ ...blankPerson(index + 1, person.role, person.role === "CONDUCTOR"), ...person, license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "", category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "", found: true }));
     if ((item.caseId || 1) === 4 && !loaded.some((person) => person.role === "CONDUCTOR")) {
       loaded.unshift({ ...blankPerson(loaded.length + 1, "CONDUCTOR", true), expectedLater: true });
     }
@@ -582,6 +627,7 @@ export default function Home() {
       <div className="brand"><span className="brand-mark">AC</span><div><strong>Atención al Cliente</strong><small>Control de ingresos</small></div></div>
       <nav aria-label="Navegación principal">
         <button className={activeView === "registro" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("registro")}><span>＋</span> Nuevo ingreso</button>
+        <button className={activeView === "hoy" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("hoy"); void loadToday(); }}><span>▦</span> Reporte diario</button>
         <button className={activeView === "pendientes" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("pendientes"); void loadPending(); }}><span>◷</span> Por regularizar {pendingEvents.length > 0 && <b>{pendingEvents.length}</b>}</button>
         <button className={activeView === "buscar" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("buscar")}><span>⌕</span> Buscar</button>
         <button className={activeView === "personas" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("personas"); void loadClients(); }}><span>◎</span> BD Clientes</button>
@@ -591,19 +637,19 @@ export default function Home() {
     </aside>
 
     <section className="workspace">
-      <header className="topbar"><div><p>OPERACIONES / ATENCIÓN AL CLIENTE</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : "BD Clientes"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
+      <header className="topbar"><div><p>OPERACIONES / ATENCIÓN AL CLIENTE</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : "BD Clientes"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
       {showQueueManager && queue.length > 0 && <section className="queue-manager"><div className="queue-manager-head"><div><strong>Pendientes guardados en este dispositivo</strong><span>Un registro con error ya no detiene a los demás. Revísalo antes de eliminarlo.</span></div><button type="button" className="danger-link" onClick={removeAllQueued}>Eliminar todos</button></div><div className="queue-list">{queue.map(item => { const preview = queuePreview(item); return <article className={item.lastError ? "queue-item has-error" : "queue-item"} key={item.queueId}><div className="queue-item-main"><strong>{item.localId}</strong><span>{new Date(item.createdAt).toLocaleString("es-PE")} · {item.action === "regularizeEvent" ? "REGULARIZACIÓN" : "NUEVO INGRESO"}</span><p>{preview.plate} · {preview.people}</p>{item.lastError && <em>{item.lastError}</em>}</div><div className="queue-item-actions"><button type="button" onClick={() => retryQueued(item.queueId)} disabled={syncing}>Reintentar</button><button type="button" className="danger" onClick={() => removeQueued(item.queueId)} disabled={syncing}>Eliminar</button></div></article>; })}</div></section>}
 
       {activeView === "registro" && <>
         {regularizingId && <section className="regularization-banner"><div><strong>Regularización activa: {regularizingId}</strong><span>Las filas existentes conservan su fecha y hora; solo las personas nuevas usan la hora actual.</span></div></section>}
-        <section className="case-panel"><div className="case-heading"><div><span>MATRIZ OPERATIVA ACTUALIZADA</span><h2>Prueba los 6 casos de atención</h2></div><p>No se guarda N.º de personas; el total se calcula contando las filas con el mismo ID.</p></div><div className="case-grid six-cases">{CASES.map((item) => <button type="button" key={item.id} className={activeCase === item.id ? "case-chip selected" : "case-chip"} onClick={() => applyCase(item.id)}><b>{item.id}</b><span><strong>{item.title}</strong><small>{item.note}</small></span><em>{item.tag}</em></button>)}</div></section>
+        <section className="case-panel"><div className="case-heading"><div><span>MATRIZ OPERATIVA ACTUALIZADA</span><h2>Selecciona el tipo de atención</h2></div><p>La opción 1 incluye conductor solo, proveedor pendiente y acompañantes.</p></div><div className="case-grid four-cases">{CASES.map((item) => <button type="button" key={item.id} className={activeCase === item.id ? "case-chip selected" : "case-chip"} onClick={() => applyCase(item.id)}><b>{OPTION_NUMBER[item.id]}</b><span><strong>{item.title}</strong><small>{item.note}</small></span><em>{item.tag}</em></button>)}</div></section>
 
         <form onSubmit={(e) => e.preventDefault()} className="form-layout"><div className="main-column">
-          <section className="form-card"><div className="section-title"><span>1</span><div><h2>Datos generales</h2><p>Fecha, responsable, guardia y turno</p></div><em>CASO {activeCase}: {caseInfo.title.toUpperCase()}</em></div><div className="fields-grid general-grid">
+          <section className="form-card"><div className="section-title"><span>1</span><div><h2>Datos generales</h2><p>Fecha, responsable, guardia y turno</p></div><em>OPCIÓN {OPTION_NUMBER[activeCase] || 1}: {caseInfo.title.toUpperCase()}</em></div><div className="fields-grid general-grid">
             <label>Fecha y hora de ingreso<input type="datetime-local" value={dateTime} onInput={(e) => { const value = e.currentTarget.value; setDateTime(value); setEvent(current => ({ ...current, shift: shiftFromDateTime(value) })); }} onChange={() => undefined} /></label>
             <label>Responsable<input value={event.responsible} onChange={(e) => setEvent({ ...event, responsible: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /></label>
-            <label>Guardia<select value={event.guard} onChange={(e) => setEvent({ ...event, guard: e.target.value })}><option>A</option><option>B</option><option>C</option></select></label>
+            <label>Guardia<select value={event.guard} onChange={(e) => setEvent({ ...event, guard: e.target.value })}><option value="">Seleccionar</option><option>A</option><option>B</option><option>C</option></select></label>
             <label>Turno<select value={event.shift} disabled><option>DÍA</option><option>NOCHE</option></select><small>Automático: Día 07:00–18:59 · Noche 19:00–06:59</small></label>
           </div></section>
 
@@ -613,18 +659,18 @@ export default function Home() {
           </div></section>
 
           <section className="form-card"><div className="section-title"><span>3</span><div><h2>Personas y lotes</h2><p>Conductor automático, participantes y datos de carga</p></div><em>{participants.length} {participants.length === 1 ? "PERSONA" : "PERSONAS"}</em></div>
-            {activeCase !== 6 && <div className="driver-banner"><span>✓</span><div><strong>Conductor generado automáticamente</strong><small>Este bloque es obligatorio en el caso {activeCase}. Incluye número y categoría de licencia.</small></div></div>}
+            {activeCase !== 6 && <div className="driver-banner"><span>✓</span><div><strong>Conductor generado automáticamente</strong><small>Este bloque es obligatorio en la opción {OPTION_NUMBER[activeCase] || 1}. Incluye número y categoría de licencia.</small></div></div>}
             <div className="participants-list">{participants.map((person, index) => {
               const mode = cargoMode(activeCase, person.role, providers.length);
               return <article className={`participant-card role-${person.role.toLowerCase()} ${person.expectedLater ? "expected" : ""}`} key={person.id}>
-              <div className="participant-head"><div><span className="person-number">{index + 1}</span>{person.automaticDriver ? <strong>CONDUCTOR OBLIGATORIO</strong> : <select aria-label={`Ocupación de persona ${index + 1}`} value={person.role} onChange={(e) => { const role = e.target.value as Role; updateParticipant(person.id, { role, license: "", category: "", ...(role === "ACOMPAÑANTE" ? { lots: "", detail: "", lotCodes: [], cargoRegularize: false } : {}) }); }}><option>PROVEEDOR</option><option>ACOMPAÑANTE</option></select>}</div>{!person.automaticDriver && participants.length > 1 && <button type="button" className="remove" onClick={() => setParticipants((current) => current.filter((item) => item.id !== person.id))}>Eliminar</button>}</div>
-              {person.expectedLater && <div className="expected-note"><span>◷</span><div><strong>{person.role === "CONDUCTOR" ? "Conductor" : "Proveedor"} pendiente de llegada</strong><small>No se crea una fila vacía; se insertará al regularizar.</small></div><button type="button" onClick={() => updateParticipant(person.id, { expectedLater: false })}>Completar datos del {person.role === "CONDUCTOR" ? "conductor" : "proveedor"}</button></div>}
+              <div className="participant-head"><div><span className="person-number">{index + 1}</span>{person.automaticDriver ? <strong>CONDUCTOR OBLIGATORIO</strong> : <select aria-label={`Ocupación de persona ${index + 1}`} value={person.role} onChange={(e) => { const role = e.target.value as Role; updateParticipant(person.id, { role, license: "", category: "", ...(role === "ACOMPAÑANTE" ? { lots: "", detail: "", lotCodes: [], cargoRegularize: false, expectedLater: false } : {}) }); }}><option>PROVEEDOR</option><option>ACOMPAÑANTE</option></select>}</div><div className="participant-actions">{activeCase === 1 && person.role === "PROVEEDOR" && !person.expectedLater && <button type="button" className="defer-person" onClick={() => deferProvider(person)}>Llegará después</button>}{!person.automaticDriver && participants.length > 1 && <button type="button" className="remove" onClick={() => setParticipants((current) => current.filter((item) => item.id !== person.id))}>Eliminar</button>}</div></div>
+              {person.expectedLater && <div className="expected-note"><span>◷</span><div><strong>{person.role === "CONDUCTOR" ? "Conductor" : "Proveedor"} pendiente de llegada</strong><small>No se crea una fila vacía; se insertará al regularizar.</small></div><button type="button" onClick={() => updateParticipant(person.id, { expectedLater: false, cargoRegularize: false })}>Completar datos del {person.role === "CONDUCTOR" ? "conductor" : "proveedor"}</button></div>}
               {!person.expectedLater && <><div className="person-fields">
                 <label>DNI<div className="search-control"><input inputMode="numeric" maxLength={8} placeholder="8 números" value={person.dni} onChange={(e) => updateParticipant(person.id, { dni: e.target.value.replace(/\D/g, "").slice(0, 8), found: null, newPerson: false, name: "", phone: "", license: "", category: "" })} onKeyDown={(e) => { if (e.key === "Enter" && person.dni.length === 8) { e.preventDefault(); void searchDni(person); } }} /><button type="button" aria-label={`Buscar DNI ${person.dni}`} disabled={person.dni.length !== 8 || busy} onClick={() => void searchDni(person)}>{busy ? "Buscando…" : "Buscar DNI"}</button></div><small>Consulta BD CLIENTES siempre; solo usa la copia local si la conexión falla.</small></label>
                 <label>Nombres y apellidos<input value={person.name} readOnly={!person.newPerson} placeholder="1 nombre y 2 apellidos" onChange={(e) => updateParticipant(person.id, { name: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /><small>Solo texto; mínimo tres palabras</small></label>
                 <label>Celular<input inputMode="numeric" maxLength={9} value={person.phone} placeholder={person.role === "ACOMPAÑANTE" ? "Opcional" : "9 números"} onChange={(e) => updateParticipant(person.id, { phone: e.target.value.replace(/\D/g, "").slice(0, 9) })} /><small>{person.role === "ACOMPAÑANTE" ? "Opcional; si cambia, actualiza BD CLIENTES" : "9 números; puedes corregirlo y actualizar BD CLIENTES"}</small></label>
               </div>
-              {person.role === "CONDUCTOR" && <div className="license-fields"><label>Número de licencia<input placeholder="Ej. Q46281937" value={person.license} onChange={(e) => updateParticipant(person.id, { license: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })} /><small>Editable para completar o actualizar el registro.</small></label><label>Categoría<select value={normalizeCategory(person.category)} onChange={(e) => updateParticipant(person.id, { category: normalizeCategory(e.target.value) })}><option value="">Seleccionar</option><option value="A-I">A-I</option><option value="A-IIA">A-IIa</option><option value="A-IIB">A-IIb</option><option value="A-IIIA">A-IIIa</option><option value="A-IIIB">A-IIIb</option><option value="A-IIIC">A-IIIc</option></select><small>Se actualizará también en BD CLIENTES.</small></label></div>}
+              {person.role === "CONDUCTOR" && <div className="license-fields"><label>Número de licencia<input maxLength={9} placeholder="Máximo 9 caracteres" value={person.license} onChange={(e) => updateParticipant(person.id, { license: normalizeLicense(e.target.value) })} /><small>Máximo 9 caracteres; editable para completar o actualizar.</small></label><label>Categoría<select value={normalizeCategory(person.category)} onChange={(e) => updateParticipant(person.id, { category: normalizeCategory(e.target.value) })}><option value="">Seleccionar</option><option value="A-I">A-I</option><option value="A-IIA">A-IIa</option><option value="A-IIB">A-IIb</option><option value="A-IIIA">A-IIIa</option><option value="A-IIIB">A-IIIb</option><option value="A-IIIC">A-IIIc</option></select><small>Se actualizará también en BD CLIENTES.</small></label></div>}
               {person.found === true && <div className="match-message success"><span>✓</span><div><strong>Persona identificada</strong><small>Encontrada o lista para añadirse a BD CLIENTES</small></div></div>}
               {person.newPerson && <div className="new-person"><div><span>!</span><p><strong>DNI no registrado</strong><small>Completa nombres{person.role === "ACOMPAÑANTE" ? "; el celular es opcional" : ", celular"}{person.role === "CONDUCTOR" ? ", licencia y categoría" : ""}.</small></p></div><button type="button" onClick={() => registerNewPerson(person)}>Registrar nueva persona</button></div>}
               {mode && <div className="cargo-block person-cargo"><div className="cargo-heading"><div><span>▦</span><div><h3>{mode === "codes" ? "Lotes y códigos opcionales" : "Lotes y detalle de carga"}</h3><p>Información enlazada únicamente a {person.name || `este ${person.role.toLowerCase()}`}.</p></div></div><label className="regularize-inline"><input type="checkbox" checked={person.cargoRegularize} onChange={(e) => updateParticipant(person.id, { cargoRegularize: e.target.checked })} /><span><strong>Regularizar</strong><small>Esta información</small></span></label></div>
@@ -647,9 +693,11 @@ export default function Home() {
         </aside></form>
       </>}
 
+      {activeView === "hoy" && <section className="empty-view data-view today-report"><div className="view-heading"><div><span>▦</span><div><h2>Reporte diario</h2><p>Registros de hoy: proveedores y conductores guardados en MATRIZ.</p></div></div><button onClick={loadToday} disabled={busy}>{busy ? "Actualizando…" : "Actualizar"}</button></div><div className="today-table"><div className="today-head"><span>Fecha y hora</span><span>Placa</span><span>Zona</span><span>Proveedor o conductor</span><span>N.º lotes</span><span>Detalle</span></div>{todayRows.map(({ event: item, person, key }) => <div className="today-row" key={key}><span data-label="Fecha y hora">{new Date(item.dateTime).toLocaleString("es-PE", { timeZone: "America/Lima" })}</span><strong data-label="Placa">{item.plate || "SIN PLACA"}</strong><span data-label="Zona">{item.zone || "SIN ZONA"}</span><span data-label="Persona"><b>{person.name}</b><small>{person.role}</small></span><span data-label="N.º lotes">{person.lots || "—"}</span><span data-label="Detalle">{person.lotCodes.length ? person.lotCodes.join(" · ") : person.detail || "—"}</span></div>)}</div>{!todayRows.length && <p className="empty-message">{busy ? "Consultando los registros de hoy…" : "No hay registros de proveedores o conductores para hoy."}</p>}</section>}
+
       {activeView === "pendientes" && <section className="empty-view data-view"><div className="view-heading"><div><span>◷</span><div><h2>Eventos por regularizar</h2><p>Las personas nuevas se insertarán debajo del bloque existente.</p></div></div><button onClick={loadPending} disabled={busy}>Actualizar</button></div><div className="pending-table dynamic">{pendingEvents.length ? pendingEvents.map(item => <div key={item.id}><strong>{item.id}</strong><span>{item.plate || "SIN PLACA"} · {item.persons.map(person => person.name).join(", ")}</span><em>{item.pendingReasons?.join(" · ") || "Datos pendientes"}</em><button onClick={() => openRegularization(item)}>Regularizar</button></div>) : <p className="empty-message">{connection === "online" ? "No hay eventos pendientes." : "Conecta Google Sheets para consultar los pendientes."}</p>}</div></section>}
       {activeView === "buscar" && <section className="empty-view data-view"><div className="view-heading"><div><span>⌕</span><div><h2>Búsqueda en MATRIZ</h2><p>Placa, código de lote, persona, DNI o ID.</p></div></div></div><div className="record-search"><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === "Enter") void runSearch(); }} placeholder="Ej. ABC-450, RM-120, nombre o DNI" /><button onClick={runSearch} disabled={busy}>{busy ? "Buscando…" : "Buscar"}</button></div><div className="search-results">{searchResults.map(item => <article className="search-result" key={item.id}><div className="search-result-head"><div><strong>{item.id}</strong><span>{new Date(item.dateTime).toLocaleString("es-PE")} · {item.plate || "SIN PLACA"} · {item.zone || "SIN ZONA"}</span></div><button onClick={() => openRegularization(item)}>{item.status === "PENDIENTE" ? "Regularizar" : "Abrir"}</button></div><div className="result-persons">{item.persons.map((person, index) => <div key={`${item.id}-${person.dni}-${index}`}><strong>{person.name}</strong><span>DNI {person.dni} · {person.role}</span><small>{person.lots ? `${person.lots} lote(s): ${person.lotCodes.length ? person.lotCodes.join(", ") : person.detail}` : "Sin lotes asignados"}</small></div>)}</div></article>)}{!searchResults.length && <p className="empty-message">Los resultados aparecerán del más reciente al más antiguo.</p>}</div></section>}
-      {activeView === "personas" && <section className="empty-view data-view"><div className="people-toolbar"><div><h2>BD CLIENTES</h2><p>Fuente maestra para autocompletar por DNI.</p></div><button onClick={loadClients} disabled={busy}>Actualizar</button></div><div className="people-table"><div className="table-head"><span>DNI</span><span>Nombres y apellidos</span><span>Celular</span><span>Licencia</span><span>Estado</span></div>{(clients.length ? clients : Object.entries(PEOPLE).map(([dni, person]) => ({ dni, ...person, role: "ACTIVO" }))).map(person => <div className="table-row" key={person.dni}><span>{person.dni}</span><strong>{person.name}</strong><span>{person.phone}</span><span>{person.license ? `${person.license} · ${person.category}` : "—"}</span><em>{person.role || "ACTIVO"}</em></div>)}</div></section>}
+      {activeView === "personas" && <section className="empty-view data-view"><div className="people-toolbar"><div><h2>BD CLIENTES</h2><p>Fuente maestra para autocompletar por DNI.</p></div><button onClick={loadClients} disabled={busy}>Actualizar</button></div><div className="people-table"><div className="table-head"><span>DNI</span><span>Nombres y apellidos</span><span>Celular</span><span>Licencia</span><span>Estado</span></div>{clients.map(person => <div className="table-row" key={person.dni}><span>{person.dni}</span><strong>{person.name}</strong><span>{person.phone}</span><span>{person.license ? `${person.license} · ${person.category}` : "—"}</span><em>{person.role || "ACTIVO"}</em></div>)}</div>{!clients.length && <p className="empty-message">Pulsa Actualizar para consultar BD CLIENTES.</p>}</section>}
     </section>
     {notice && <div className="notice-toast" role="status" aria-live="polite">{notice}</div>}
     {toast && <div className="alert-overlay" role="alert" aria-live="assertive"><div className={`alert-card ${toast.type}`}><span className="alert-icon">{toast.type === "success" ? "✓" : "!"}</span><div><strong>{toast.type === "success" ? "REGISTRO EXITOSO" : "ATENCIÓN: NO SE GUARDÓ"}</strong><p>{toast.message}</p></div><button type="button" aria-label="Cerrar alerta" onClick={() => setToast(null)}>×</button></div></div>}
