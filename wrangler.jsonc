@@ -3,6 +3,7 @@
   "name": "atencion-al-cliente",
   "main": "dist/server/index.js",
   "compatibility_date": "2026-05-15",
+  "compatibility_flags": ["nodejs_compat_populate_process_env"],
   "keep_vars": true,
   "assets": {
     "directory": "dist/client",
