@@ -1,0 +1,12 @@
+{
+  "name": "Atención al Cliente - Control de Ingresos",
+  "short_name": "Atención Cliente",
+  "description": "Registro de ingresos en campo con sincronización a Google Sheets.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7f5",
+  "theme_color": "#143a37",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
