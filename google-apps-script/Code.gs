@@ -1,8 +1,8 @@
 // ATENCION AL CLIENTE - SCRIPT FINAL COMPATIBLE CON GOOGLE APPS SCRIPT
-// VERSION: ATENCION-2026-08-21-V12-COLA-ROBUSTA - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
+// VERSION: ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
 // VERIFICACION: este archivo usa sintaxis ES5 compatible, sin operadores modernos.
 
-var SCRIPT_VERSION = 'ATENCION-2026-08-21-V12-COLA-ROBUSTA';
+var SCRIPT_VERSION = 'ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA';
 var WRITE_LOCK_MS = 1500;
 
 var CFG = Object.freeze({ HEADER: 2, MATRIX: 'MATRIZ', CLIENTS: 'BD CLIENTES' });
@@ -110,12 +110,15 @@ function saveEvent_(p) {
     return eventAck_(id_1, p, people, status_1);
 }
 function regularize_(p) {
+    p = p && typeof p === 'object' ? p : {};
     validate_(p, true);
     var validPeople_1 = uniqueParticipants_(p.participants);
     var status = p.forRegularization || array_(p.pendingReasons).length ? 'PENDIENTE' : 'COMPLETO';
     var synchronizedId = syncedId_(p.clientRequestId);
-    if (synchronizedId)
+    if (synchronizedId) {
+        finishRegularization_(synchronizedId, p, validPeople_1, [], status);
         return getEvent_(synchronizedId);
+    }
     var lock = writeLock_(), id_2 = String(p.id || ''), addedPeople_1 = [];
     try {
         synchronizedId = syncedId_(p.clientRequestId);
@@ -179,6 +182,8 @@ function completedPerson_(current, incoming) {
     return next;
 }
 function completedEvent_(current, incoming) {
+    current = current && typeof current === 'object' ? current : {};
+    incoming = incoming && typeof incoming === 'object' ? incoming : {};
     var next = {}, keys = ['motive', 'plate', 'zone', 'guard', 'shift', 'responsible'];
     keys.forEach(function (key) { next[key] = String(incoming[key] || '').trim() ? incoming[key] : current[key]; });
     return next;
@@ -458,12 +463,19 @@ function pendingMap_() {
         if (key.indexOf('PENDING_') !== 0)
             return;
         var id = key.slice(8), state = parse_(all[key], null);
-        if (id && state)
-            out[id] = state;
+        if (!id)
+            return;
+        out[id] = state && typeof state === 'object' ? state : { caseId: 1, status: 'PENDIENTE', pendingReasons: ['Datos pendientes por regularizar'] };
     });
     return out;
 }
-function pendingState_(id) { return parse_(PropertiesService.getScriptProperties().getProperty('PENDING_' + String(id)), {}); }
+function pendingState_(id) {
+    var raw = PropertiesService.getScriptProperties().getProperty('PENDING_' + String(id));
+    if (raw === null || raw === undefined || raw === '')
+        return {};
+    var state = parse_(raw, null);
+    return state && typeof state === 'object' ? state : { caseId: 1, status: 'PENDIENTE', pendingReasons: ['Datos pendientes por regularizar'] };
+}
 function nextId_(sheet, m) {
     var year = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy'), key = 'ULTIMO_ID_' + year;
     var properties = PropertiesService.getScriptProperties(), max = Number(properties.getProperty(key) || 0);

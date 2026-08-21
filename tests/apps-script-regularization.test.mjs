@@ -79,8 +79,24 @@ test("old null arrays are converted to empty arrays", () => {
   assert.deepEqual(Array.from(context.array_(["A"])), ["A"]);
 });
 
-test("backend identifies the robust queue version", () => {
-  assert.equal(context.SCRIPT_VERSION, "ATENCION-2026-08-21-V12-COLA-ROBUSTA");
+test("backend identifies the safe regularization version", () => {
+  assert.equal(context.SCRIPT_VERSION, "ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA");
+});
+
+test("a legacy null pending state remains visible for regularization", () => {
+  context.PropertiesService = {
+    getScriptProperties() {
+      return {
+        getProperty() { return "null"; },
+        getProperties() { return { "PENDING_ING-2026-000080": "null" }; },
+      };
+    },
+  };
+  const state = context.pendingState_("ING-2026-000080");
+  const states = context.pendingMap_();
+  assert.equal(state.caseId, 1);
+  assert.equal(state.status, "PENDIENTE");
+  assert.equal(states["ING-2026-000080"].status, "PENDIENTE");
 });
 
 test("a legacy null SYNC_RECIENTE property does not stop synchronization", () => {
