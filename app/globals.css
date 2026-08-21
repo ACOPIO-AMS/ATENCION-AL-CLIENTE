@@ -78,6 +78,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .fields-grid, .person-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 label { color: #52605f; font-size: 10px; font-weight: 780; letter-spacing: .035em; text-transform: uppercase; }
 label input, label select { width: 100%; margin-top: 7px; min-height: 42px; border: 1px solid #d8e0dd; border-radius: 9px; background: #fbfcfb; padding: 10px 11px; color: var(--ink); font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 540; }
+label.required-field { color: #a34d4d; }
+label.required-field input, label.required-field select, label.required-field .search-control input { background: #fff2f2; border-color: #e3aaaa; box-shadow: 0 0 0 1px rgba(181, 71, 71, .08); }
+label.required-field input[readonly] { background: #fff2f2; color: #8f6666; }
+label.required-field input::placeholder { color: #b88989; }
+label.required-field small { color: #ad7171; }
 label input[readonly] { background: #f1f5f3; color: #64706e; }
 label small { display: block; margin-top: 4px; color: #97a19f; font-size: 8px; text-transform: none; letter-spacing: 0; line-height: 1.35; font-weight: 500; }
 .locked-fields { grid-column: span 2; background: #f3f5f4; border: 1px dashed #cfd8d4; padding: 10px; border-radius: 10px; display: flex; align-items: center; gap: 10px; color: #74807e; }

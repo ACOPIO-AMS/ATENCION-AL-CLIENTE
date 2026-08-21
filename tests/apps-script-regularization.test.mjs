@@ -72,3 +72,22 @@ test("lot header variants used by the spreadsheet are recognized", () => {
 test("light backend no longer depends on auxiliary sheets", () => {
   assert.doesNotMatch(source, /BD LOTES|CONTROL REGULARIZACIONES|HISTORIAL CAMBIOS|CONTROL SINCRONIZACION/);
 });
+
+test("old null arrays are converted to empty arrays", () => {
+  assert.deepEqual(Array.from(context.array_(null)), []);
+  assert.deepEqual(Array.from(context.array_(undefined)), []);
+  assert.deepEqual(Array.from(context.array_(["A"])), ["A"]);
+});
+
+test("backend identifies the robust queue version", () => {
+  assert.equal(context.SCRIPT_VERSION, "ATENCION-2026-08-21-V12-COLA-ROBUSTA");
+});
+
+test("a legacy null SYNC_RECIENTE property does not stop synchronization", () => {
+  context.PropertiesService = {
+    getScriptProperties() {
+      return { getProperty() { return "null"; } };
+    },
+  };
+  assert.equal(context.syncedId_("SOLICITUD-ANTIGUA"), "");
+});

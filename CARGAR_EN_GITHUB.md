@@ -2,7 +2,7 @@
 
 Este paquete contiene la aplicación completa. No cargues el archivo ZIP directamente: primero debes extraerlo.
 
-La revisión V11.1 mejora la lectura en teléfonos: agranda títulos, campos e iconos y deja en el panel de validación únicamente los datos pendientes por completar.
+La revisión V12.1 impide guardar registros incompletos, muestra la alerta de campos obligatorios en el centro de la pantalla y resalta suavemente en rojo cada campo pendiente. “Guardar para regularizar” solo admite información marcada expresamente como “Llegará después” o “Regularizar carga”.
 
 ## Método recomendado: GitHub Desktop
 
@@ -17,7 +17,7 @@ La revisión V11.1 mejora la lectura en teléfonos: agranda títulos, campos e i
 
 Cloudflare publicará automáticamente la rama `main` después de cada `Push origin`.
 
-## Google Apps Script V11 ligero
+## Google Apps Script V12 — cola robusta
 
 Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 
@@ -28,9 +28,9 @@ Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 5. Selecciona **Nueva versión** y pulsa **Implementar**.
 6. No ejecutes `configurarBase()`.
 
-La URL `/exec` debe responder con `ATENCION-2026-08-21-V11-LIGERO`.
+La URL `/exec` debe responder con `ATENCION-2026-08-21-V12-COLA-ROBUSTA`.
 
-Esta versión escribe directamente en `MATRIZ`, reconoce encabezados como `N.º LOTES`, `N° LOTES`, `N LOTES` y `NUMERO LOTES`, y no usa las hojas auxiliares `BD LOTES`, `CONTROL REGULARIZACIONES`, `HISTORIAL CAMBIOS` ni `CONTROL SINCRONIZACION`.
+Esta versión escribe directamente en `MATRIZ`, reconoce encabezados como `N.º LOTES`, `N° LOTES`, `N LOTES` y `NUMERO LOTES`, sanea colas antiguas que contienen valores `null` y no usa las hojas auxiliares `BD LOTES`, `CONTROL REGULARIZACIONES`, `HISTORIAL CAMBIOS` ni `CONTROL SINCRONIZACION`.
 
 ## Actualizaciones siguientes
 

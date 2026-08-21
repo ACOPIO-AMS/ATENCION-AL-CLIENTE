@@ -1,8 +1,8 @@
 // ATENCION AL CLIENTE - SCRIPT FINAL COMPATIBLE CON GOOGLE APPS SCRIPT
-// VERSION: ATENCION-2026-08-21-V11-LIGERO - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
+// VERSION: ATENCION-2026-08-21-V12-COLA-ROBUSTA - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
 // VERIFICACION: este archivo usa sintaxis ES5 compatible, sin operadores modernos.
 
-var SCRIPT_VERSION = 'ATENCION-2026-08-21-V11-LIGERO';
+var SCRIPT_VERSION = 'ATENCION-2026-08-21-V12-COLA-ROBUSTA';
 var WRITE_LOCK_MS = 1500;
 
 var CFG = Object.freeze({ HEADER: 2, MATRIX: 'MATRIZ', CLIENTS: 'BD CLIENTES' });
@@ -65,7 +65,7 @@ function searchPerson_(dni) {
     return row ? { found: true, person: clientObject_(row, m) } : { found: false };
 }
 function syncBatch_(items) {
-    return (items || []).slice(0, 5).map(function (item) {
+    return array_(items).slice(0, 5).map(function (item) {
         if (item.action === 'saveEvent')
             return saveEvent_(item.payload || {});
         if (item.action === 'regularizeEvent')
@@ -79,10 +79,10 @@ function listPeople_(limit) {
 }
 function saveEvent_(p) {
     validate_(p, false);
-    var people = uniqueParticipants_(p.participants || []);
+    var people = uniqueParticipants_(p.participants);
     if (!people.length)
         throw new Error('Registra al menos una persona con DNI.');
-    var status_1 = p.forRegularization || (p.pendingReasons || []).length ? 'PENDIENTE' : 'COMPLETO';
+    var status_1 = p.forRegularization || array_(p.pendingReasons).length ? 'PENDIENTE' : 'COMPLETO';
     var synchronizedId = syncedId_(p.clientRequestId);
     if (synchronizedId) {
         finishEvent_(synchronizedId, p, people, status_1, 'CREAR INGRESO');
@@ -111,8 +111,8 @@ function saveEvent_(p) {
 }
 function regularize_(p) {
     validate_(p, true);
-    var validPeople_1 = uniqueParticipants_(p.participants || []);
-    var status = p.forRegularization || (p.pendingReasons || []).length ? 'PENDIENTE' : 'COMPLETO';
+    var validPeople_1 = uniqueParticipants_(p.participants);
+    var status = p.forRegularization || array_(p.pendingReasons).length ? 'PENDIENTE' : 'COMPLETO';
     var synchronizedId = syncedId_(p.clientRequestId);
     if (synchronizedId)
         return getEvent_(synchronizedId);
@@ -155,7 +155,9 @@ function regularize_(p) {
 }
 function uniqueParticipants_(people) {
     var byDni = {}, result = [];
-    (people || []).forEach(function (person) {
+    array_(people).forEach(function (person) {
+        if (!person)
+            return;
         var dni = cleanId_(person.dni);
         if (!/^\d{8}$/.test(dni))
             return;
@@ -172,8 +174,8 @@ function uniqueParticipants_(people) {
 function completedPerson_(current, incoming) {
     var next = {}, keys = ['dni', 'name', 'phone', 'role', 'license', 'category', 'lots', 'detail'];
     keys.forEach(function (key) { next[key] = String(incoming[key] || '').trim() ? incoming[key] : current[key]; });
-    var incomingCodes = (incoming.lotCodes || []).filter(function (code) { return String(code || '').trim(); });
-    next.lotCodes = incomingCodes.length ? incomingCodes : (current.lotCodes || []);
+    var incomingCodes = array_(incoming.lotCodes).filter(function (code) { return String(code || '').trim(); });
+    next.lotCodes = incomingCodes.length ? incomingCodes : array_(current.lotCodes);
     return next;
 }
 function completedEvent_(current, incoming) {
@@ -182,7 +184,7 @@ function completedEvent_(current, incoming) {
     return next;
 }
 function completeExistingRow_(existing, m, incoming, event) {
-    var row = existing.raw.slice(), nextEvent = event || {}, codes = (incoming.lotCodes || []).map(function (code) { return String(code || '').trim().toUpperCase(); }).filter(Boolean);
+    var row = existing.raw.slice(), nextEvent = event || {}, codes = array_(incoming.lotCodes).map(function (code) { return String(code || '').trim().toUpperCase(); }).filter(Boolean);
     if (String(incoming.name || '').trim())
         row[m.name] = String(incoming.name).toUpperCase();
     if (String(incoming.phone || '').trim())
@@ -328,9 +330,9 @@ function matrixRowsForId_(sheet, m, id) {
 }
 function matrixRow_(count, m, id, p, person) {
     var row = new Array(count).fill(''), event = p.event || {};
-    var providers = (p.participants || []).filter(function (x) { return x.role === 'PROVEEDOR' && /^\d{8}$/.test(String(x.dni || '')); });
+    var providers = array_(p.participants).filter(function (x) { return x && x.role === 'PROVEEDOR' && /^\d{8}$/.test(String(x.dni || '')); });
     var owns = person.role === 'PROVEEDOR' || (!providers.length && person.role === 'CONDUCTOR');
-    var codes = (person.lotCodes || []).map(function (value) { return String(value || '').trim().toUpperCase(); }).filter(Boolean);
+    var codes = array_(person.lotCodes).map(function (value) { return String(value || '').trim().toUpperCase(); }).filter(Boolean);
     row[m.id] = id;
     row[m.dateTime] = p.dateTime ? new Date(p.dateTime) : new Date();
     row[m.dni] = String(person.dni || '');
@@ -354,13 +356,13 @@ function eventAck_(id, p, people, status) {
     var event = p.event || {};
     return {
         id: String(id), dateTime: iso_(p.dateTime || new Date()), caseId: Number(p.caseId) || 1,
-        status: status || 'COMPLETO', pendingReasons: p.pendingReasons || [],
+        status: status || 'COMPLETO', pendingReasons: array_(p.pendingReasons),
         motive: String(event.motive || 'PROCESO'), plate: String(event.plate || ''), zone: String(event.zone || ''),
         guard: String(event.guard || ''), shift: operationalShift_(p.dateTime), responsible: String(event.responsible || ''),
-        persons: (people || []).map(function (person) {
+        persons: array_(people).map(function (person) {
             return { dni: cleanId_(person.dni), name: String(person.name || ''), phone: cleanId_(person.phone), role: String(person.role || '').toUpperCase(),
                 license: String(person.license || ''), category: category_(person.category), lots: cleanId_(person.lots), detail: String(person.detail || ''),
-                lotCodes: (person.lotCodes || []).map(function (code) { return String(code || '').trim().toUpperCase(); }).filter(Boolean) };
+                lotCodes: array_(person.lotCodes).map(function (code) { return String(code || '').trim().toUpperCase(); }).filter(Boolean) };
         })
     };
 }
@@ -368,7 +370,9 @@ function ensureClients_(people) {
     if (!people || !people.length)
         return;
     var sheet = sheet_(CFG.CLIENTS), m = map_(sheet, CF), count = Math.max(sheet.getLastRow() - CFG.HEADER, 0), additions = [];
-    people.forEach(function (person) {
+    array_(people).forEach(function (person) {
+        if (!person)
+            return;
         var dni = cleanId_(person.dni), hit;
         if (!/^\d{8}$/.test(dni))
             return;
@@ -446,7 +450,7 @@ function upsertPending_(id, caseId, status, reasons) {
         properties.deleteProperty(key);
         return;
     }
-    properties.setProperty(key, JSON.stringify({ caseId: Number(caseId) || 1, status: 'PENDIENTE', pendingReasons: reasons || [] }));
+    properties.setProperty(key, JSON.stringify({ caseId: Number(caseId) || 1, status: 'PENDIENTE', pendingReasons: array_(reasons) }));
 }
 function pendingMap_() {
     var out = {}, all = PropertiesService.getScriptProperties().getProperties();
@@ -477,7 +481,7 @@ function operationalShift_(value) { var d = value ? new Date(value) : new Date()
 function validate_(p, regularize) { if (regularize && !p.id)
     throw new Error('ID requerido.'); var e = p.event || {}, c = Number(p.caseId) || 1; if (!String(e.responsible || '').trim())
     throw new Error('Responsable requerido.'); if (String(e.plate || '').length > 7)
-    throw new Error('La placa admite máximo 7 caracteres.'); (p.participants || []).forEach(function (person) { if (String(person.role || '').toUpperCase() === 'CONDUCTOR' && String(person.license || '').length > 9)
+    throw new Error('La placa admite máximo 7 caracteres.'); array_(p.participants).forEach(function (person) { if (person && String(person.role || '').toUpperCase() === 'CONDUCTOR' && String(person.license || '').length > 9)
         throw new Error('La licencia admite máximo 9 caracteres.'); }); if (c <= 4 && String(e.motive || '').toUpperCase() !== 'PROCESO')
     throw new Error('El motivo debe ser PROCESO.'); if (c === 5 && String(e.motive || '').toUpperCase() !== 'RETIRO DE LOTE')
     throw new Error('El motivo debe ser RETIRO DE LOTE.'); if (c === 6 && ['PROCESO', 'RM', 'MUESTREO', 'RECOGER MUESTRA'].indexOf(String(e.motive || '').toUpperCase()) < 0)
@@ -488,15 +492,15 @@ function auth_(key) { var expected = PropertiesService.getScriptProperties().get
 function syncedId_(requestId) {
     if (!requestId)
         return '';
-    var recent = parse_(PropertiesService.getScriptProperties().getProperty('SYNC_RECIENTE'), []);
-    var hit = recent.filter(function (item) { return item.requestId === String(requestId); })[0];
+    var recent = array_(parse_(PropertiesService.getScriptProperties().getProperty('SYNC_RECIENTE'), []));
+    var hit = recent.filter(function (item) { return item && item.requestId === String(requestId); })[0];
     return hit ? String(hit.id || '') : '';
 }
 function recordSync_(requestId, id, action, alreadyChecked) {
     if (!requestId || (!alreadyChecked && syncedId_(requestId)))
         return;
-    var properties = PropertiesService.getScriptProperties(), recent = parse_(properties.getProperty('SYNC_RECIENTE'), []);
-    recent = recent.filter(function (item) { return item.requestId !== String(requestId); });
+    var properties = PropertiesService.getScriptProperties(), recent = array_(parse_(properties.getProperty('SYNC_RECIENTE'), []));
+    recent = recent.filter(function (item) { return item && item.requestId !== String(requestId); });
     recent.unshift({ requestId: String(requestId), id: String(id), action: String(action || '') });
     properties.setProperty('SYNC_RECIENTE', JSON.stringify(recent.slice(0, 100)));
 }
@@ -509,6 +513,7 @@ function sheet_(name) { var s = SpreadsheetApp.getActive().getSheetByName(name);
 function values_(sheet, start) { return sheet.getLastRow() < start ? [] : sheet.getRange(start, 1, sheet.getLastRow() - start + 1, sheet.getLastColumn()).getValues(); }
 function norm_(v) { return String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/gi, ' ').trim().toUpperCase(); }
 function cleanId_(v) { return String(v == null ? '' : v).replace(/\.0$/, '').trim(); }
+function array_(v) { return Array.isArray(v) ? v : []; }
 function category_(v) {
     var raw = String(v || '').trim().toUpperCase().replace(/[–—]/g, '-').replace(/\s+/g, ''), compact = raw.replace(/-/g, '');
     var categories = { AI: 'A-I', AIIA: 'A-IIA', AIIB: 'A-IIB', AIIIA: 'A-IIIA', AIIIB: 'A-IIIB', AIIIC: 'A-IIIC' };

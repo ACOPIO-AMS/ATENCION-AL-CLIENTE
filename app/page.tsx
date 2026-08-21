@@ -18,7 +18,7 @@ type ModalAlertType = Exclude<AlertType, "warning">;
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
-const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-20-V10", "ATENCION-2026-08-21-V11-LIGERO"];
+const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-21-V11-LIGERO", "ATENCION-2026-08-21-V12-COLA-ROBUSTA"];
 
 class SheetsApiError extends Error {
   status: number;
@@ -67,15 +67,19 @@ function compactFields(value: Record<string, unknown>) {
   }));
 }
 
+function safeArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
 function compactWritePayload(payload: Record<string, unknown>) {
-  const source = payload as Record<string, unknown> & { participants?: Array<Partial<Participant>>; event?: Record<string, unknown> };
-  const compactParticipants = (source.participants || [])
-    .filter(person => /^\d{8}$/.test(String(person.dni || "")))
+  const source = payload as Record<string, unknown> & { participants?: unknown; event?: Record<string, unknown> };
+  const compactParticipants = safeArray<Partial<Participant> | null>(source.participants)
+    .filter((person): person is Partial<Participant> => Boolean(person) && /^\d{8}$/.test(String(person?.dni || "")))
     .map(person => compactFields({
       dni: String(person.dni || ""), name: String(person.name || ""), phone: String(person.phone || ""), role: person.role,
       license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "",
       category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "",
-      lots: String(person.lots || ""), detail: String(person.detail || ""), lotCodes: (person.lotCodes || []).filter(Boolean),
+      lots: String(person.lots || ""), detail: String(person.detail || ""), lotCodes: safeArray<string>(person.lotCodes).filter(Boolean),
     }));
   return compactFields({
     ...source,
@@ -140,12 +144,14 @@ async function sheetsApi<T>(action: string, payload: Record<string, unknown> = {
 }
 
 function recentFromSheet(item: SheetEvent): RecentItem {
-  return { id: item.id, time: new Date(item.dateTime).toLocaleString("es-PE"), plate: item.plate || "SIN PLACA", status: item.status === "PENDIENTE" ? "Pendiente" : "Registrado", persons: item.persons };
+  const persons = safeArray<SheetPerson | null>(item.persons).filter((person): person is SheetPerson => Boolean(person)).map(person => ({ ...person, lotCodes: safeArray<string>(person.lotCodes) }));
+  return { id: item.id, time: new Date(item.dateTime).toLocaleString("es-PE"), plate: item.plate || "SIN PLACA", status: item.status === "PENDIENTE" ? "Pendiente" : "Registrado", persons };
 }
 
 function uniqueSheetPeople(persons: SheetPerson[]) {
   const byPerson = new Map<string, SheetPerson>();
-  persons.forEach((person) => {
+  safeArray<SheetPerson | null>(persons).filter((person): person is SheetPerson => Boolean(person)).forEach((person) => {
+    person = { ...person, lotCodes: safeArray<string>(person.lotCodes) };
     const key = `${person.dni.replace(/\D/g, "")}|${person.role}`;
     const current = byPerson.get(key);
     if (!current) {
@@ -172,8 +178,8 @@ function isTodayInPeru(value: string) {
 }
 
 function queuePreview(item: QueueItem) {
-  const payload = item.payload as { event?: Partial<EventForm>; participants?: Array<Partial<Participant>> };
-  const persons = payload.participants || [];
+  const payload = item.payload as { event?: Partial<EventForm>; participants?: unknown };
+  const persons = safeArray<Partial<Participant> | null>(payload.participants).filter((person): person is Partial<Participant> => Boolean(person));
   return {
     plate: String(payload.event?.plate || "SIN PLACA"),
     people: persons.map(person => String(person.name || person.dni || person.role || "PERSONA")).join(", ") || "Sin personas identificadas",
@@ -243,38 +249,46 @@ export default function Home() {
   const backendShort = backendVersion.match(/V\d+$/)?.[0] || "";
   const connectionTitle = connection === "online" ? `Google Sheets conectado${backendShort ? ` · Servidor ${backendShort}` : ""}` : connection === "outdated" ? "Apps Script desactualizado" : connection === "unconfigured" ? "Google Sheets sin configurar" : connection === "checking" ? "Verificando conexión" : "Trabajo sin conexión";
 
-  const pendingReasons = useMemo(() => {
-    const reasons: string[] = [];
-    if (!event.responsible.trim()) reasons.push("Responsable de atención");
-    if (!event.guard) reasons.push("Guardia");
-    if (hasVehicle && !event.plate.trim()) reasons.push("Placa del vehículo");
-    if (hasVehicle && !event.zone.trim()) reasons.push("Zona del vehículo");
-    if ((activeCase === 3 || activeCase === 6) && providers.length === 0) reasons.push("Al menos un proveedor");
-    if (hasVehicle && drivers.length === 0) reasons.push("Datos del conductor");
+  const validation = useMemo(() => {
+    const blocking: string[] = [];
+    const regularizable: string[] = [];
+    if (!event.responsible.trim()) blocking.push("Responsable de atención");
+    if (!event.guard) blocking.push("Guardia");
+    if (hasVehicle && !event.plate.trim()) (activeCase === 4 ? regularizable : blocking).push("Placa del vehículo");
+    if (hasVehicle && !event.zone.trim()) (activeCase === 4 ? regularizable : blocking).push("Zona del vehículo");
+    if ((activeCase === 3 || activeCase === 6) && providers.length === 0) blocking.push("Al menos un proveedor");
+    if (hasVehicle && drivers.length === 0) blocking.push("Datos del conductor");
     participants.forEach((person) => {
       if (person.expectedLater && !person.dni) {
-        reasons.push(`Datos del ${person.role.toLowerCase()} que llegará después`);
+        regularizable.push(`Datos del ${person.role.toLowerCase()} que llegará después`);
+        return;
       } else {
-        if (!/^\d{8}$/.test(person.dni)) reasons.push(`DNI válido de ${person.role.toLowerCase()}`);
-        if (!validFullName(person.name)) reasons.push(`Nombre y dos apellidos de ${person.role.toLowerCase()}`);
+        if (!/^\d{8}$/.test(person.dni)) blocking.push(`DNI válido de ${person.role.toLowerCase()}`);
+        if (!validFullName(person.name)) blocking.push(`Nombre y dos apellidos de ${person.role.toLowerCase()}`);
         if (person.role === "ACOMPAÑANTE") {
-          if (person.phone && !/^\d{9}$/.test(person.phone)) reasons.push("Celular válido de acompañante, o dejarlo vacío");
+          if (person.phone && !/^\d{9}$/.test(person.phone)) blocking.push("Celular válido de acompañante, o dejarlo vacío");
         } else if (!/^\d{9}$/.test(person.phone)) {
-          reasons.push(`Celular de 9 dígitos de ${person.role.toLowerCase()}`);
+          blocking.push(`Celular de 9 dígitos de ${person.role.toLowerCase()}`);
         }
         if (person.role === "CONDUCTOR") {
-          if (!person.license.trim()) reasons.push("Número de licencia del conductor");
-          if (person.license.length > 9) reasons.push("Licencia del conductor de máximo 9 caracteres");
-          if (!person.category) reasons.push("Categoría de licencia del conductor");
+          if (!person.license.trim()) blocking.push("Número de licencia del conductor");
+          if (person.license.length > 9) blocking.push("Licencia del conductor de máximo 9 caracteres");
+          if (!person.category) blocking.push("Categoría de licencia del conductor");
         }
       }
       const mode = cargoMode(activeCase, person.role, providers.length);
-      if (mode && !person.lots) reasons.push(`Número de lotes de ${person.name || person.role.toLowerCase()}`);
-      if (mode === "detail" && !person.detail.trim()) reasons.push(`Detalle de carga de ${person.name || person.role.toLowerCase()}`);
-      if (person.cargoRegularize) reasons.push(`Carga de ${person.name || person.role.toLowerCase()} marcada para regularizar`);
+      if (mode && person.cargoRegularize) {
+        regularizable.push(`Carga de ${person.name || person.role.toLowerCase()} marcada para regularizar`);
+      } else {
+        if (mode && !person.lots) blocking.push(`Número de lotes de ${person.name || person.role.toLowerCase()}`);
+        if (mode === "detail" && !person.detail.trim()) blocking.push(`Detalle de carga de ${person.name || person.role.toLowerCase()}`);
+      }
     });
-    return Array.from(new Set(reasons));
+    const blockingReasons = Array.from(new Set(blocking));
+    const regularizationReasons = Array.from(new Set(regularizable));
+    return { blockingReasons, regularizationReasons, pendingReasons: [...blockingReasons, ...regularizationReasons] };
   }, [activeCase, drivers.length, event, hasVehicle, participants, providers.length]);
+  const { blockingReasons, regularizationReasons, pendingReasons } = validation;
 
   function flash(message: string, type: AlertType = "error") {
     if (type === "warning") {
@@ -352,7 +366,12 @@ export default function Home() {
       }
       setConnection("online");
       try {
-        const saved = await sheetsApi<SheetEvent>(item.action, compactWritePayload(item.payload));
+        const writePayload = compactWritePayload(item.payload);
+        const validPeople = safeArray<Record<string, unknown>>(writePayload.participants);
+        if (item.action === "saveEvent" && !validPeople.some(person => /^\d{8}$/.test(String(person.dni || "")))) {
+          throw new SheetsApiError("REGISTRO_INCOMPLETO: no contiene ninguna persona con DNI. Revísalo o elimínalo desde Gestionar pendientes.", 422, true);
+        }
+        const saved = await sheetsApi<SheetEvent>(item.action, writePayload);
         if (!storeQueue(queueRef.current.filter(row => row.queueId !== item.queueId))) {
           flash("No se pudo actualizar la cola local. Libera espacio en el dispositivo.");
           return;
@@ -464,7 +483,7 @@ export default function Home() {
     window.addEventListener("offline", offline);
     const initialCheck = window.setTimeout(() => {
       let restored: QueueItem[] = [];
-      try { restored = JSON.parse(window.localStorage.getItem(QUEUE_KEY) || "[]") as QueueItem[]; } catch { restored = []; }
+      try { restored = safeArray<QueueItem>(JSON.parse(window.localStorage.getItem(QUEUE_KEY) || "[]")); } catch { restored = []; }
       queueRef.current = restored;
       setQueue(restored);
       void checkConnection(true);
@@ -606,7 +625,9 @@ export default function Home() {
   }
 
   function saveEvent(forRegularization: boolean) {
-    if (pendingReasons.length && !forRegularization) return flash(`No se guardó. Faltan datos: ${pendingReasons.slice(0, 5).join("; ")}${pendingReasons.length > 5 ? "; y otros campos" : ""}.`);
+    const missing = forRegularization ? blockingReasons : pendingReasons;
+    if (missing.length) return flash(`No se guardó. Completa los campos obligatorios: ${missing.slice(0, 5).join("; ")}${missing.length > 5 ? "; y otros campos" : ""}.`);
+    if (forRegularization && !regularizationReasons.length) return flash("No se guardó para regularizar porque no hay datos marcados como pendientes. Usa Guardar para registrar el ingreso completo.");
     if (enqueueLockRef.current) return;
     enqueueLockRef.current = true;
     window.setTimeout(() => { enqueueLockRef.current = false; }, 500);
@@ -616,8 +637,12 @@ export default function Home() {
       dni: person.dni, name: person.name, phone: person.phone, role: person.role,
       license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "",
       category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "",
-      lots: person.lots, detail: person.detail, lotCodes: person.lotCodes.filter(Boolean),
+      lots: person.lots, detail: person.detail, lotCodes: safeArray<string>(person.lotCodes).filter(Boolean),
     }));
+    if (!compactParticipants.length && action === "saveEvent") {
+      enqueueLockRef.current = false;
+      return flash("No se guardó. Registra por lo menos una persona con DNI antes de guardar o regularizar.");
+    }
     const payload = { id: regularizingId, caseId: activeCase, dateTime, event, participants: compactParticipants, forRegularization, pendingReasons, clientRequestId };
     const localId = regularizingId || `LOCAL-${clientRequestId.replace(/-/g, "").slice(0, 12).toUpperCase()}`;
     const queued: QueueItem = { queueId: clientRequestId, localId, action, payload, createdAt: dateTime, attempts: 0 };
@@ -705,14 +730,14 @@ export default function Home() {
         <form onSubmit={(e) => e.preventDefault()} className="form-layout"><div className="main-column">
           <section className="form-card"><div className="section-title"><span>1</span><div><h2>Datos generales</h2><p>Fecha, responsable, guardia y turno</p></div><em>OPCIÓN {OPTION_NUMBER[activeCase] || 1}: {caseInfo.title.toUpperCase()}</em></div><div className="fields-grid general-grid">
             <label>Fecha y hora de ingreso<input type="datetime-local" value={dateTime} onInput={(e) => { const value = e.currentTarget.value; setDateTime(value); setEvent(current => ({ ...current, shift: shiftFromDateTime(value) })); }} onChange={() => undefined} /></label>
-            <label>Responsable<input value={event.responsible} onChange={(e) => setEvent({ ...event, responsible: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /></label>
-            <label>Guardia<select value={event.guard} onChange={(e) => setEvent({ ...event, guard: e.target.value })}><option value="">Seleccionar</option><option>A</option><option>B</option><option>C</option></select></label>
+            <label className={!event.responsible.trim() ? "required-field" : ""}>Responsable<input aria-invalid={!event.responsible.trim()} value={event.responsible} onChange={(e) => setEvent({ ...event, responsible: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /></label>
+            <label className={!event.guard ? "required-field" : ""}>Guardia<select aria-invalid={!event.guard} value={event.guard} onChange={(e) => setEvent({ ...event, guard: e.target.value })}><option value="">Seleccionar</option><option>A</option><option>B</option><option>C</option></select></label>
             <label>Turno<select value={event.shift} disabled><option>DÍA</option><option>NOCHE</option></select><small>Automático: Día 07:00–18:59 · Noche 19:00–06:59</small></label>
           </div></section>
 
           <section className="form-card"><div className="section-title"><span>2</span><div><h2>Datos del ingreso</h2><p>Motivo, placa y zona del vehículo</p></div><em>{hasVehicle ? "CON VEHÍCULO" : "SIN VEHÍCULO"}</em></div><div className="fields-grid operation-grid">
             <label>Motivo de ingreso<select value={event.motive} disabled={!motiveIsSelectable} onChange={(e) => setEvent({ ...event, motive: e.target.value })}>{motiveOptions.map((motive) => <option key={motive}>{motive}</option>)}</select><small>{activeCase <= 4 ? "Opción única: PROCESO" : activeCase === 5 ? "Motivo del caso: RETIRO DE LOTE" : "PROCESO, RM, MUESTREO o RECOGER MUESTRA"}</small></label>
-            {hasVehicle ? <><label>Placa del vehículo<input maxLength={7} placeholder="Máximo 7 caracteres" value={event.plate} onChange={(e) => setEvent({ ...event, plate: e.target.value.slice(0, 7) })} /><small>Única restricción: máximo 7 caracteres</small></label><label>Zona<input placeholder="Ej. HUANCAYO" value={event.zone} onChange={(e) => setEvent({ ...event, zone: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /></label></> : <div className="locked-fields wide"><span>⊘</span><div><strong>Placa y zona no aplican en el caso 6</strong><small>El proveedor llega sin vehículo para RM, muestreo o recoger muestra.</small></div></div>}
+            {hasVehicle ? <><label className={!event.plate.trim() ? "required-field" : ""}>Placa del vehículo<input aria-invalid={!event.plate.trim()} maxLength={7} placeholder="Máximo 7 caracteres" value={event.plate} onChange={(e) => setEvent({ ...event, plate: e.target.value.slice(0, 7) })} /><small>Única restricción: máximo 7 caracteres</small></label><label className={!event.zone.trim() ? "required-field" : ""}>Zona<input aria-invalid={!event.zone.trim()} placeholder="Ej. HUANCAYO" value={event.zone} onChange={(e) => setEvent({ ...event, zone: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /></label></> : <div className="locked-fields wide"><span>⊘</span><div><strong>Placa y zona no aplican en el caso 6</strong><small>El proveedor llega sin vehículo para RM, muestreo o recoger muestra.</small></div></div>}
           </div></section>
 
           <section className="form-card"><div className="section-title"><span>3</span><div><h2>Personas y lotes</h2><p>Conductor automático, participantes y datos de carga</p></div><em>{participants.length} {participants.length === 1 ? "PERSONA" : "PERSONAS"}</em></div>
@@ -723,15 +748,15 @@ export default function Home() {
               <div className="participant-head"><div><span className="person-number">{index + 1}</span>{person.automaticDriver ? <strong>CONDUCTOR OBLIGATORIO</strong> : <select aria-label={`Ocupación de persona ${index + 1}`} value={person.role} onChange={(e) => { const role = e.target.value as Role; updateParticipant(person.id, { role, license: "", category: "", ...(role === "ACOMPAÑANTE" ? { lots: "", detail: "", lotCodes: [], cargoRegularize: false, expectedLater: false } : {}) }); }}><option>PROVEEDOR</option><option>ACOMPAÑANTE</option></select>}</div><div className="participant-actions">{activeCase === 1 && person.role === "PROVEEDOR" && !person.expectedLater && <button type="button" className="defer-person" onClick={() => deferProvider(person)}>Llegará después</button>}{!person.automaticDriver && participants.length > 1 && <button type="button" className="remove" onClick={() => setParticipants((current) => current.filter((item) => item.id !== person.id))}>Eliminar</button>}</div></div>
               {person.expectedLater && <div className="expected-note"><span>◷</span><div><strong>{person.role === "CONDUCTOR" ? "Conductor" : "Proveedor"} pendiente de llegada</strong><small>No se crea una fila vacía; se insertará al regularizar.</small></div><button type="button" onClick={() => updateParticipant(person.id, { expectedLater: false, cargoRegularize: false })}>Completar datos del {person.role === "CONDUCTOR" ? "conductor" : "proveedor"}</button></div>}
               {!person.expectedLater && <><div className="person-fields">
-                <label>DNI<div className="search-control"><input inputMode="numeric" maxLength={8} placeholder="8 números" value={person.dni} onChange={(e) => updateParticipant(person.id, { dni: e.target.value.replace(/\D/g, "").slice(0, 8), found: null, newPerson: false, name: "", phone: "", license: "", category: "" })} onKeyDown={(e) => { if (e.key === "Enter" && person.dni.length === 8) { e.preventDefault(); void searchDni(person); } }} /><button type="button" aria-label={`Buscar DNI ${person.dni}`} disabled={person.dni.length !== 8 || busy} onClick={() => void searchDni(person)}>{busy ? "Buscando…" : "Buscar DNI"}</button></div><small>Consulta BD CLIENTES siempre; solo usa la copia local si la conexión falla.</small></label>
-                <label>Nombres y apellidos<input value={person.name} readOnly={!person.newPerson} placeholder="1 nombre y 2 apellidos" onChange={(e) => updateParticipant(person.id, { name: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /><small>Solo texto; mínimo tres palabras</small></label>
-                <label>Celular<input inputMode="numeric" maxLength={9} value={person.phone} placeholder={person.role === "ACOMPAÑANTE" ? "Opcional" : "9 números"} onChange={(e) => updateParticipant(person.id, { phone: e.target.value.replace(/\D/g, "").slice(0, 9) })} /><small>{person.role === "ACOMPAÑANTE" ? "Opcional; si cambia, actualiza BD CLIENTES" : "9 números; puedes corregirlo y actualizar BD CLIENTES"}</small></label>
+                <label className={!/^\d{8}$/.test(person.dni) ? "required-field" : ""}>DNI<div className="search-control"><input aria-invalid={!/^\d{8}$/.test(person.dni)} inputMode="numeric" maxLength={8} placeholder="8 números" value={person.dni} onChange={(e) => updateParticipant(person.id, { dni: e.target.value.replace(/\D/g, "").slice(0, 8), found: null, newPerson: false, name: "", phone: "", license: "", category: "" })} onKeyDown={(e) => { if (e.key === "Enter" && person.dni.length === 8) { e.preventDefault(); void searchDni(person); } }} /><button type="button" aria-label={`Buscar DNI ${person.dni}`} disabled={person.dni.length !== 8 || busy} onClick={() => void searchDni(person)}>{busy ? "Buscando…" : "Buscar DNI"}</button></div><small>Consulta BD CLIENTES siempre; solo usa la copia local si la conexión falla.</small></label>
+                <label className={!validFullName(person.name) ? "required-field" : ""}>Nombres y apellidos<input aria-invalid={!validFullName(person.name)} value={person.name} readOnly={!person.newPerson} placeholder="1 nombre y 2 apellidos" onChange={(e) => updateParticipant(person.id, { name: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /><small>Solo texto; mínimo tres palabras</small></label>
+                <label className={(person.role === "ACOMPAÑANTE" ? Boolean(person.phone) && !/^\d{9}$/.test(person.phone) : !/^\d{9}$/.test(person.phone)) ? "required-field" : ""}>Celular<input aria-invalid={person.role === "ACOMPAÑANTE" ? Boolean(person.phone) && !/^\d{9}$/.test(person.phone) : !/^\d{9}$/.test(person.phone)} inputMode="numeric" maxLength={9} value={person.phone} placeholder={person.role === "ACOMPAÑANTE" ? "Opcional" : "9 números"} onChange={(e) => updateParticipant(person.id, { phone: e.target.value.replace(/\D/g, "").slice(0, 9) })} /><small>{person.role === "ACOMPAÑANTE" ? "Opcional; si cambia, actualiza BD CLIENTES" : "9 números; puedes corregirlo y actualizar BD CLIENTES"}</small></label>
               </div>
-              {person.role === "CONDUCTOR" && <div className="license-fields"><label>Número de licencia<input maxLength={9} placeholder="Máximo 9 caracteres" value={person.license} onChange={(e) => updateParticipant(person.id, { license: normalizeLicense(e.target.value) })} /><small>Máximo 9 caracteres; editable para completar o actualizar.</small></label><label>Categoría<select value={normalizeCategory(person.category)} onChange={(e) => updateParticipant(person.id, { category: normalizeCategory(e.target.value) })}><option value="">Seleccionar</option><option value="A-I">A-I</option><option value="A-IIA">A-IIa</option><option value="A-IIB">A-IIb</option><option value="A-IIIA">A-IIIa</option><option value="A-IIIB">A-IIIb</option><option value="A-IIIC">A-IIIc</option></select><small>Se actualizará también en BD CLIENTES.</small></label></div>}
+              {person.role === "CONDUCTOR" && <div className="license-fields"><label className={!person.license.trim() ? "required-field" : ""}>Número de licencia<input aria-invalid={!person.license.trim()} maxLength={9} placeholder="Máximo 9 caracteres" value={person.license} onChange={(e) => updateParticipant(person.id, { license: normalizeLicense(e.target.value) })} /><small>Máximo 9 caracteres; editable para completar o actualizar.</small></label><label className={!person.category ? "required-field" : ""}>Categoría<select aria-invalid={!person.category} value={normalizeCategory(person.category)} onChange={(e) => updateParticipant(person.id, { category: normalizeCategory(e.target.value) })}><option value="">Seleccionar</option><option value="A-I">A-I</option><option value="A-IIA">A-IIa</option><option value="A-IIB">A-IIb</option><option value="A-IIIA">A-IIIa</option><option value="A-IIIB">A-IIIb</option><option value="A-IIIC">A-IIIc</option></select><small>Se actualizará también en BD CLIENTES.</small></label></div>}
               {person.found === true && <div className="match-message success"><span>✓</span><div><strong>Persona identificada</strong><small>Encontrada o lista para añadirse a BD CLIENTES</small></div></div>}
               {person.newPerson && <div className="new-person"><div><span>!</span><p><strong>DNI no registrado</strong><small>Completa nombres{person.role === "ACOMPAÑANTE" ? "; el celular es opcional" : ", celular"}{person.role === "CONDUCTOR" ? ", licencia y categoría" : ""}.</small></p></div><button type="button" onClick={() => registerNewPerson(person)}>Registrar nueva persona</button></div>}
               {mode && <div className="cargo-block person-cargo"><div className="cargo-heading"><div><span>▦</span><div><h3>{mode === "codes" ? "Lotes y códigos opcionales" : "Lotes y detalle de carga"}</h3><p>Información enlazada únicamente a {person.name || `este ${person.role.toLowerCase()}`}.</p></div></div><label className="regularize-inline"><input type="checkbox" checked={person.cargoRegularize} onChange={(e) => updateParticipant(person.id, { cargoRegularize: e.target.checked })} /><span><strong>Regularizar</strong><small>Esta información</small></span></label></div>
-                <div className="cargo-fields"><label>Número de lotes<input inputMode="numeric" placeholder="Ej. 3" value={person.lots} onChange={(e) => mode === "codes" ? resizeLotCodes(person.id, e.target.value.replace(/\D/g, "")) : updateParticipant(person.id, { lots: e.target.value.replace(/\D/g, "") })} /></label>{mode === "detail" && <label>Detalle de carga<input placeholder="Ej. 60 20 40" value={person.detail} onChange={(e) => updateParticipant(person.id, { detail: e.target.value.toUpperCase() })} /><small>Valores separados por un espacio</small></label>}</div>
+                <div className="cargo-fields"><label className={!person.cargoRegularize && !person.lots ? "required-field" : ""}>Número de lotes<input aria-invalid={!person.cargoRegularize && !person.lots} inputMode="numeric" placeholder="Ej. 3" value={person.lots} onChange={(e) => mode === "codes" ? resizeLotCodes(person.id, e.target.value.replace(/\D/g, "")) : updateParticipant(person.id, { lots: e.target.value.replace(/\D/g, "") })} /></label>{mode === "detail" && <label className={!person.cargoRegularize && !person.detail.trim() ? "required-field" : ""}>Detalle de carga<input aria-invalid={!person.cargoRegularize && !person.detail.trim()} placeholder="Ej. 60 20 40" value={person.detail} onChange={(e) => updateParticipant(person.id, { detail: e.target.value.toUpperCase() })} /><small>Valores separados por un espacio</small></label>}</div>
                 {mode === "codes" && person.lots && <div className="lot-codes-grid">{person.lotCodes.map((code, codeIndex) => <label key={codeIndex}>Código de lote {codeIndex + 1} (opcional)<input placeholder="Puede dejarse vacío" value={code} onChange={(e) => updateLotCode(person.id, codeIndex, e.target.value)} /></label>)}</div>}
                 {person.cargoRegularize && <div className="regularize-message"><span>◷</span><div><strong>Carga marcada para regularización</strong><small>Podrá completarse posteriormente sin afectar la información de otros proveedores.</small></div></div>}
               </div>}</>}
