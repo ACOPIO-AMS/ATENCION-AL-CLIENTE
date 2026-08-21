@@ -15,7 +15,7 @@ Este paquete contiene la aplicación completa. No cargues el archivo ZIP directa
 
 Cloudflare publicará automáticamente la rama `main` después de cada `Push origin`.
 
-## Google Apps Script V9
+## Google Apps Script V10
 
 Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 
@@ -26,7 +26,7 @@ Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 5. Selecciona **Nueva versión** y pulsa **Implementar**.
 6. No ejecutes `configurarBase()`.
 
-La URL `/exec` debe responder con `ATENCION-2026-08-20-V9`.
+La URL `/exec` debe responder con `ATENCION-2026-08-20-V10`.
 
 ## Actualizaciones siguientes
 

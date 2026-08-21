@@ -18,7 +18,7 @@ type ModalAlertType = Exclude<AlertType, "warning">;
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
-const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-19-V8", "ATENCION-2026-08-20-V9"];
+const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-20-V10"];
 
 class SheetsApiError extends Error {
   status: number;
@@ -130,6 +130,29 @@ function recentFromSheet(item: SheetEvent): RecentItem {
   return { id: item.id, time: new Date(item.dateTime).toLocaleString("es-PE"), plate: item.plate || "SIN PLACA", status: item.status === "PENDIENTE" ? "Pendiente" : "Registrado", persons: item.persons };
 }
 
+function uniqueSheetPeople(persons: SheetPerson[]) {
+  const byPerson = new Map<string, SheetPerson>();
+  persons.forEach((person) => {
+    const key = `${person.dni.replace(/\D/g, "")}|${person.role}`;
+    const current = byPerson.get(key);
+    if (!current) {
+      byPerson.set(key, person);
+      return;
+    }
+    byPerson.set(key, {
+      ...current,
+      name: person.name || current.name,
+      phone: person.phone || current.phone,
+      license: person.license || current.license,
+      category: person.category || current.category,
+      lots: person.lots || current.lots,
+      detail: person.detail || current.detail,
+      lotCodes: person.lotCodes.length ? person.lotCodes : current.lotCodes,
+    });
+  });
+  return Array.from(byPerson.values());
+}
+
 function isTodayInPeru(value: string) {
   const options: Intl.DateTimeFormatOptions = { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit" };
   return new Date(value).toLocaleDateString("es-PE", options) === new Date().toLocaleDateString("es-PE", options);
@@ -203,7 +226,7 @@ export default function Home() {
   const totalLots = participants.reduce((total, person) => total + (Number(person.lots) || 0), 0);
   const motiveOptions = activeCase === 5 ? ["RETIRO DE LOTE"] : activeCase === 6 ? ["PROCESO", "RM", "MUESTREO", "RECOGER MUESTRA"] : ["PROCESO"];
   const motiveIsSelectable = activeCase === 5 || activeCase === 6;
-  const todayRows = useMemo(() => todayEvents.flatMap(item => item.persons.filter(person => person.role === "PROVEEDOR" || person.role === "CONDUCTOR").map((person, index) => ({ event: item, person, key: `${item.id}-${person.dni}-${index}` }))), [todayEvents]);
+  const todayCards = useMemo(() => todayEvents.map(item => ({ ...item, persons: uniqueSheetPeople(item.persons) })), [todayEvents]);
   const connectionLabel = connection === "online" ? "CONECTADO" : connection === "outdated" ? "SCRIPT ANTERIOR" : connection === "unconfigured" ? "SIN CONFIGURAR" : connection === "checking" ? "VERIFICANDO" : "SIN INTERNET";
   const backendShort = backendVersion.match(/V\d+$/)?.[0] || "";
   const connectionTitle = connection === "online" ? `Google Sheets conectado${backendShort ? ` · Servidor ${backendShort}` : ""}` : connection === "outdated" ? "Apps Script desactualizado" : connection === "unconfigured" ? "Google Sheets sin configurar" : connection === "checking" ? "Verificando conexión" : "Trabajo sin conexión";
@@ -452,6 +475,22 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const updateClock = () => {
+      if (activeView !== "registro") return;
+      const current = nowValue();
+      setDateTime(current);
+      setEvent(previous => ({ ...previous, shift: shiftFromDateTime(current) }));
+    };
+    const handleVisibility = () => { if (document.visibilityState === "visible") updateClock(); };
+    const clockTimer = window.setInterval(updateClock, 15_000);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(clockTimer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [activeView]);
+
   function updateParticipant(id: number, changes: Partial<Participant>) { setParticipants((current) => current.map((person) => person.id === id ? { ...person, ...changes } : person)); }
   function deferProvider(person: Participant) {
     const hasEnteredData = Boolean(person.dni || person.name || person.phone || person.lots || person.detail || person.lotCodes.some(Boolean));
@@ -543,7 +582,9 @@ export default function Home() {
   }
 
   function clearEntryKeepingGeneral() {
-    setEvent(current => ({ ...current, motive: activeCase === 5 ? "RETIRO DE LOTE" : activeCase === 6 ? "MUESTREO" : "PROCESO", plate: "", zone: "" }));
+    const currentDateTime = nowValue();
+    setDateTime(currentDateTime);
+    setEvent(current => ({ ...current, motive: activeCase === 5 ? "RETIRO DE LOTE" : activeCase === 6 ? "MUESTREO" : "PROCESO", plate: "", zone: "", shift: shiftFromDateTime(currentDateTime) }));
     setParticipants(emptyParticipantsForCase(activeCase));
     setRegularizingId(null);
   }
@@ -614,7 +655,7 @@ export default function Home() {
   function openRegularization(item: SheetEvent) {
     setRegularizingId(item.id); setActiveCase(item.caseId || 1); setDateTime(nowValue());
     setEvent({ motive: item.motive, plate: item.plate, zone: item.zone, guard: item.guard, shift: item.shift, responsible: item.responsible });
-    const loaded = item.persons.map((person, index) => ({ ...blankPerson(index + 1, person.role, person.role === "CONDUCTOR"), ...person, license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "", category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "", found: true }));
+    const loaded = uniqueSheetPeople(item.persons).map((person, index) => ({ ...blankPerson(index + 1, person.role, person.role === "CONDUCTOR"), ...person, license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "", category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "", found: true }));
     if ((item.caseId || 1) === 4 && !loaded.some((person) => person.role === "CONDUCTOR")) {
       loaded.unshift({ ...blankPerson(loaded.length + 1, "CONDUCTOR", true), expectedLater: true });
     }
@@ -693,7 +734,7 @@ export default function Home() {
         </aside></form>
       </>}
 
-      {activeView === "hoy" && <section className="empty-view data-view today-report"><div className="view-heading"><div><span>▦</span><div><h2>Reporte diario</h2><p>Registros de hoy: proveedores y conductores guardados en MATRIZ.</p></div></div><button onClick={loadToday} disabled={busy}>{busy ? "Actualizando…" : "Actualizar"}</button></div><div className="today-table"><div className="today-head"><span>Fecha y hora</span><span>Placa</span><span>Zona</span><span>Proveedor o conductor</span><span>N.º lotes</span><span>Detalle</span></div>{todayRows.map(({ event: item, person, key }) => <div className="today-row" key={key}><span data-label="Fecha y hora">{new Date(item.dateTime).toLocaleString("es-PE", { timeZone: "America/Lima" })}</span><strong data-label="Placa">{item.plate || "SIN PLACA"}</strong><span data-label="Zona">{item.zone || "SIN ZONA"}</span><span data-label="Persona"><b>{person.name}</b><small>{person.role}</small></span><span data-label="N.º lotes">{person.lots || "—"}</span><span data-label="Detalle">{person.lotCodes.length ? person.lotCodes.join(" · ") : person.detail || "—"}</span></div>)}</div>{!todayRows.length && <p className="empty-message">{busy ? "Consultando los registros de hoy…" : "No hay registros de proveedores o conductores para hoy."}</p>}</section>}
+      {activeView === "hoy" && <section className="empty-view data-view today-report"><div className="view-heading"><div><span>▦</span><div><h2>Reporte diario</h2><p>Un recuadro por ingreso, identificado por la placa y con todas las personas registradas.</p></div></div><button onClick={loadToday} disabled={busy}>{busy ? "Actualizando…" : "Actualizar"}</button></div><div className="today-cards">{todayCards.map(item => <article className="today-card" key={item.id}><header><div><span>PLACA</span><strong>{item.plate || "SIN PLACA"}</strong></div><div className="today-card-meta"><span>{new Date(item.dateTime).toLocaleString("es-PE", { timeZone: "America/Lima" })}</span><b>{item.zone || "SIN ZONA"}</b><small>{item.id}</small></div></header><div className="today-card-people">{item.persons.map((person, index) => <div className="today-card-person" key={`${item.id}-${person.dni}-${person.role}-${index}`}><div className="today-person-name"><span>{person.role === "CONDUCTOR" ? "C" : person.role === "PROVEEDOR" ? "P" : "A"}</span><div><strong>{person.name || "SIN NOMBRE"}</strong><small>{person.role} · DNI {person.dni || "—"}</small></div></div><div className="today-person-cargo"><b>{person.lots ? `${person.lots} lote${person.lots === "1" ? "" : "s"}` : "Sin lotes"}</b><span>{person.lotCodes.length ? person.lotCodes.join(" · ") : person.detail || "Sin detalle"}</span></div></div>)}</div></article>)}</div>{!todayCards.length && <p className="empty-message">{busy ? "Consultando los registros de hoy…" : "No hay registros para hoy."}</p>}</section>}
 
       {activeView === "pendientes" && <section className="empty-view data-view"><div className="view-heading"><div><span>◷</span><div><h2>Eventos por regularizar</h2><p>Las personas nuevas se insertarán debajo del bloque existente.</p></div></div><button onClick={loadPending} disabled={busy}>Actualizar</button></div><div className="pending-table dynamic">{pendingEvents.length ? pendingEvents.map(item => <div key={item.id}><strong>{item.id}</strong><span>{item.plate || "SIN PLACA"} · {item.persons.map(person => person.name).join(", ")}</span><em>{item.pendingReasons?.join(" · ") || "Datos pendientes"}</em><button onClick={() => openRegularization(item)}>Regularizar</button></div>) : <p className="empty-message">{connection === "online" ? "No hay eventos pendientes." : "Conecta Google Sheets para consultar los pendientes."}</p>}</div></section>}
       {activeView === "buscar" && <section className="empty-view data-view"><div className="view-heading"><div><span>⌕</span><div><h2>Búsqueda en MATRIZ</h2><p>Placa, código de lote, persona, DNI o ID.</p></div></div></div><div className="record-search"><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === "Enter") void runSearch(); }} placeholder="Ej. ABC-450, RM-120, nombre o DNI" /><button onClick={runSearch} disabled={busy}>{busy ? "Buscando…" : "Buscar"}</button></div><div className="search-results">{searchResults.map(item => <article className="search-result" key={item.id}><div className="search-result-head"><div><strong>{item.id}</strong><span>{new Date(item.dateTime).toLocaleString("es-PE")} · {item.plate || "SIN PLACA"} · {item.zone || "SIN ZONA"}</span></div><button onClick={() => openRegularization(item)}>{item.status === "PENDIENTE" ? "Regularizar" : "Abrir"}</button></div><div className="result-persons">{item.persons.map((person, index) => <div key={`${item.id}-${person.dni}-${index}`}><strong>{person.name}</strong><span>DNI {person.dni} · {person.role}</span><small>{person.lots ? `${person.lots} lote(s): ${person.lotCodes.length ? person.lotCodes.join(", ") : person.detail}` : "Sin lotes asignados"}</small></div>)}</div></article>)}{!searchResults.length && <p className="empty-message">Los resultados aparecerán del más reciente al más antiguo.</p>}</div></section>}

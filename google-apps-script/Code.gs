@@ -1,8 +1,8 @@
 // ATENCION AL CLIENTE - SCRIPT FINAL COMPATIBLE CON GOOGLE APPS SCRIPT
-// VERSION: ATENCION-2026-08-20-V9 - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
+// VERSION: ATENCION-2026-08-20-V10 - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
 // VERIFICACION: este archivo usa sintaxis ES5 compatible, sin operadores modernos.
 
-var SCRIPT_VERSION = 'ATENCION-2026-08-20-V9';
+var SCRIPT_VERSION = 'ATENCION-2026-08-20-V10';
 var WRITE_LOCK_MS = 1500;
 
 var CFG = Object.freeze({
@@ -120,14 +120,12 @@ function saveEvent_(p) {
 function regularize_(p) {
     validate_(p, true);
     ensureTech_();
-    var validPeople_1 = (p.participants || []).filter(function (x) { return /^\d{8}$/.test(String(x.dni || '')); });
+    var validPeople_1 = uniqueParticipants_(p.participants || []);
     var status = p.forRegularization || (p.pendingReasons || []).length ? 'PENDIENTE' : 'COMPLETO';
     var synchronizedId = syncedId_(p.clientRequestId);
-    if (synchronizedId) {
-        finishEvent_(synchronizedId, p, validPeople_1, status, 'REGULARIZAR');
-        return eventAck_(synchronizedId, p, validPeople_1, status);
-    }
-    var lock = writeLock_(), id_2 = String(p.id || ''), additionsCount = 0;
+    if (synchronizedId)
+        return getEvent_(synchronizedId);
+    var lock = writeLock_(), id_2 = String(p.id || ''), addedPeople_1 = [];
     try {
         synchronizedId = syncedId_(p.clientRequestId);
         if (synchronizedId) {
@@ -138,20 +136,23 @@ function regularize_(p) {
         var existing = matrixRowsForId_(sheet_2, m_2, id_2);
         if (!existing.length)
             throw new Error('No se encontró ' + id_2 + '.');
-        var base_1 = { dateTime: p.dateTime || existing[0].dateTime, event: Object.assign({}, existing[0].event, p.event || {}), caseId: p.caseId, participants: p.participants || [] };
+        var base_1 = { dateTime: p.dateTime || new Date(), event: completedEvent_(existing[0].event, p.event || {}), caseId: p.caseId, participants: validPeople_1 };
+        var incomingByDni_1 = {};
+        validPeople_1.forEach(function (person) { incomingByDni_1[cleanId_(person.dni)] = person; });
         existing.forEach(function (item) {
-            var person = (p.participants || []).find(function (x) { return String(x.dni || '') === item.dni; }) || item;
-            var existingBase = { dateTime: item.dateTime, event: base_1.event, caseId: base_1.caseId, participants: base_1.participants };
-            sheet_2.getRange(item.rowNumber, 1, 1, sheet_2.getLastColumn()).setValues([matrixRow_(sheet_2.getLastColumn(), m_2, id_2, existingBase, person)]);
+            var incoming = incomingByDni_1[item.dni];
+            if (!incoming)
+                return;
+            sheet_2.getRange(item.rowNumber, 1, 1, sheet_2.getLastColumn()).setValues([completeExistingRow_(item, m_2, incoming, p.event || {})]);
         });
-        var dnis_1 = new Set(existing.map(function (x) { return x.dni; }));
-        var additions = (p.participants || []).filter(function (x) { return /^\d{8}$/.test(String(x.dni || '')) && !dnis_1.has(String(x.dni)); });
-        if (additions.length) {
+        var existingDnis_1 = {};
+        existing.forEach(function (item) { existingDnis_1[item.dni] = true; });
+        addedPeople_1 = validPeople_1.filter(function (person) { return !existingDnis_1[cleanId_(person.dni)]; });
+        if (addedPeople_1.length) {
             var last = Math.max.apply(null, existing.map(function (x) { return x.rowNumber; }));
-            sheet_2.insertRowsAfter(last, additions.length);
-            copyStyle_(sheet_2, last, last + 1, additions.length);
-            sheet_2.getRange(last + 1, 1, additions.length, sheet_2.getLastColumn()).setValues(additions.map(function (x) { return matrixRow_(sheet_2.getLastColumn(), m_2, id_2, base_1, x); }));
-            additionsCount = additions.length;
+            sheet_2.insertRowsAfter(last, addedPeople_1.length);
+            copyStyle_(sheet_2, last, last + 1, addedPeople_1.length);
+            sheet_2.getRange(last + 1, 1, addedPeople_1.length, sheet_2.getLastColumn()).setValues(addedPeople_1.map(function (x) { return matrixRow_(sheet_2.getLastColumn(), m_2, id_2, base_1, x); }));
         }
         recordSync_(p.clientRequestId, id_2, 'REGULARIZAR', true);
         }
@@ -159,10 +160,70 @@ function regularize_(p) {
     finally {
         lock.releaseLock();
     }
-    if (additionsCount)
-        log_(id_2, 'INSERTAR FILAS', '', additionsCount + ' persona(s) debajo del bloque');
-    finishEvent_(id_2, p, validPeople_1, status, 'REGULARIZAR');
-    return eventAck_(id_2, p, validPeople_1, status);
+    if (addedPeople_1.length)
+        log_(id_2, 'INSERTAR FILAS', '', addedPeople_1.length + ' persona(s) debajo del bloque');
+    finishRegularization_(id_2, p, validPeople_1, addedPeople_1, status);
+    return getEvent_(id_2);
+}
+function uniqueParticipants_(people) {
+    var byDni = {}, result = [];
+    (people || []).forEach(function (person) {
+        var dni = cleanId_(person.dni);
+        if (!/^\d{8}$/.test(dni))
+            return;
+        if (!byDni[dni]) {
+            byDni[dni] = person;
+            result.push(person);
+            return;
+        }
+        byDni[dni] = completedPerson_(byDni[dni], person);
+        result[result.findIndex(function (item) { return cleanId_(item.dni) === dni; })] = byDni[dni];
+    });
+    return result;
+}
+function completedPerson_(current, incoming) {
+    var next = {}, keys = ['dni', 'name', 'phone', 'role', 'license', 'category', 'lots', 'detail'];
+    keys.forEach(function (key) { next[key] = String(incoming[key] || '').trim() ? incoming[key] : current[key]; });
+    var incomingCodes = (incoming.lotCodes || []).filter(function (code) { return String(code || '').trim(); });
+    next.lotCodes = incomingCodes.length ? incomingCodes : (current.lotCodes || []);
+    return next;
+}
+function completedEvent_(current, incoming) {
+    var next = {}, keys = ['motive', 'plate', 'zone', 'guard', 'shift', 'responsible'];
+    keys.forEach(function (key) { next[key] = String(incoming[key] || '').trim() ? incoming[key] : current[key]; });
+    return next;
+}
+function completeExistingRow_(existing, m, incoming, event) {
+    var row = existing.raw.slice(), nextEvent = event || {}, codes = (incoming.lotCodes || []).map(function (code) { return String(code || '').trim().toUpperCase(); }).filter(Boolean);
+    if (String(incoming.name || '').trim())
+        row[m.name] = String(incoming.name).toUpperCase();
+    if (String(incoming.phone || '').trim())
+        row[m.phone] = cleanId_(incoming.phone);
+    if (!String(row[m.role] || '').trim() && String(incoming.role || '').trim())
+        row[m.role] = String(incoming.role).toUpperCase();
+    if (String(incoming.role || '').toUpperCase() === 'CONDUCTOR') {
+        if (String(incoming.license || '').trim())
+            row[m.license] = String(incoming.license).toUpperCase();
+        if (String(incoming.category || '').trim())
+            row[m.category] = category_(incoming.category);
+    }
+    if (!String(row[m.lots] || '').trim() && String(incoming.lots || '').trim())
+        row[m.lots] = String(incoming.lots);
+    if (!String(row[m.detail] || '').trim() && String(incoming.detail || '').trim())
+        row[m.detail] = String(incoming.detail).toUpperCase();
+    if (!String(row[m.code] || '').trim() && codes.length)
+        row[m.code] = codes.join(' ');
+    if (!String(row[m.motive] || '').trim() && String(nextEvent.motive || '').trim())
+        row[m.motive] = String(nextEvent.motive).toUpperCase();
+    if (!String(row[m.plate] || '').trim() && String(nextEvent.plate || '').trim())
+        row[m.plate] = String(nextEvent.plate).slice(0, 7).toUpperCase();
+    if (!String(row[m.zone] || '').trim() && String(nextEvent.zone || '').trim())
+        row[m.zone] = String(nextEvent.zone).toUpperCase();
+    if (!String(row[m.guard] || '').trim() && String(nextEvent.guard || '').trim())
+        row[m.guard] = String(nextEvent.guard).toUpperCase();
+    if (!String(row[m.responsible] || '').trim() && String(nextEvent.responsible || '').trim())
+        row[m.responsible] = String(nextEvent.responsible).toUpperCase();
+    return row;
 }
 function writeLock_() {
     var lock = LockService.getScriptLock();
@@ -175,6 +236,12 @@ function finishEvent_(id, p, people, status, action) {
     replaceCodesBatch_(id, people);
     upsertPending_(id, p.caseId, status, p.pendingReasons || []);
     log_(id, action, '', people.length + ' persona(s) · ' + status);
+}
+function finishRegularization_(id, p, people, additions, status) {
+    ensureClients_(people);
+    appendCodes_(id, additions);
+    upsertPending_(id, p.caseId, status, p.pendingReasons || []);
+    log_(id, 'REGULARIZAR', '', additions.length + ' persona(s) nueva(s) · ' + status);
 }
 function search_(query, limit) {
     ensureTech_();
@@ -195,9 +262,13 @@ function search_(query, limit) {
 }
 function today_() {
     ensureTech_();
-    var sheet = sheet_(CFG.MATRIX), m = map_(sheet, MF), groups = {}, today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    matrixRows_(sheet, m).forEach(function (row) {
-        if (Utilities.formatDate(new Date(row.dateTime), Session.getScriptTimeZone(), 'yyyy-MM-dd') !== today)
+    var sheet = sheet_(CFG.MATRIX), m = map_(sheet, MF), groups = {}, todayIds = {}, today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), allRows = matrixRows_(sheet, m);
+    allRows.forEach(function (row) {
+        if (Utilities.formatDate(new Date(row.dateTime), Session.getScriptTimeZone(), 'yyyy-MM-dd') === today)
+            todayIds[row.id] = true;
+    });
+    allRows.forEach(function (row) {
+        if (!todayIds[row.id])
             return;
         if (!groups[row.id])
             groups[row.id] = [];
@@ -227,10 +298,26 @@ function eventFromRows_(id, rows, clients, codeMap, states) {
     var first = rows[0], state = states ? states[id] || {} : pendingState_(id), people = clients || clientMap_();
     return { id: id, dateTime: first.dateTime, caseId: state.caseId || 1, status: state.status || 'COMPLETO', pendingReasons: state.pendingReasons || [],
         motive: first.event.motive, plate: first.event.plate, zone: first.event.zone, guard: first.event.guard, shift: first.event.shift, responsible: first.event.responsible,
-        persons: rows.map(function (r) { var cachedCodes = codeMap ? codeMap[id + '\u001f' + r.dni] || [] : null; return ({ dni: r.dni, name: r.name, phone: r.phone, role: r.role, license: r.license || (people[r.dni] ? people[r.dni].license || '' : ''), category: category_(r.category || (people[r.dni] ? people[r.dni].category || '' : '')), lots: r.lots, detail: r.detail, lotCodes: cachedCodes ? (cachedCodes.length ? cachedCodes : String(r.code || '').split(/\s+/).filter(Boolean)) : codesForRow_(id, r.dni, r.code) }); }) };
+        persons: eventPersons_(id, rows, people, codeMap) };
+}
+function eventPersons_(id, rows, people, codeMap) {
+    var byKey = {}, ordered = [];
+    rows.forEach(function (r) {
+        var cachedCodes = codeMap ? codeMap[id + '\u001f' + r.dni] || [] : null;
+        var person = { dni: r.dni, name: r.name, phone: r.phone, role: r.role, license: r.license || (people[r.dni] ? people[r.dni].license || '' : ''), category: category_(r.category || (people[r.dni] ? people[r.dni].category || '' : '')), lots: r.lots, detail: r.detail, lotCodes: cachedCodes ? (cachedCodes.length ? cachedCodes : String(r.code || '').split(/\s+/).filter(Boolean)) : codesForRow_(id, r.dni, r.code) };
+        var key = cleanId_(person.dni) + '\u001f' + String(person.role || '').toUpperCase();
+        if (!byKey[key]) {
+            byKey[key] = person;
+            ordered.push(key);
+        }
+        else {
+            byKey[key] = completedPerson_(byKey[key], person);
+        }
+    });
+    return ordered.map(function (key) { return byKey[key]; });
 }
 function matrixObject_(r, rowNumber, m) {
-    return { rowNumber: rowNumber, id: String(r[m.id] || ''), dateTime: iso_(r[m.dateTime]),
+    return { rowNumber: rowNumber, raw: r.slice(), id: String(r[m.id] || ''), dateTime: iso_(r[m.dateTime]),
         dni: cleanId_(r[m.dni]), name: String(r[m.name] || ''), phone: cleanId_(r[m.phone]), role: String(r[m.role] || '').toUpperCase(), license: String(r[m.license] || ''), category: category_(r[m.category]), lots: cleanId_(r[m.lots]), detail: String(r[m.detail] || ''), code: String(r[m.code] || ''),
         event: { motive: String(r[m.motive] || ''), plate: String(r[m.plate] || ''), zone: String(r[m.zone] || ''), guard: String(r[m.guard] || ''), shift: String(r[m.shift] || ''), responsible: String(r[m.responsible] || '') } };
 }
