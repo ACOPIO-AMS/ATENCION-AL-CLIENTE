@@ -11,8 +11,10 @@ La fila 2 de `MATRIZ` debe incluir estos encabezados: `ID`, `FECHA Y HORA DE ING
 
 Al actualizar un proyecto existente: reemplaza todo `Code.gs`, guarda y crea una **nueva versión** de la aplicación web. Conserva la misma `APP_API_KEY`.
 
-Verificación obligatoria: abre la URL `/exec` de la implementación activa. Debe responder con `"backendVersion":"ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA"`. Si no aparece, la aplicación web todavía está usando una versión anterior.
+Verificación obligatoria: abre la URL `/exec` de la implementación activa. Debe responder con `"backendVersion":"ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS"`. Si no aparece, la aplicación web todavía está usando una versión anterior.
 
-La versión V13 conserva intactas las filas existentes al regularizar: no borra lotes, detalles, códigos ni fechas; completa únicamente campos vacíos e inserta solo personas nuevas. Permite mantener pendientes el número de lotes o el detalle de carga y reconstruye referencias antiguas guardadas como `null` para que el evento continúe visible y sincronizable.
+La versión V14 conserva intactas las filas existentes al regularizar: no borra lotes, detalles, códigos ni fechas; completa únicamente campos vacíos e inserta solo personas nuevas. Permite mantener pendientes placa, zona, conductor, proveedor, número de lotes o detalle de carga y reconstruye referencias antiguas guardadas como `null`. Además, valida las columnas de BD CLIENTES para que un celular vacío nunca desplace la categoría hacia el número de licencia.
 
 El guardado es directo y ligero: solo usa `MATRIZ` y `BD CLIENTES`. Las hojas `BD LOTES`, `CONTROL REGULARIZACIONES`, `HISTORIAL CAMBIOS` y `CONTROL SINCRONIZACION` ya no participan en la aplicación; no es necesario borrarlas para instalar V11.
+
+La app envía un registro por solicitud y omite campos vacíos. Un registro de regularización típico ocupa menos de 1 KB; el envío se activa al recuperar conexión y continúa con reintentos breves en segundo plano.

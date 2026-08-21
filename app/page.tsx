@@ -18,7 +18,7 @@ type ModalAlertType = Exclude<AlertType, "warning">;
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
-const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-21-V11-LIGERO", "ATENCION-2026-08-21-V12-COLA-ROBUSTA", "ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA"];
+const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-21-V11-LIGERO", "ATENCION-2026-08-21-V12-COLA-ROBUSTA", "ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA", "ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS"];
 
 class SheetsApiError extends Error {
   status: number;
@@ -58,6 +58,23 @@ function normalizeCategory(value?: string) {
 
 function normalizeLicense(value?: string) {
   return String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9);
+}
+
+function isLicenseCategory(value?: string) {
+  return ["A-I", "A-IIA", "A-IIB", "A-IIIA", "A-IIIB", "A-IIIC"].includes(normalizeCategory(value));
+}
+
+function normalizePersonRecord(person?: Partial<PersonRecord>): PersonRecord {
+  const rawLicense = String(person?.license ?? "").trim();
+  const licenseContainsCategory = isLicenseCategory(rawLicense);
+  const phoneCandidate = String(person?.phone ?? "").replace(/\D/g, "");
+  const categoryCandidate = normalizeCategory(person?.category);
+  return {
+    name: String(person?.name ?? ""),
+    phone: /^\d{9}$/.test(phoneCandidate) ? phoneCandidate : "",
+    license: licenseContainsCategory ? "" : normalizeLicense(rawLicense),
+    category: isLicenseCategory(categoryCandidate) ? categoryCandidate : licenseContainsCategory ? normalizeCategory(rawLicense) : "",
+  };
 }
 
 function compactFields(value: Record<string, unknown>) {
@@ -137,7 +154,7 @@ function validFullName(value: string) {
 async function sheetsApi<T>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
   const controller = new AbortController();
   const writeAction = action === "saveEvent" || action === "regularizeEvent";
-  const timeout = writeAction ? 45_000 : action === "searchPerson" || action === "health" ? 12_000 : 30_000;
+  const timeout = writeAction ? 25_000 : action === "searchPerson" || action === "health" ? 10_000 : 25_000;
   const timer = window.setTimeout(() => controller.abort(), timeout);
   try {
     const response = await fetch("/api/sheets", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ action, payload }), signal: controller.signal, keepalive: writeAction });
@@ -199,7 +216,7 @@ function readCachedPerson(dni: string): PersonRecord | undefined {
   if (typeof window === "undefined") return undefined;
   try {
     const cache = JSON.parse(window.localStorage.getItem(CLIENT_CACHE_KEY) || "{}") as Record<string, PersonRecord>;
-    return cache[dni];
+    return cache[dni] ? normalizePersonRecord(cache[dni]) : undefined;
   } catch {
     return undefined;
   }
@@ -209,8 +226,9 @@ function cachePerson(dni: string, person: PersonRecord) {
   if (typeof window === "undefined") return;
   try {
     const cache = JSON.parse(window.localStorage.getItem(CLIENT_CACHE_KEY) || "{}") as Record<string, PersonRecord>;
-    const previous = cache[dni];
-    const safePerson = { ...person, phone: /^\d{9}$/.test(person.phone) ? person.phone : previous?.phone || "" };
+    const previous = normalizePersonRecord(cache[dni]);
+    const normalized = normalizePersonRecord(person);
+    const safePerson = { ...normalized, phone: normalized.phone || previous.phone };
     window.localStorage.setItem(CLIENT_CACHE_KEY, JSON.stringify({ ...cache, [dni]: safePerson }));
   } catch {
     // El registro principal no debe fallar si el almacenamiento local está bloqueado.
@@ -255,7 +273,7 @@ export default function Home() {
   const motiveIsSelectable = activeCase === 5 || activeCase === 6;
   const todayCards = useMemo(() => todayEvents.map(item => ({ ...item, persons: uniqueSheetPeople(item.persons) })), [todayEvents]);
   const connectionLabel = connection === "online" ? "CONECTADO" : connection === "outdated" ? "SCRIPT ANTERIOR" : connection === "unconfigured" ? "SIN CONFIGURAR" : connection === "checking" ? "VERIFICANDO" : "SIN INTERNET";
-  const backendShort = backendVersion.match(/V\d+$/)?.[0] || "";
+  const backendShort = backendVersion.match(/V\d+/)?.[0] || "";
   const connectionTitle = connection === "online" ? `Google Sheets conectado${backendShort ? ` · Servidor ${backendShort}` : ""}` : connection === "outdated" ? "Apps Script desactualizado" : connection === "unconfigured" ? "Google Sheets sin configurar" : connection === "checking" ? "Verificando conexión" : "Trabajo sin conexión";
 
   const validation = useMemo(() => {
@@ -263,34 +281,34 @@ export default function Home() {
     const regularizable: string[] = [];
     if (!event.responsible.trim()) blocking.push("Responsable de atención");
     if (!event.guard) blocking.push("Guardia");
-    if (hasVehicle && !event.plate.trim()) (activeCase === 4 ? regularizable : blocking).push("Placa del vehículo");
-    if (hasVehicle && !event.zone.trim()) (activeCase === 4 ? regularizable : blocking).push("Zona del vehículo");
-    if ((activeCase === 3 || activeCase === 6) && providers.length === 0) blocking.push("Al menos un proveedor");
-    if (hasVehicle && drivers.length === 0) blocking.push("Datos del conductor");
+    if (!participants.some(person => /^\d{8}$/.test(person.dni))) blocking.push("Al menos una persona con DNI válido");
+    if (hasVehicle && !event.plate.trim()) regularizable.push("Placa del vehículo");
+    if (hasVehicle && !event.zone.trim()) regularizable.push("Zona del vehículo");
+    if ((activeCase === 3 || activeCase === 4 || activeCase === 6) && providers.length === 0) regularizable.push("Datos del proveedor");
+    if (hasVehicle && drivers.length === 0) regularizable.push("Datos del conductor");
     participants.forEach((person) => {
       if (person.expectedLater && !person.dni) {
         regularizable.push(`Datos del ${person.role.toLowerCase()} que llegará después`);
-        return;
       } else {
-        if (!/^\d{8}$/.test(person.dni)) blocking.push(`DNI válido de ${person.role.toLowerCase()}`);
-        if (!validFullName(person.name)) blocking.push(`Nombre y dos apellidos de ${person.role.toLowerCase()}`);
+        if (!/^\d{8}$/.test(person.dni)) regularizable.push(`DNI válido de ${person.role.toLowerCase()}`);
+        if (!validFullName(person.name)) regularizable.push(`Nombre y dos apellidos de ${person.role.toLowerCase()}`);
         if (person.role === "ACOMPAÑANTE") {
-          if (person.phone && !/^\d{9}$/.test(person.phone)) blocking.push("Celular válido de acompañante, o dejarlo vacío");
+          if (person.phone && !/^\d{9}$/.test(person.phone)) regularizable.push("Celular válido de acompañante, o dejarlo vacío");
         } else if (!/^\d{9}$/.test(person.phone)) {
-          blocking.push(`Celular de 9 dígitos de ${person.role.toLowerCase()}`);
+          regularizable.push(`Celular de 9 dígitos de ${person.role.toLowerCase()}`);
         }
         if (person.role === "CONDUCTOR") {
-          if (!person.license.trim()) blocking.push("Número de licencia del conductor");
-          if (person.license.length > 9) blocking.push("Licencia del conductor de máximo 9 caracteres");
-          if (!person.category) blocking.push("Categoría de licencia del conductor");
+          if (!person.license.trim()) regularizable.push("Número de licencia del conductor");
+          if (person.license.length > 9) regularizable.push("Licencia del conductor de máximo 9 caracteres");
+          if (!person.category) regularizable.push("Categoría de licencia del conductor");
         }
       }
       const mode = cargoMode(activeCase, person.role, providers.length);
       if (mode && person.cargoRegularize) {
         regularizable.push(`Carga de ${person.name || person.role.toLowerCase()} marcada para regularizar`);
       } else {
-        if (mode && !person.lots) blocking.push(`Número de lotes de ${person.name || person.role.toLowerCase()}`);
-        if (mode === "detail" && !person.detail.trim()) blocking.push(`Detalle de carga de ${person.name || person.role.toLowerCase()}`);
+        if (mode && !person.lots) regularizable.push(`Número de lotes de ${person.name || person.role.toLowerCase()}`);
+        if (mode === "detail" && !person.detail.trim()) regularizable.push(`Detalle de carga de ${person.name || person.role.toLowerCase()}`);
       }
     });
     const blockingReasons = Array.from(new Set(blocking));
@@ -405,7 +423,7 @@ export default function Home() {
         const retryable = /SERVIDOR_OCUPADO|candado|reintentar|tardó demasiado|tiempo de espera/i.test(message);
         if (retryable) {
           setConnection("online");
-          retryDelay = Math.min(2000 * Math.pow(2, Math.min(attempts - 1, 3)), 15_000);
+          retryDelay = Math.min(1500 * Math.pow(2, Math.min(attempts - 1, 3)), 8_000);
           flash(`Google Sheets está ocupado. El registro sigue protegido y se reintentará en segundo plano.`, "warning");
         } else {
           failedInCycleRef.current.add(item.queueId);
@@ -428,7 +446,7 @@ export default function Home() {
         if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
         retryTimerRef.current = window.setTimeout(() => { void syncQueue(); }, retryDelay);
       } else if (continueQueue) {
-        window.setTimeout(() => { void syncQueue(); }, 800);
+        window.setTimeout(() => { void syncQueue(); }, 250);
       }
     }
   }
@@ -505,7 +523,7 @@ export default function Home() {
       if (!navigator.onLine) return;
       if (queueRef.current.length) void syncQueue();
       else void checkConnection(false);
-    }, 8_000);
+    }, 5_000);
     return () => {
       active = false;
       window.removeEventListener("online", online);
@@ -556,19 +574,20 @@ export default function Home() {
   async function searchDni(person: Participant) {
     if (!/^\d{8}$/.test(person.dni)) return flash("El DNI debe contener exactamente 8 números");
     const applyFoundPerson = (result: PersonRecord, offline = false) => {
+      const normalized = normalizePersonRecord(result);
       // La ocupación corresponde a este ingreso. Nunca debe ser reemplazada por
       // la ocupación histórica guardada en BD CLIENTES.
       updateParticipant(person.id, {
-        name: result.name,
-        phone: result.phone,
+        name: normalized.name,
+        phone: normalized.phone,
         role: person.role,
         found: true,
         newPerson: false,
         expectedLater: false,
-        license: person.role === "CONDUCTOR" ? normalizeLicense(result.license) : "",
-        category: person.role === "CONDUCTOR" ? normalizeCategory(result.category) : "",
+        license: person.role === "CONDUCTOR" ? normalized.license || "" : "",
+        category: person.role === "CONDUCTOR" ? normalized.category || "" : "",
       });
-      cachePerson(person.dni, result);
+      cachePerson(person.dni, normalized);
       flash(offline ? "Persona encontrada en la copia local de BD CLIENTES" : "Persona encontrada en BD CLIENTES", "warning");
     };
     const applyNewPerson = () => {
@@ -580,12 +599,13 @@ export default function Home() {
       applyFoundPerson(cached, true);
       void sheetsApi<{ found: boolean; person?: PersonRecord }>("searchPerson", { dni: person.dni }).then(result => {
         if (result.found && result.person) {
+          const normalized = normalizePersonRecord(result.person);
           updateParticipant(person.id, {
-            name: result.person.name, phone: result.person.phone, role: person.role, found: true, newPerson: false, expectedLater: false,
-            license: person.role === "CONDUCTOR" ? normalizeLicense(result.person.license) : "",
-            category: person.role === "CONDUCTOR" ? normalizeCategory(result.person.category) : "",
+            name: normalized.name, phone: normalized.phone, role: person.role, found: true, newPerson: false, expectedLater: false,
+            license: person.role === "CONDUCTOR" ? normalized.license || "" : "",
+            category: person.role === "CONDUCTOR" ? normalized.category || "" : "",
           });
-          cachePerson(person.dni, result.person);
+          cachePerson(person.dni, normalized);
           setConnection("online");
         }
       }).catch(() => undefined);
@@ -714,11 +734,12 @@ export default function Home() {
     const loaded = savedPeople.map((person, index) => {
       const mode = cargoMode(item.caseId || 1, person.role, savedProviderCount);
       const cargoStillPending = Boolean(mode && (!person.lots || (mode === "detail" && !person.detail.trim())));
-      return { ...blankPerson(index + 1, person.role, person.role === "CONDUCTOR"), ...person, license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "", category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "", found: true, cargoRegularize: item.status === "PENDIENTE" && cargoStillPending };
+      const normalized = normalizePersonRecord(person);
+      return { ...blankPerson(index + 1, person.role, person.role === "CONDUCTOR"), ...person, phone: normalized.phone, license: person.role === "CONDUCTOR" ? normalized.license || "" : "", category: person.role === "CONDUCTOR" ? normalized.category || "" : "", found: true, cargoRegularize: item.status === "PENDIENTE" && cargoStillPending };
     });
-    if ((item.caseId || 1) === 4 && !loaded.some((person) => person.role === "CONDUCTOR")) {
-      loaded.unshift({ ...blankPerson(loaded.length + 1, "CONDUCTOR", true), expectedLater: true });
-    }
+    const pendingText = safeArray<string>(item.pendingReasons).join(" ").toUpperCase();
+    if ((item.caseId || 1) !== 6 && !loaded.some((person) => person.role === "CONDUCTOR")) loaded.unshift(blankPerson(loaded.length + 1, "CONDUCTOR", true));
+    if (!loaded.some((person) => person.role === "PROVEEDOR") && (/PROVEEDOR/.test(pendingText) || [4, 6].includes(item.caseId || 1))) loaded.push(blankPerson(loaded.length + 1, "PROVEEDOR"));
     setParticipants(loaded.map((person, index) => ({ ...person, id: index + 1 })));
     setActiveView("registro"); flash(`${item.id} abierto: las personas nuevas se insertarán debajo de su bloque`, "warning");
   }
@@ -738,7 +759,7 @@ export default function Home() {
     </aside>
 
     <section className="workspace">
-      <header className="topbar"><div><p>OPERACIONES / ATENCIÓN AL CLIENTE</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : "BD Clientes"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
+      <header className="topbar"><div><p>REGISTRO DE PROVEEDORES ATENCIÓN AL CLIENTE - AMS - v001crq.</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : "BD Clientes"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
       {showQueueManager && queue.length > 0 && <section className="queue-manager"><div className="queue-manager-head"><div><strong>Pendientes guardados en este dispositivo</strong><span>Un registro con error ya no detiene a los demás. Revísalo antes de eliminarlo.</span></div><button type="button" className="danger-link" onClick={removeAllQueued}>Eliminar todos</button></div><div className="queue-list">{queue.map(item => { const preview = queuePreview(item); return <article className={item.lastError ? "queue-item has-error" : "queue-item"} key={item.queueId}><div className="queue-item-main"><strong>{item.localId}</strong><span>{formatDateTime(item.createdAt)} · {item.action === "regularizeEvent" ? "REGULARIZACIÓN" : "NUEVO INGRESO"}</span><p>{preview.plate} · {preview.people}</p>{item.lastError && <em>{item.lastError}</em>}</div><div className="queue-item-actions"><button type="button" onClick={() => retryQueued(item.queueId)} disabled={syncing}>Reintentar</button><button type="button" className="danger" onClick={() => removeQueued(item.queueId)} disabled={syncing}>Eliminar</button></div></article>; })}</div></section>}
 

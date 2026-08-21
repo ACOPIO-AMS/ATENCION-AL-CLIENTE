@@ -1,4 +1,4 @@
-const CACHE = "atencion-cliente-campo-v21";
+const CACHE = "atencion-cliente-campo-v22";
 const SHELL = ["/", "/manifest.webmanifest", "/favicon.svg"];
 
 self.addEventListener("install", event => {

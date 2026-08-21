@@ -1,8 +1,8 @@
 // ATENCION AL CLIENTE - SCRIPT FINAL COMPATIBLE CON GOOGLE APPS SCRIPT
-// VERSION: ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
+// VERSION: ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
 // VERIFICACION: este archivo usa sintaxis ES5 compatible, sin operadores modernos.
 
-var SCRIPT_VERSION = 'ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA';
+var SCRIPT_VERSION = 'ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS';
 var WRITE_LOCK_MS = 1500;
 
 var CFG = Object.freeze({ HEADER: 2, MATRIX: 'MATRIZ', CLIENTS: 'BD CLIENTES' });
@@ -446,7 +446,19 @@ function ensureClient_(p) {
     row[m.category] = p.category || '';
     sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
 }
-function clientObject_(r, m) { return { dni: cleanId_(r[m.dni]), name: String(r[m.name] || ''), phone: cleanId_(r[m.phone]), role: String(r[m.role] || ''), license: String(r[m.license] || ''), category: category_(r[m.category]) }; }
+function clientObject_(r, m) {
+    var phone = cleanId_(r[m.phone]), rawLicense = String(r[m.license] || '').trim().toUpperCase(), category = category_(r[m.category]);
+    if (!/^\d{9}$/.test(phone))
+        phone = '';
+    if (isCategory_(rawLicense)) {
+        if (!isCategory_(category))
+            category = category_(rawLicense);
+        rawLicense = '';
+    }
+    if (!isCategory_(category))
+        category = '';
+    return { dni: cleanId_(r[m.dni]), name: String(r[m.name] || ''), phone: phone, role: String(r[m.role] || ''), license: rawLicense, category: category };
+}
 function clientMap_() { var s = sheet_(CFG.CLIENTS), m = map_(s, CF), out = {}; values_(s, CFG.HEADER + 1).forEach(function (r) { var p = clientObject_(r, m); if (p.dni)
     out[p.dni] = p; }); return out; }
 function upsertPending_(id, caseId, status, reasons) {
@@ -491,7 +503,8 @@ function nextId_(sheet, m) {
 }
 function operationalShift_(value) { var d = value ? new Date(value) : new Date(), time = Utilities.formatDate(d, Session.getScriptTimeZone(), 'HH:mm'); return time >= '07:00' && time < '19:00' ? 'DÍA' : 'NOCHE'; }
 function validate_(p, regularize) { if (regularize && !p.id)
-    throw new Error('ID requerido.'); var e = p.event || {}, c = Number(p.caseId) || 1; if (!String(e.responsible || '').trim())
+    throw new Error('ID requerido.'); if (!p.forRegularization && array_(p.pendingReasons).length)
+    throw new Error('Completa todos los datos obligatorios antes de guardar.'); var e = p.event || {}, c = Number(p.caseId) || 1; if (!String(e.responsible || '').trim())
     throw new Error('Responsable requerido.'); if (String(e.plate || '').length > 7)
     throw new Error('La placa admite máximo 7 caracteres.'); array_(p.participants).forEach(function (person) { if (person && String(person.role || '').toUpperCase() === 'CONDUCTOR' && String(person.license || '').length > 9)
         throw new Error('La licencia admite máximo 9 caracteres.'); }); if (c <= 4 && String(e.motive || '').toUpperCase() !== 'PROCESO')
@@ -531,6 +544,7 @@ function category_(v) {
     var categories = { AI: 'A-I', AIIA: 'A-IIA', AIIB: 'A-IIB', AIIIA: 'A-IIIA', AIIIB: 'A-IIIB', AIIIC: 'A-IIIC' };
     return categories[compact] || raw;
 }
+function isCategory_(v) { return ['A-I', 'A-IIA', 'A-IIB', 'A-IIIA', 'A-IIIB', 'A-IIIC'].indexOf(category_(v)) >= 0; }
 function iso_(v) { var d = v instanceof Date ? v : new Date(v); return isNaN(d.getTime()) ? String(v || '') : d.toISOString(); }
 function parse_(v, fallback) { try {
     return JSON.parse(v);

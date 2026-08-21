@@ -80,7 +80,35 @@ test("old null arrays are converted to empty arrays", () => {
 });
 
 test("backend identifies the safe regularization version", () => {
-  assert.equal(context.SCRIPT_VERSION, "ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA");
+  assert.equal(context.SCRIPT_VERSION, "ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS");
+});
+
+test("blank phone never shifts license category into the license field", () => {
+  const person = context.clientObject_(["12345678", "CONDUCTOR PRUEBA", "", "CONDUCTOR", "A-IIB", ""], {
+    dni: 0, name: 1, phone: 2, role: 3, license: 4, category: 5,
+  });
+
+  assert.equal(person.phone, "");
+  assert.equal(person.license, "");
+  assert.equal(person.category, "A-IIB");
+});
+
+test("normal save rejects pending fields but regularization accepts them", () => {
+  assert.throws(() => context.validate_({
+    caseId: 1,
+    forRegularization: false,
+    pendingReasons: ["Placa del vehículo"],
+    event: { responsible: "OPERADOR", motive: "PROCESO" },
+    participants: [],
+  }, false), /Completa todos los datos obligatorios/);
+
+  assert.doesNotThrow(() => context.validate_({
+    caseId: 1,
+    forRegularization: true,
+    pendingReasons: ["Placa del vehículo"],
+    event: { responsible: "OPERADOR", motive: "PROCESO" },
+    participants: [],
+  }, false));
 });
 
 test("a legacy null pending state remains visible for regularization", () => {

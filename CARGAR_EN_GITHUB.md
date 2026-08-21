@@ -2,7 +2,7 @@
 
 Este paquete contiene la aplicación completa. No cargues el archivo ZIP directamente: primero debes extraerlo.
 
-La revisión V13 corrige las referencias nulas de regularización en Apps Script. Un evento puede completar personas ahora y mantener pendientes el número de lotes o el detalle de carga; seguirá visible en “Por regularizar” hasta quedar completo. Conserva el formato de fecha `dd/MM/aaaa HH:mm`.
+La revisión V14 permite guardar para regularizar placa, zona, conductor, proveedor, número de lotes y detalle de carga en cualquiera de las opciones. El guardado normal continúa exigiendo todos los datos. También separa celular, licencia y categoría para impedir que una categoría aparezca como número de licencia cuando el celular está vacío. Conserva el formato de fecha `dd/MM/aaaa HH:mm`.
 
 ## Método recomendado: GitHub Desktop
 
@@ -17,7 +17,7 @@ La revisión V13 corrige las referencias nulas de regularización en Apps Script
 
 Cloudflare publicará automáticamente la rama `main` después de cada `Push origin`.
 
-## Google Apps Script V13 — regularización segura
+## Google Apps Script V14 — regularización completa
 
 Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 
@@ -28,9 +28,11 @@ Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 5. Selecciona **Nueva versión** y pulsa **Implementar**.
 6. No ejecutes `configurarBase()`.
 
-La URL `/exec` debe responder con `ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA`.
+La URL `/exec` debe responder con `ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS`.
 
 Esta versión escribe directamente en `MATRIZ`, reconoce encabezados como `N.º LOTES`, `N° LOTES`, `N LOTES` y `NUMERO LOTES`, sanea colas antiguas que contienen valores `null` y no usa las hojas auxiliares `BD LOTES`, `CONTROL REGULARIZACIONES`, `HISTORIAL CAMBIOS` ni `CONTROL SINCRONIZACION`.
+
+La transferencia envía un registro por solicitud, elimina campos vacíos y mantiene un registro típico por debajo de 1 KB. Cuando vuelve la conexión, el primer intento es inmediato; si la señal es inestable, reintenta cada pocos segundos sin bloquear el formulario.
 
 ## Actualizaciones siguientes
 
