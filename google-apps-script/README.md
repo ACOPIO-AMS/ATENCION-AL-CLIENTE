@@ -7,12 +7,12 @@
 5. Implementa como **Aplicación web**, ejecutando como propietario.
 6. Copia la URL `/exec` y configura en Cloudflare `GOOGLE_APPS_SCRIPT_URL` y `GOOGLE_APPS_SCRIPT_API_KEY`.
 
-La fila 2 de `MATRIZ` debe incluir estos encabezados: `ID`, `FECHA Y HORA DE INGRESO`, `DNI`, `NOMBRES Y APELLIDOS`, `CELULAR`, `OCUPACION`, `MOTIVO DE INGRESO`, `PLACA`, `ZONA`, `LICENCIA DE CONDUCIR`, `CATEGORIA`, `NUMERO LOTES`, `DETALLE DE CARGA`, `CODIGO`, `GUARDIA`, `TURNO` y `RESPONSABLE`.
+La fila 2 de `MATRIZ` debe incluir estos encabezados: `ID`, `FECHA Y HORA DE INGRESO`, `DNI`, `NOMBRES Y APELLIDOS`, `CELULAR`, `OCUPACION`, `MOTIVO DE INGRESO`, `PLACA`, `ZONA`, `LICENCIA DE CONDUCIR`, `CATEGORIA`, `NUMERO LOTES`, `DETALLE DE CARGA`, `CODIGO`, `GUARDIA`, `TURNO` y `RESPONSABLE`. Para lotes también se aceptan `N.º LOTES`, `N° LOTES`, `N LOTES`, `NRO LOTES` y `CANTIDAD DE LOTES`.
 
 Al actualizar un proyecto existente: reemplaza todo `Code.gs`, guarda y crea una **nueva versión** de la aplicación web. Conserva la misma `APP_API_KEY`.
 
-Verificación obligatoria: abre la URL `/exec` de la implementación activa. Debe responder con `"backendVersion":"ATENCION-2026-08-20-V10"`. Si no aparece, la aplicación web todavía está usando una versión anterior.
+Verificación obligatoria: abre la URL `/exec` de la implementación activa. Debe responder con `"backendVersion":"ATENCION-2026-08-21-V11-LIGERO"`. Si no aparece, la aplicación web todavía está usando una versión anterior.
 
-La versión V10 conserva intactas las filas existentes al regularizar: no borra lotes, detalles, códigos ni fechas; completa únicamente campos vacíos e inserta solo personas nuevas. También evita que una misma persona se muestre repetida en las consultas y conserva la actualización de celular, licencia y categoría.
+La versión V11 conserva intactas las filas existentes al regularizar: no borra lotes, detalles, códigos ni fechas; completa únicamente campos vacíos e inserta solo personas nuevas. También evita que una misma persona se muestre repetida en las consultas y conserva la actualización de celular, licencia y categoría.
 
-La configuración elimina la columna N.º de personas y crea `BD LOTES`, `CONTROL REGULARIZACIONES`, `HISTORIAL CAMBIOS` y `CONTROL SINCRONIZACION`.
+El guardado es directo y ligero: solo usa `MATRIZ` y `BD CLIENTES`. Las hojas `BD LOTES`, `CONTROL REGULARIZACIONES`, `HISTORIAL CAMBIOS` y `CONTROL SINCRONIZACION` ya no participan en la aplicación; no es necesario borrarlas para instalar V11.

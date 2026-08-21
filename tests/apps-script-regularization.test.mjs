@@ -60,3 +60,15 @@ test("report output shows one person when old rows are duplicated", () => {
   assert.equal(people[0].lots, "2");
   assert.equal(people[0].detail, "DETALLE");
 });
+
+test("lot header variants used by the spreadsheet are recognized", () => {
+  assert.equal(context.norm_("N.º LOTES"), "N LOTES");
+  assert.equal(context.norm_("N° LOTES"), "N LOTES");
+  const accepted = Array.from(context.MF.lots, value => context.norm_(value));
+  assert.ok(accepted.includes("N LOTES"));
+  assert.ok(accepted.includes("NUMERO LOTES"));
+});
+
+test("light backend no longer depends on auxiliary sheets", () => {
+  assert.doesNotMatch(source, /BD LOTES|CONTROL REGULARIZACIONES|HISTORIAL CAMBIOS|CONTROL SINCRONIZACION/);
+});

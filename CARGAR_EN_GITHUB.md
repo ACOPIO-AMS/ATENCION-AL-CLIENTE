@@ -2,6 +2,8 @@
 
 Este paquete contiene la aplicación completa. No cargues el archivo ZIP directamente: primero debes extraerlo.
 
+La revisión V11.1 mejora la lectura en teléfonos: agranda títulos, campos e iconos y deja en el panel de validación únicamente los datos pendientes por completar.
+
 ## Método recomendado: GitHub Desktop
 
 1. Instala y abre GitHub Desktop.
@@ -15,7 +17,7 @@ Este paquete contiene la aplicación completa. No cargues el archivo ZIP directa
 
 Cloudflare publicará automáticamente la rama `main` después de cada `Push origin`.
 
-## Google Apps Script V10
+## Google Apps Script V11 ligero
 
 Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 
@@ -26,7 +28,9 @@ Después de cargar GitHub, actualiza también el servicio de Google Sheets:
 5. Selecciona **Nueva versión** y pulsa **Implementar**.
 6. No ejecutes `configurarBase()`.
 
-La URL `/exec` debe responder con `ATENCION-2026-08-20-V10`.
+La URL `/exec` debe responder con `ATENCION-2026-08-21-V11-LIGERO`.
+
+Esta versión escribe directamente en `MATRIZ`, reconoce encabezados como `N.º LOTES`, `N° LOTES`, `N LOTES` y `NUMERO LOTES`, y no usa las hojas auxiliares `BD LOTES`, `CONTROL REGULARIZACIONES`, `HISTORIAL CAMBIOS` ni `CONTROL SINCRONIZACION`.
 
 ## Actualizaciones siguientes
 

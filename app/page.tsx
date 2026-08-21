@@ -18,7 +18,7 @@ type ModalAlertType = Exclude<AlertType, "warning">;
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
-const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-20-V10"];
+const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-20-V10", "ATENCION-2026-08-21-V11-LIGERO"];
 
 class SheetsApiError extends Error {
   status: number;
@@ -60,15 +60,28 @@ function normalizeLicense(value?: string) {
   return String(value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9);
 }
 
-function compactWritePayload(payload: Record<string, unknown>) {
-  const source = payload as Record<string, unknown> & { participants?: Array<Partial<Participant>> };
-  const compactParticipants = (source.participants || []).filter(person => /^\d{8}$/.test(String(person.dni || ""))).map(person => ({
-    dni: String(person.dni || ""), name: String(person.name || ""), phone: String(person.phone || ""), role: person.role,
-    license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "",
-    category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "",
-    lots: String(person.lots || ""), detail: String(person.detail || ""), lotCodes: (person.lotCodes || []).filter(Boolean),
+function compactFields(value: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(value).filter(([, field]) => {
+    if (field === "" || field === null || field === undefined) return false;
+    return !Array.isArray(field) || field.length > 0;
   }));
-  return { ...payload, participants: compactParticipants };
+}
+
+function compactWritePayload(payload: Record<string, unknown>) {
+  const source = payload as Record<string, unknown> & { participants?: Array<Partial<Participant>>; event?: Record<string, unknown> };
+  const compactParticipants = (source.participants || [])
+    .filter(person => /^\d{8}$/.test(String(person.dni || "")))
+    .map(person => compactFields({
+      dni: String(person.dni || ""), name: String(person.name || ""), phone: String(person.phone || ""), role: person.role,
+      license: person.role === "CONDUCTOR" ? normalizeLicense(person.license) : "",
+      category: person.role === "CONDUCTOR" ? normalizeCategory(person.category) : "",
+      lots: String(person.lots || ""), detail: String(person.detail || ""), lotCodes: (person.lotCodes || []).filter(Boolean),
+    }));
+  return compactFields({
+    ...source,
+    event: source.event ? compactFields(source.event) : undefined,
+    participants: compactParticipants,
+  });
 }
 
 const blankPerson = (id: number, role: Role, automaticDriver = false): Participant => ({ id, dni: "", name: "", phone: "", role, license: "", category: "", found: null, newPerson: false, automaticDriver, expectedLater: false, lots: "", detail: "", lotCodes: [], cargoRegularize: false });
@@ -223,7 +236,6 @@ export default function Home() {
   const hasVehicle = activeCase !== 6;
   const drivers = participants.filter((person) => person.role === "CONDUCTOR");
   const providers = participants.filter((person) => person.role === "PROVEEDOR");
-  const totalLots = participants.reduce((total, person) => total + (Number(person.lots) || 0), 0);
   const motiveOptions = activeCase === 5 ? ["RETIRO DE LOTE"] : activeCase === 6 ? ["PROCESO", "RM", "MUESTREO", "RECOGER MUESTRA"] : ["PROCESO"];
   const motiveIsSelectable = activeCase === 5 || activeCase === 6;
   const todayCards = useMemo(() => todayEvents.map(item => ({ ...item, persons: uniqueSheetPeople(item.persons) })), [todayEvents]);
@@ -299,6 +311,7 @@ export default function Home() {
         return;
       }
       backendVerifiedRef.current = true;
+      failedInCycleRef.current.clear();
       setBackendVersion(health.backendVersion);
       setConnection("online");
       if (syncAfter && queueRef.current.length) {
@@ -346,6 +359,9 @@ export default function Home() {
         }
         const recentItem = recentFromSheet(saved);
         setRecent(current => [recentItem, ...current.filter(row => row.id !== item.localId && row.id !== saved.id)].slice(0, 8));
+        setPendingEvents(current => saved.status === "PENDIENTE"
+          ? [saved, ...current.filter(row => row.id !== saved.id)]
+          : current.filter(row => row.id !== saved.id));
         failedInCycleRef.current.delete(item.queueId);
         if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
         if (!queueRef.current.length) failedInCycleRef.current.clear();
@@ -457,7 +473,7 @@ export default function Home() {
       if (!navigator.onLine) return;
       if (queueRef.current.length) void syncQueue();
       else void checkConnection(false);
-    }, 15_000);
+    }, 8_000);
     return () => {
       active = false;
       window.removeEventListener("online", online);
@@ -725,11 +741,7 @@ export default function Home() {
           </section>
         </div>
 
-        <aside className="summary-column"><section className="summary-card"><div className="summary-title"><span>✓</span><div><h2>Validación del caso</h2><p>Reglas aplicadas automáticamente</p></div></div><ul className="rule-list">
-          <li><span className={activeCase === 6 || drivers.length ? "ok" : "warn"}>{activeCase === 6 || drivers.length ? "✓" : "!"}</span><div><strong>Conductor</strong><small>{activeCase === 6 ? "No aplica en RM/Muestreo/Recojo" : "Bloque obligatorio generado"}</small></div></li>
-          <li><span className="ok">✓</span><div><strong>Vehículo</strong><small>{hasVehicle ? event.plate || "Sin placa registrada" : "No aplica para el caso 6"}</small></div></li>
-          <li><span className={pendingReasons.length ? "warn" : "ok"}>{pendingReasons.length ? "!" : "✓"}</span><div><strong>Estado del registro</strong><small>{pendingReasons.length ? `${pendingReasons.length} dato(s) pendiente(s)` : "Listo para registrar"}</small></div></li>
-        </ul>{pendingReasons.length > 0 && <div className="pending-box"><strong>Pendiente de completar</strong>{pendingReasons.slice(0, 6).map((reason) => <span key={reason}>• {reason}</span>)}</div>}<div className="summary-total"><span>Participantes actuales</span><b>{participants.filter(person => person.dni).length}</b><span>Proveedores</span><b>{providers.filter(person => person.dni).length}</b><span>Total de lotes</span><b>{totalLots || "—"}</b><span>Destino</span><b>MATRIZ</b></div><div className="action-stack"><button className="primary-action" type="button" disabled={busy} onClick={() => saveEvent(false)}>{regularizingId ? "Guardar regularización" : "Guardar"}<span>✓</span></button><button className="secondary-action" type="button" disabled={busy} onClick={() => saveEvent(true)}>Guardar para regularizar<span>◷</span></button></div><p className="action-help">El formulario se libera al instante. La escritura en MATRIZ continúa en segundo plano.</p>{connection !== "online" && <p className="connection-warning">{connection === "outdated" ? "Protección activa: no se enviarán datos al script anterior. El registro quedará en este dispositivo hasta instalar la versión correcta." : "Modo campo activo: el registro se guardará temporalmente en este dispositivo y se enviará al recuperar conexión."}</p>}</section>
+        <aside className="summary-column"><section className="summary-card"><div className="summary-title"><span>{pendingReasons.length ? "!" : "✓"}</span><div><h2>Pendiente por completar</h2><p>{pendingReasons.length ? `${pendingReasons.length} dato(s) pendiente(s)` : "No falta información obligatoria"}</p></div></div>{pendingReasons.length > 0 ? <div className="pending-box pending-only"><strong>Complete estos datos</strong>{pendingReasons.map((reason) => <span key={reason}>• {reason}</span>)}</div> : <div className="validation-ready"><strong>Sin datos pendientes</strong><span>El registro está listo para guardar.</span></div>}<div className="action-stack"><button className="primary-action" type="button" disabled={busy} onClick={() => saveEvent(false)}>{regularizingId ? "Guardar regularización" : "Guardar"}<span>✓</span></button><button className="secondary-action" type="button" disabled={busy} onClick={() => saveEvent(true)}>Guardar para regularizar<span>◷</span></button></div><p className="action-help">El formulario se libera al instante. La escritura en MATRIZ continúa en segundo plano.</p>{connection !== "online" && <p className="connection-warning">{connection === "outdated" ? "Protección activa: no se enviarán datos al script anterior. El registro quedará en este dispositivo hasta instalar la versión correcta." : "Modo campo activo: el registro se guardará temporalmente en este dispositivo y se enviará al recuperar conexión."}</p>}</section>
           <section className="recent-card"><div className="recent-title"><div><h3>Últimos registros</h3><small>Personas y detalle de lotes</small></div><button type="button" onClick={() => setActiveView("pendientes")}>Ver todos</button></div>{recent.slice(0, 3).map((item) => <article className="recent-event" key={item.id}><div className="recent-event-head"><div><strong>{item.id}</strong><small>{item.time} · Placa: {item.plate}</small></div><em className={item.status === "Pendiente" ? "pending" : item.status === "Por sincronizar" ? "queued" : "done"}>{item.status}</em></div><div className="recent-people">{item.persons.map((person, index) => <div className="recent-person" key={`${item.id}-${person.dni}-${index}`}><div className="recent-person-main"><span>{person.role === "CONDUCTOR" ? "C" : person.role === "PROVEEDOR" ? "P" : "A"}</span><div><strong>{person.name}</strong><small>DNI {person.dni || "PENDIENTE"} · {person.role}</small></div></div><div className="recent-lots"><span>{person.lots ? `${person.lots} lote${person.lots === "1" ? "" : "s"}` : "Sin lotes"}</span><small>{person.lotCodes.length ? person.lotCodes.join(" · ") : person.detail || "Sin detalle de lotes"}</small></div></div>)}</div></article>)}</section>
         </aside></form>
       </>}
