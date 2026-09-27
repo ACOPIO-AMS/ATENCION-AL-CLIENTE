@@ -801,6 +801,18 @@ export default function Home() {
   }
 
 
+  function resetCargoAfterPrint() {
+    setCargoRows([blankCargoRow(1)]);
+    setCargoProvider("");
+    setCargoConductor("");
+    setGeneralExitType("");
+    setProviderSource("");
+    setCargoSaved(false);
+    setCargoSaving(false);
+    setCargoCorrelative("");
+    setCargoId("");
+  }
+
   function printCargoDocument() {
     if (!cargoSaved || !cargoCorrelative) {
       flash("Primero debes guardar el documento antes de imprimir.");
@@ -963,11 +975,11 @@ export default function Home() {
 <meta charset="UTF-8"/>
 <title>${escapeHtml(cargoCorrelative)}</title>
 <style>
-  @page { size: A4 portrait; margin: 5mm; }
+  @page { size: A4 portrait; margin: 3mm; }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; background:#fff; color:#000; font-family:Arial,Helvetica,sans-serif; }
   body { font-size:11px; }
-  .sheet { width:100%; max-width:none; margin:0; }
+  .sheet { width:204mm; max-width:204mm; margin:0 auto; }
 
   .header-grid {
     display:grid; grid-template-columns:27% 53% 20%;
@@ -1029,8 +1041,8 @@ export default function Home() {
   .signature { min-height:38mm; display:flex; align-items:flex-end; font-weight:800; border-top:1px solid #000; padding-bottom:2px !important; }
 
   @media print {
-    html, body { width:210mm; }
-    .sheet { page-break-inside:avoid; }
+    html, body { width:210mm; margin:0 !important; padding:0 !important; }
+    .sheet { width:204mm !important; max-width:204mm !important; margin:0 auto !important; }
     thead { display:table-header-group; }
     tr { page-break-inside:avoid; }
   }
@@ -1047,6 +1059,7 @@ ${documentBody}
 </body>
 </html>`);
     printWindow.document.close();
+    resetCargoAfterPrint();
   }
 
   return <main className="app-shell">
