@@ -21,6 +21,7 @@ type CargoRow = { id: number; type: string; code: string; weight: string; destin
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
 const GENERAL_EXIT_TYPES = ["ÚTILES DE OFICINA", "ARTÍCULOS DE LIMPIEZA", "REGALOS BBSS", "EPPS", "PRENDAS DE CAMPAMENTO", "BIDÓN DE AGUA", "BIDÓN DE GASOLINA", "REPUESTOS PARA MOTOCARGA", "BALÓN DE GAS", "MATERIALES DE INSTALACIÓN"];
+const CARGO_SAMPLE_TYPES = ["PPO", "RI", "RM", "2RI", "3RI", "2RM", "DIRIMENCIA", "DUPLICADO", "FACP", "REFERENCIALES", "RF"] as const;
 const CONDUCTORS = ["JHOMAR GARCIA OSPINO", "WILDER CONCE YAURI", "WILMER ALVARADO ALIAGA", "DONALD ZAMBRANO BASURTO"];
 const blankCargoRow = (id: number): CargoRow => ({ id, type: "", code: "", weight: "", destination: "", description: "", reason: "", quantity: "", unit: "", observations: "" });
 
@@ -892,11 +893,36 @@ export default function Home() {
             <input placeholder="Cant." value={row.quantity} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,quantity:e.target.value} : x))} />
             <input placeholder="Und. medida" value={row.unit} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,unit:e.target.value.toUpperCase()} : x))} />
           </> : <>
-            <input placeholder="Tipo" value={row.type} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,type:e.target.value.toUpperCase()} : x))} />
+            <select
+  value={row.type}
+  onChange={e => {
+    setCargoRows(a => a.map(x =>
+      x.id === row.id ? { ...x, type: e.target.value } : x
+    ));
+    setCargoSaved(false);
+  }}
+>
+  <option value="">Tipo</option>
+  {CARGO_SAMPLE_TYPES.map(tipo => (
+    <option key={tipo} value={tipo}>{tipo}</option>
+  ))}
+</select>
             <input placeholder="Código" value={row.code} onChange={e => { const code=e.target.value.toUpperCase(); setCargoRows(a => a.map(x => x.id===row.id ? {...x,code} : x)); if (cargoType === "PROVEEDORES") { setCargoProvider(""); setProviderSource(""); } setCargoSaved(false); }} onBlur={() => { if (cargoType === "PROVEEDORES" && row.code.trim()) void lookupCargoProvider(row.code); }} />
-            {cargoType === "CHALA" && <input placeholder="Peso aprox. kg" value={row.weight} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,weight:e.target.value} : x))} />}
+            {cargoType === "CHALA" && <input placeholder="Peso aprox. (g)" value={row.weight} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,weight:e.target.value} : x))} />}
             <input placeholder="Destino" value={row.destination} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,destination:e.target.value.toUpperCase()} : x))} />
           </>}<input placeholder="Observaciones" value={row.observations} onChange={e => { setCargoRows(a => a.map(x => x.id===row.id ? {...x,observations:e.target.value.toUpperCase()} : x)); setCargoSaved(false); }} /></div>)}</div>
+         <button
+  type="button"
+  className="cargo-delete-row"
+  disabled={cargoRows.length <= 1}
+  onClick={() => {
+    setCargoRows(a => a.filter(x => x.id !== row.id));
+    setCargoSaved(false);
+  }}
+  title="Eliminar fila"
+>
+  🗑
+</button>
           <button className="add-person" type="button" onClick={() => { setCargoRows(a => [...a, blankCargoRow(Math.max(...a.map(x=>x.id),0)+1)]); setCargoSaved(false); }}>＋ Agregar fila</button>
           {cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
           <div className="cargo-actions"><button className="primary-action" disabled={cargoSaving || cargoSaved} onClick={() => void saveCargoDocument()}>{cargoSaving ? "Guardando…" : cargoSaved ? "Guardado" : "Guardar"}</button><button className="secondary-action" disabled={!cargoSaved} onClick={() => window.print()}>Imprimir</button></div>
