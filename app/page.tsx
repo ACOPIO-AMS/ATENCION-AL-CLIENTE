@@ -1,59 +1,4 @@
-Código pegado: js(20260927-203543)
-Archivo
-ese es el codigo corrigelo ahi
-Pasted text(20260927-204446).txt
-Documento
-o eso?
-al abrir se abre asi 
-ya esta ahora quiero que la hoja de la impresion saga al margen y mas grande al menos todo ese margen
-tambien quiero que la base de datos me aparezca en uno solo asi 
-Código pegado: js(20260927-210323)
-Archivo
-ESPERA MEJOR QUE ME LANCE LOS DATOS TAL CUAL EL ENCABEZADO DE LA HOJA BD SALIDAS YA NO EL BD CARGO EN EHOJA 
-
-La app es justamente la página que aparece en tu captura. Para abrirla nuevamente:
-
-Abre Google Chrome.
-En la barra de direcciones escribe o pega:
-
-Abrir Atención al Cliente – AMS
-
-Presiona Enter.
-Cuando abra, presiona Ctrl + F5 para forzar la actualización.
-En el menú izquierdo entra a Cargos y Salidas.
-
-Si acabas de publicar la corrección de Apps Script, al recargar debemos comprobar que ya no aparezca el aviso rojo “Apps Script desactualizado”.
-
 SIGUE APARECIENDO DESACTUALIZADO
-
-No, en esta captura ya no aparece desactualizado. Mira la diferencia:
-
-Antes salía en rojo:
-
-Apps Script desactualizado
-
-Ahora arriba aparece en verde:
-
-Google Sheets conectado · Servidor V15
-Conexión verificada
-
-Y abajo a la izquierda también:
-
-Google Sheets conectado · Servidor V15
-Lectura y escritura habilitadas
-
-Así que la conexión ya quedó corregida. ✅
-
-Lo que todavía está mal es otra cosa: sigue mostrando:
-
-CH - SE ASIGNA AL GUARDAR
-
-Eso significa que el frontend no está mostrando la vista previa del correlativo, aunque el servidor ya está conectado.
-
-No cambiemos Apps Script otra vez. El siguiente arreglo corresponde al page.tsx de GitHub, para que consulte previewCargoCorrelative y muestre, por ejemplo, CH-0200 antes de guardar.
-
-Pásame tu page.tsx actual (el que tienes publicado ahora) y te lo corrijo completo sin tocar lo que acabamos de arreglar en BD SALIDAS.
-
 page (4).tsx
 TypeScript
 
@@ -81,10 +26,54 @@ Cuando hagas el commit, dime YA ESTÁ y verificamos la publicación.
 
 page_corregido_correlativo.tsx
 Código
+LA IMPRESION DEBE SALIR COMO LA SEGUNDA IMAGEN EL CUADRO NO COMO LA PRIMERA DISTORSIONADO 
+
+Sí, ya veo la diferencia. La primera impresión está deformada verticalmente: al haber un solo ítem, el bloque de firmas se estira para ocupar casi toda la hoja. La segunda mantiene el cuadro compacto, con sus filas y proporciones originales.
+
+Ya corregí el page.tsx para que salga como la segunda imagen:
+
+Mantiene 13 filas visibles en la tabla aunque solo hayas registrado 1, 2 o 3 muestras.
+El bloque de firmas ya no se estira hasta abajo.
+El formulario queda ancho y compacto.
+Logo, título, correlativo, fecha y datos quedan proporcionados.
+Mantiene la corrección del correlativo previo que acabamos de hacer.
+No toca BD SALIDAS ni Apps Script.
+
+Descargar page.tsx corregido – impresión como segunda imagen
+
+Ahora reemplaza nuevamente app/page.tsx en GitHub con este archivo y haz Commit changes.
+
+No toques Apps Script.
+
+Cuando esté publicado, prueba con 1 solo ítem. Aunque registres uno, en la impresión deben verse las 13 filas del cuadro, igual que en tu segunda imagen. 
+
+page_impresion_como_referencia_2.tsx
+Código
+PERO SOLO QUE SALGA LA IMPRESION LOS ITEM RELLENADOS 
+
+Sí, correcto. No deben salir las 13 filas vacías. Debe conservarse el tamaño y proporción de la segunda imagen, pero imprimir únicamente los ítems que realmente llenaste.
+
+Ya lo corregí:
+
+Descargar page.tsx – impresión solo con ítems rellenados
+
+Quedará así:
+
+1 ítem registrado → imprime 1 fila.
+3 ítems → 3 filas.
+8 ítems → 8 filas.
+Sin filas vacías adicionales.
+El cuadro de firmas queda compacto; no vuelve a estirarse como en la primera imagen.
+Mantiene el correlativo previo y BD SALIDAS.
+
+Reemplaza app/page.tsx en GitHub con este último archivo y haz Commit changes. No necesitas modificar Apps Script. 
+
+page_impresion_solo_items_rellenados.tsx
+Código
 
 Biblioteca
 /
-page_corregido_correlativo.tsx
+page_impresion_solo_items_rellenados.tsx
 9999
 1
 2
