@@ -910,19 +910,20 @@ export default function Home() {
             <input placeholder="Código" value={row.code} onChange={e => { const code=e.target.value.toUpperCase(); setCargoRows(a => a.map(x => x.id===row.id ? {...x,code} : x)); if (cargoType === "PROVEEDORES") { setCargoProvider(""); setProviderSource(""); } setCargoSaved(false); }} onBlur={() => { if (cargoType === "PROVEEDORES" && row.code.trim()) void lookupCargoProvider(row.code); }} />
             {cargoType === "CHALA" && <input placeholder="Peso aprox. (g)" value={row.weight} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,weight:e.target.value} : x))} />}
             <input placeholder="Destino" value={row.destination} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,destination:e.target.value.toUpperCase()} : x))} />
-          </>}<input placeholder="Observaciones" value={row.observations} onChange={e => { setCargoRows(a => a.map(x => x.id===row.id ? {...x,observations:e.target.value.toUpperCase()} : x)); setCargoSaved(false); }} /></div>)}</div>
-         <button
-  type="button"
-  className="cargo-delete-row"
-  disabled={cargoRows.length <= 1}
-  onClick={() => {
-    setCargoRows(a => a.filter(x => x.id !== row.id));
-    setCargoSaved(false);
-  }}
-  title="Eliminar fila"
->
-  ×
-</button>
+           </>}<input placeholder="Observaciones" value={row.observations} onChange={e => { setCargoRows(a => a.map(x => x.id===row.id ? {...x,observations:e.target.value.toUpperCase()} : x)); setCargoSaved(false); }} /><button
+              type="button"
+              className="cargo-delete-row"
+              disabled={cargoRows.length <= 1}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (cargoRows.length <= 1) return;
+                setCargoRows(a => a.filter(x => x.id !== row.id));
+                setCargoSaved(false);
+              }}
+              title="Eliminar fila"
+              aria-label={`Eliminar fila ${index + 1}`}
+            >×</button></div>)}</div>
           <button className="add-person" type="button" onClick={() => { setCargoRows(a => [...a, blankCargoRow(Math.max(...a.map(x=>x.id),0)+1)]); setCargoSaved(false); }}>＋ Agregar fila</button>
           {cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
           <div className="cargo-actions"><button className="primary-action" disabled={cargoSaving || cargoSaved} onClick={() => void saveCargoDocument()}>{cargoSaving ? "Guardando…" : cargoSaved ? "Guardado" : "Guardar"}</button><button className="secondary-action" disabled={!cargoSaved} onClick={() => window.print()}>Imprimir</button></div>
