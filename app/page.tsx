@@ -16,10 +16,12 @@ type QueueItem = { queueId: string; localId: string; action: "saveEvent" | "regu
 type AlertType = "success" | "error" | "warning";
 type ModalAlertType = Exclude<AlertType, "warning">;
 type CargoType = "CHALA" | "PROVEEDORES" | "GENERALES";
+type AppUser = { user: string; name: string; role: string };
 type CargoRow = { id: number; type: string; code: string; weight: string; destination: string; description: string; reason: string; quantity: string; unit: string; observations: string };
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
+const SESSION_KEY = "atencion_usuario_sesion_v1";
 const GENERAL_EXIT_TYPES = ["ÚTILES DE OFICINA", "ARTÍCULOS DE LIMPIEZA", "REGALOS BBSS", "EPPS", "PRENDAS DE CAMPAMENTO", "BIDÓN DE AGUA", "BIDÓN DE GASOLINA", "REPUESTOS PARA MOTOCARGA", "BALÓN DE GAS", "MATERIALES DE INSTALACIÓN"];
 const CARGO_SAMPLE_TYPES = ["PPO", "RI", "RM", "2RI", "3RI", "2RM", "DIRIMENCIA", "DUPLICADO", "FACP", "REFERENCIALES", "RF"] as const;
 const CONDUCTORS = ["JHOMAR GARCIA OSPINO", "WILDER CONCE YAURI", "WILMER ALVARADO ALIAGA", "DONALD ZAMBRANO BASURTO"];
@@ -271,8 +273,12 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SheetEvent[]>([]);
   const [clients, setClients] = useState<Array<PersonRecord & { dni: string; role?: string }>>([]);
   const [recent, setRecent] = useState<RecentItem[]>([]);
-  // Fase 1: el usuario se centraliza aquí. En la siguiente fase vendrá de la sesión/BD USUARIOS.
-  const [currentUser] = useState({ name: "LIZETH SURICHAQUI", role: "RESPONSABLE DE ATENCIÓN" });
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [loginUser, setLoginUser] = useState("");
+  const [loginPin, setLoginPin] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+  const [loginError, setLoginError] = useState("");
   const [cargoType, setCargoType] = useState<CargoType>("CHALA");
   const [generalExitType, setGeneralExitType] = useState(GENERAL_EXIT_TYPES[0]);
   const [cargoRows, setCargoRows] = useState<CargoRow[]>([blankCargoRow(1)]);
@@ -286,7 +292,49 @@ export default function Home() {
   const [providerSource, setProviderSource] = useState<"AUTOMÁTICO" | "MANUAL" | "">("");
 
   useEffect(() => {
-    if (activeView !== "cargos" || cargoSaved) return;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
+      if (saved?.user && saved?.name && saved?.role) setCurrentUser(saved);
+    } catch {
+      window.localStorage.removeItem(SESSION_KEY);
+    } finally {
+      setSessionReady(true);
+    }
+  }, []);
+
+  async function login() {
+    const user = loginUser.trim().toUpperCase();
+    const pin = loginPin.trim();
+    if (!user) return setLoginError("Ingresa tu usuario.");
+    if (!pin) return setLoginError("Ingresa tu PIN.");
+
+    setLoginBusy(true);
+    setLoginError("");
+    try {
+      const data = await sheetsApi<{ authenticated: boolean; user: string; name: string; role: string }>("login", { user, pin });
+      const session: AppUser = { user: data.user, name: data.name, role: data.role };
+      window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      setCurrentUser(session);
+      setLoginPin("");
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "No se pudo iniciar sesión.");
+    } finally {
+      setLoginBusy(false);
+    }
+  }
+
+  function logout() {
+    if (!window.confirm("¿Cerrar la sesión actual?")) return;
+    window.localStorage.removeItem(SESSION_KEY);
+    setCurrentUser(null);
+    setLoginUser("");
+    setLoginPin("");
+    setLoginError("");
+    setActiveView("registro");
+  }
+
+  useEffect(() => {
+    if (activeView !== "cargos" || cargoSaved || !currentUser) return;
 
     let cancelled = false;
     setCargoPreviewCorrelative("");
@@ -809,7 +857,7 @@ export default function Home() {
     setCargoSaving(true);
     try {
       const data = await sheetsApi<{ id: string; correlative: string }>("saveCargo", {
-        type: cargoType, generalExitType, attentionUser: currentUser.name, conductor: cargoConductor,
+        type: cargoType, generalExitType, attentionUser: currentUser?.name || "", conductor: cargoConductor,
         provider: cargoProvider, providerSource: providerSource || (cargoProvider ? "MANUAL" : ""), rows: nonEmpty,
       });
       setCargoId(data.id); setCargoCorrelative(data.correlative); setCargoSaved(true);
@@ -1167,6 +1215,28 @@ ${documentBody}
     }, 150);
   }
 
+  if (!sessionReady) {
+    return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#f3f6f8", fontFamily: "Arial, sans-serif" }}><strong>Cargando aplicación...</strong></main>;
+  }
+
+  if (!currentUser) {
+    return <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 20, background: "linear-gradient(135deg,#eef3f6,#dfe9ee)", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ width: "100%", maxWidth: 410, background: "#fff", borderRadius: 18, padding: 28, boxShadow: "0 18px 50px rgba(0,0,0,.14)", border: "1px solid #dce5e9" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 2, color: "#667b86" }}>ANALYTICA MINERAL SERVICES SAC</div>
+          <h1 style={{ margin: "10px 0 4px", fontSize: 25, color: "#18364a" }}>ATENCIÓN AL CLIENTE</h1>
+          <div style={{ color: "#71838c", fontSize: 14 }}>Inicio de sesión</div>
+        </div>
+        <label style={{ display: "block", fontSize: 12, fontWeight: 900, marginBottom: 6, color: "#344c59" }}>USUARIO</label>
+        <input value={loginUser} onChange={e => { setLoginUser(e.target.value.toUpperCase()); setLoginError(""); }} onKeyDown={e => { if (e.key === "Enter") void login(); }} autoComplete="username" autoFocus placeholder="Ingresa tu usuario" style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", borderRadius: 10, border: "1px solid #bdcbd2", fontSize: 16, marginBottom: 16, textTransform: "uppercase" }} />
+        <label style={{ display: "block", fontSize: 12, fontWeight: 900, marginBottom: 6, color: "#344c59" }}>PIN</label>
+        <input type="password" inputMode="numeric" value={loginPin} onChange={e => { setLoginPin(e.target.value.replace(/\D/g, "")); setLoginError(""); }} onKeyDown={e => { if (e.key === "Enter") void login(); }} autoComplete="current-password" placeholder="••••" style={{ width: "100%", boxSizing: "border-box", padding: "13px 14px", borderRadius: 10, border: "1px solid #bdcbd2", fontSize: 18, marginBottom: 12, letterSpacing: 3 }} />
+        {loginError && <div style={{ margin: "4px 0 12px", padding: "10px 12px", borderRadius: 9, background: "#fff1f1", color: "#a52020", fontSize: 13, fontWeight: 700 }}>{loginError}</div>}
+        <button type="button" onClick={() => void login()} disabled={loginBusy} style={{ width: "100%", border: 0, borderRadius: 10, padding: "14px 16px", fontWeight: 900, fontSize: 14, cursor: loginBusy ? "wait" : "pointer", background: "#18364a", color: "#fff", opacity: loginBusy ? .7 : 1 }}>{loginBusy ? "VALIDANDO..." : "INICIAR SESIÓN"}</button>
+      </div>
+    </main>;
+  }
+
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">AC</span><div><strong>Atención al Cliente</strong><small>Control de ingresos</small></div></div>
@@ -1179,7 +1249,7 @@ ${documentBody}
         <button className={activeView === "cargos" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("cargos")}><span>▤</span> Cargos y Salidas</button>
       </nav>
       <div className={`sidebar-card connection-${connection}`}><span className="status-dot" /><div><strong>{connectionTitle}</strong><small>{queue.length ? `${queue.length} registro(s) por sincronizar` : connection === "online" ? "Lectura y escritura habilitadas" : connection === "outdated" ? "Actualiza la implementación de Apps Script" : connection === "unconfigured" ? "Falta configurar Apps Script" : "Los registros quedarán en este equipo"}</small>{queue.length > 0 && <button className="sidebar-sync" type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button>}</div></div>
-      <div className="user-card"><span>{currentUser.name.split(" ").map(part => part[0]).slice(0,2).join("")}</span><div><strong>{currentUser.name}</strong><small>{currentUser.role}</small></div></div>
+      <div className="user-card"><span>{currentUser.name.split(" ").map(part => part[0]).slice(0,2).join("")}</span><div><strong>{currentUser.name}</strong><small>{currentUser.role}</small><button type="button" onClick={logout} style={{ marginTop: 5, border: 0, background: "transparent", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 800, textDecoration: "underline" }}>Cerrar sesión</button></div></div>
     </aside>
 
     <section className="workspace">
