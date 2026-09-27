@@ -561,6 +561,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (activeView === "cargos" && !cargoSaved) {
+      void loadCargoCorrelativePreview(cargoType);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView]);
+
+  useEffect(() => {
     const updateClock = () => {
       if (activeView !== "registro") return;
       const current = nowValue();
@@ -779,6 +786,18 @@ export default function Home() {
     } catch (error) {
       setProviderSource("MANUAL");
       flash(error instanceof Error ? error.message : "No se pudo buscar el proveedor");
+    }
+  }
+
+  async function loadCargoCorrelativePreview(type: CargoType) {
+    setCargoSaved(false);
+    setCargoId("");
+    setCargoCorrelative("");
+    try {
+      const data = await sheetsApi<{ correlative: string }>("previewCargoCorrelative", { type });
+      setCargoCorrelative(data.correlative || "");
+    } catch (error) {
+      flash(error instanceof Error ? error.message : "No se pudo consultar el próximo correlativo", "warning");
     }
   }
 
@@ -1161,9 +1180,9 @@ ${documentBody}
       {activeView === "cargos" && <section className="empty-view data-view cargo-view">
         <div className="view-heading"><div><span>▤</span><div><h2>Cargos y Salidas</h2><p>Primero se guarda el documento; recién después se habilita la impresión.</p></div></div></div>
         <div className="cargo-type-grid">
-          <button className={cargoType === "CHALA" ? "selected" : ""} onClick={() => { setCargoType("CHALA"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); }}><strong>Salida de muestras</strong><small>Oficina Chala · CH</small></button>
-          <button className={cargoType === "PROVEEDORES" ? "selected" : ""} onClick={() => { setCargoType("PROVEEDORES"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); setCargoProvider(""); setProviderSource(""); }}><strong>Salida de muestras</strong><small>Proveedores · PR</small></button>
-          <button className={cargoType === "GENERALES" ? "selected" : ""} onClick={() => { setCargoType("GENERALES"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); }}><strong>Autorización de salida</strong><small>Generales</small></button>
+          <button className={cargoType === "CHALA" ? "selected" : ""} onClick={() => { setCargoType("CHALA"); void loadCargoCorrelativePreview("CHALA"); }}><strong>Salida de muestras</strong><small>Oficina Chala · CH</small></button>
+          <button className={cargoType === "PROVEEDORES" ? "selected" : ""} onClick={() => { setCargoType("PROVEEDORES"); setCargoProvider(""); setProviderSource(""); void loadCargoCorrelativePreview("PROVEEDORES"); }}><strong>Salida de muestras</strong><small>Proveedores · PR</small></button>
+          <button className={cargoType === "GENERALES" ? "selected" : ""} onClick={() => { setCargoType("GENERALES"); void loadCargoCorrelativePreview("GENERALES"); }}><strong>Autorización de salida</strong><small>Generales</small></button>
         </div>
         <section className="cargo-editor">
           <div
@@ -1183,12 +1202,7 @@ ${documentBody}
               N° DE SALIDA
             </span>
             <strong style={{ fontSize: "22px", color: "#075b54" }}>
-              {cargoCorrelative ||
-                (cargoType === "CHALA"
-                  ? "CH - SE ASIGNA AL GUARDAR"
-                  : cargoType === "PROVEEDORES"
-                    ? "PR - SE ASIGNA AL GUARDAR"
-                    : "GE - SE ASIGNA AL GUARDAR")}
+              {cargoCorrelative || "CONSULTANDO…"}
             </strong>
           </div>
 
@@ -1252,7 +1266,7 @@ ${documentBody}
             </button>
           </div>)}</div>
           <button className="add-person" type="button" onClick={() => { setCargoRows(a => [...a, blankCargoRow(Math.max(...a.map(x=>x.id),0)+1)]); setCargoSaved(false); }}>＋ Agregar fila</button>
-          {cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
+          {cargoSaved && cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
           <div className="cargo-actions"><button className="primary-action" disabled={cargoSaving || cargoSaved} onClick={() => void saveCargoDocument()}>{cargoSaving ? "Guardando…" : cargoSaved ? "Guardado" : "Guardar"}</button><button className="secondary-action" disabled={!cargoSaved} onClick={() => printCargoDocument()}>Imprimir</button></div>
         </section>
       </section>}
