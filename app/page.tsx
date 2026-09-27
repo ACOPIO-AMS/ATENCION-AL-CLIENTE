@@ -296,7 +296,10 @@ export default function Home() {
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
-      if (saved?.user && saved?.name && saved?.role) setCurrentUser(saved);
+      if (saved?.user && saved?.name && saved?.role) {
+        setCurrentUser(saved);
+        setEvent(current => ({ ...current, responsible: saved.name }));
+      }
     } catch {
       window.localStorage.removeItem(SESSION_KEY);
     } finally {
@@ -317,6 +320,7 @@ export default function Home() {
       const session: AppUser = { user: data.user, name: data.name, role: data.role };
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       setCurrentUser(session);
+      setEvent(current => ({ ...current, responsible: session.name }));
       setLoginPin("");
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "No se pudo iniciar sesión.");
@@ -648,6 +652,11 @@ export default function Home() {
       setDraftReady(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!currentUser?.name) return;
+    setEvent(current => current.responsible === currentUser.name ? current : { ...current, responsible: currentUser.name });
+  }, [currentUser?.name]);
 
   useEffect(() => {
     if (!draftReady || regularizingId) return;
@@ -1320,7 +1329,7 @@ ${documentBody}
         <form onSubmit={(e) => e.preventDefault()} className="form-layout"><div className="main-column">
           <section className="form-card"><div className="section-title"><span>1</span><div><h2>Datos generales</h2><p>Fecha, responsable, guardia y turno</p></div><em>OPCIÓN {OPTION_NUMBER[activeCase] || 1}: {caseInfo.title.toUpperCase()}</em></div><div className="fields-grid general-grid">
             <label>Fecha y hora de ingreso<input type="datetime-local" value={dateTime} readOnly title="Hora fijada al iniciar este registro" /></label>
-            <label className={!event.responsible.trim() ? "required-field" : ""}>Responsable<input aria-invalid={!event.responsible.trim()} value={event.responsible} onChange={(e) => setEvent({ ...event, responsible: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /></label>
+            <label>Responsable<input value={currentUser.name} readOnly title="Responsable asignado automáticamente según el usuario que inició sesión" /></label>
             <label className={!event.guard ? "required-field" : ""}>Guardia<select aria-invalid={!event.guard} value={event.guard} onChange={(e) => setEvent({ ...event, guard: e.target.value })}><option value="">Seleccionar</option><option>A</option><option>B</option><option>C</option></select></label>
             <label>Turno<select value={event.shift} disabled><option>DÍA</option><option>NOCHE</option></select><small>Automático: Día 07:00–18:59 · Noche 19:00–06:59</small></label>
           </div></section>
