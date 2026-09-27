@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
-type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos";
+type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos" | "buscarSalidas";
+type CargoExitResult = {
+  correlative: string; type: string; code: string; dateTime: string;
+  responsible: string; guard: string; shift: string; conductor?: string; observations?: string;
+};
 type PersonRecord = { name: string; phone: string; license?: string; category?: string };
 type Participant = { id: number; dni: string; name: string; phone: string; role: Role; license: string; category: string; found: boolean | null; newPerson: boolean; automaticDriver: boolean; expectedLater: boolean; lots: string; detail: string; lotCodes: string[]; cargoRegularize: boolean };
 type EventForm = { motive: string; plate: string; zone: string; guard: string; shift: string; responsible: string };
@@ -292,6 +296,11 @@ export default function Home() {
   const [cargoPreviewCorrelative, setCargoPreviewCorrelative] = useState("");
   const [cargoId, setCargoId] = useState("");
   const [providerSource, setProviderSource] = useState<"AUTOMÁTICO" | "MANUAL" | "">("");
+  const [exitTypeFilter, setExitTypeFilter] = useState("");
+  const [exitCodeFilter, setExitCodeFilter] = useState("");
+  const [exitDateFilter, setExitDateFilter] = useState("");
+  const [exitResults, setExitResults] = useState<CargoExitResult[]>([]);
+  const [exitSearching, setExitSearching] = useState(false);
 
   useEffect(() => {
     try {
@@ -896,10 +905,36 @@ export default function Home() {
     }
   }
 
+  async function searchCargoExits() {
+    setExitSearching(true);
+    try {
+      const data = await sheetsApi<CargoExitResult[]>("searchCargoExits", {
+        type: exitTypeFilter,
+        code: exitCodeFilter.trim().toUpperCase(),
+        date: exitDateFilter,
+        limit: 300,
+      });
+      setExitResults(Array.isArray(data) ? data : []);
+      if (!data.length) flash("No se encontraron salidas con esos filtros.", "warning");
+    } catch (error) {
+      setExitResults([]);
+      flash(error instanceof Error ? error.message : "No se pudo buscar las salidas.");
+    } finally {
+      setExitSearching(false);
+    }
+  }
+
+  function clearExitSearch() {
+    setExitTypeFilter("");
+    setExitCodeFilter("");
+    setExitDateFilter("");
+    setExitResults([]);
+  }
+
   async function saveCargoDocument() {
     const nonEmpty = cargoRows.filter(r => Object.entries(r).some(([k,v]) => k !== "id" && String(v || "").trim()));
     if (!nonEmpty.length) return flash("Agrega al menos un ítem al documento.");
-    if (!cargoConductor.trim()) return flash("El conductor es obligatorio.");
+    if (cargoType !== "PROVEEDORES" && !cargoConductor.trim()) return flash("El conductor es obligatorio.");
 
     for (let i = 0; i < nonEmpty.length; i++) {
       const row = nonEmpty[i];
@@ -922,7 +957,7 @@ export default function Home() {
     setCargoSaving(true);
     try {
       const data = await sheetsApi<{ id: string; correlative: string }>("saveCargo", {
-        type: cargoType, generalExitType, attentionUser: currentUser?.name || "", conductor: cargoConductor,
+        type: cargoType, generalExitType, attentionUser: currentUser?.name || "", conductor: cargoType === "PROVEEDORES" ? "" : cargoConductor,
         provider: cargoProvider, providerSource: providerSource || (cargoProvider ? "MANUAL" : ""), rows: nonEmpty,
       });
       setCargoId(data.id); setCargoCorrelative(data.correlative); setCargoSaved(true);
@@ -1312,13 +1347,19 @@ ${documentBody}
         <button className={activeView === "buscar" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("buscar")}><span>⌕</span> Buscar</button>
         <button className={activeView === "personas" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("personas"); void loadClients(); }}><span>◎</span> BD Clientes</button>
         <button className={activeView === "cargos" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("cargos")}><span>▤</span> Cargos y Salidas</button>
+        <button className={activeView === "buscarSalidas" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("buscarSalidas")}><span>⌕</span> Buscar salidas</button>
       </nav>
       <div className={`sidebar-card connection-${connection}`}><span className="status-dot" /><div><strong>{connectionTitle}</strong><small>{queue.length ? `${queue.length} registro(s) por sincronizar` : connection === "online" ? "Lectura y escritura habilitadas" : connection === "outdated" ? "Actualiza la implementación de Apps Script" : connection === "unconfigured" ? "Falta configurar Apps Script" : "Los registros quedarán en este equipo"}</small>{queue.length > 0 && <button className="sidebar-sync" type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button>}</div></div>
       <div className="user-card"><span>{currentUser.name.split(" ").map(part => part[0]).slice(0,2).join("")}</span><div><strong>{currentUser.name}</strong><small>{currentUser.role}</small><button type="button" onClick={logout} style={{ marginTop: 5, border: 0, background: "transparent", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 800, textDecoration: "underline" }}>Cerrar sesión</button></div></div>
     </aside>
 
+    <button type="button" onClick={logout} title="Cerrar sesión" aria-label="Cerrar sesión"
+      style={{ position: "fixed", right: 10, top: 10, zIndex: 5000, border: "1px solid #c7d6d2", borderRadius: 9, background: "#ffffff", color: "#173f3b", padding: "7px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.10)" }}>
+      Salir
+    </button>
+
     <section className="workspace">
-      <header className="topbar"><div><p>REGISTRO DE PROVEEDORES ATENCIÓN AL CLIENTE - AMS - v001crq.</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : activeView === "personas" ? "BD Clientes" : "Cargos y Salidas"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
+      <header className="topbar"><div><p>REGISTRO DE PROVEEDORES ATENCIÓN AL CLIENTE - AMS - v001crq.</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : activeView === "personas" ? "BD Clientes" : activeView === "buscarSalidas" ? "Buscar salidas" : "Cargos y Salidas"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
       {showQueueManager && queue.length > 0 && <section className="queue-manager"><div className="queue-manager-head"><div><strong>Pendientes guardados en este dispositivo</strong><span>Un registro con error ya no detiene a los demás. Revísalo antes de eliminarlo.</span></div><button type="button" className="danger-link" onClick={removeAllQueued}>Eliminar todos</button></div><div className="queue-list">{queue.map(item => { const preview = queuePreview(item); return <article className={item.lastError ? "queue-item has-error" : "queue-item"} key={item.queueId}><div className="queue-item-main"><strong>{item.localId}</strong><span>{formatDateTime(item.createdAt)} · {item.action === "regularizeEvent" ? "REGULARIZACIÓN" : "NUEVO INGRESO"}</span><p>{preview.plate} · {preview.people}</p>{item.lastError && <em>{item.lastError}</em>}</div><div className="queue-item-actions"><button type="button" onClick={() => retryQueued(item.queueId)} disabled={syncing}>Reintentar</button><button type="button" className="danger" onClick={() => removeQueued(item.queueId)} disabled={syncing}>Eliminar</button></div></article>; })}</div></section>}
 
@@ -1426,7 +1467,7 @@ ${documentBody}
             <label>Atención al cliente<input value={currentUser.name} readOnly /></label>
             {cargoType === "GENERALES" && <label>Tipo de salida *<select value={generalExitType} onChange={e => { setGeneralExitType(e.target.value); setCargoSaved(false); }}>{GENERAL_EXIT_TYPES.map(x => <option key={x}>{x}</option>)}</select></label>}
             {cargoType === "PROVEEDORES" && <label>Proveedor *<input value={cargoProvider} onChange={e => { setCargoProvider(e.target.value.toUpperCase()); setProviderSource("MANUAL"); setCargoSaved(false); }} placeholder="Automático al ingresar un código" /><small>{providerSource ? `Origen: ${providerSource}` : "Se buscará en PROCESOS - GUIAS"}</small></label>}
-            <label>Conductor *<select value={cargoConductor} onChange={e => { setCargoConductor(e.target.value); setCargoSaved(false); }}><option value="">Seleccionar</option>{CONDUCTORS.map(x => <option key={x}>{x}</option>)}</select></label>
+            {cargoType !== "PROVEEDORES" && <label>Conductor *<select value={cargoConductor} onChange={e => { setCargoConductor(e.target.value); setCargoSaved(false); }}><option value="">Seleccionar</option>{CONDUCTORS.map(x => <option key={x}>{x}</option>)}</select></label>}
           </div>
           <div className="cargo-lines">{cargoRows.map((row,index) => <div className="cargo-line" key={row.id}><b>{index+1}</b>{cargoType === "GENERALES" ? <>
             <input placeholder="Descripción *" value={row.description} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,description:e.target.value.toUpperCase()} : x))} />
@@ -1473,6 +1514,46 @@ ${documentBody}
           {cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
           <div className="cargo-actions"><button className="primary-action" disabled={cargoSaving || cargoSaved} onClick={() => void saveCargoDocument()}>{cargoSaving ? "Guardando…" : cargoSaved ? "Guardado" : "Guardar"}</button><button className="secondary-action" disabled={!cargoSaved} onClick={() => printCargoDocument()}>Imprimir</button></div>
         </section>
+      </section>}
+      {activeView === "buscarSalidas" && <section className="empty-view data-view">
+        <div className="view-heading"><div><span>⌕</span><div><h2>Buscar salidas</h2><p>Consulta las muestras que ya fueron enviadas por tipo, código o fecha.</p></div></div></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12, margin: "18px 0" }}>
+          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>Tipo
+            <select value={exitTypeFilter} onChange={e => setExitTypeFilter(e.target.value)} style={{ minHeight: 42, border: "1px solid #cbd9d6", borderRadius: 8, padding: "8px 10px" }}>
+              <option value="">TODOS</option>
+              {CARGO_SAMPLE_TYPES.map(x => <option key={x} value={x}>{x}</option>)}
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>Código
+            <input value={exitCodeFilter} onChange={e => setExitCodeFilter(e.target.value.toUpperCase())} onKeyDown={e => { if (e.key === "Enter") void searchCargoExits(); }} placeholder="Código o parte del código" style={{ minHeight: 42, border: "1px solid #cbd9d6", borderRadius: 8, padding: "8px 10px" }} />
+          </label>
+          <label style={{ display: "grid", gap: 6, fontWeight: 800 }}>Fecha
+            <input type="date" value={exitDateFilter} onChange={e => setExitDateFilter(e.target.value)} style={{ minHeight: 42, border: "1px solid #cbd9d6", borderRadius: 8, padding: "8px 10px" }} />
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+          <button className="primary-action" type="button" onClick={() => void searchCargoExits()} disabled={exitSearching}>{exitSearching ? "Buscando…" : "Buscar"}</button>
+          <button className="secondary-action" type="button" onClick={clearExitSearch}>Limpiar filtros</button>
+        </div>
+        <div style={{ overflowX: "auto", border: "1px solid #d9e4e1", borderRadius: 12 }}>
+          <table style={{ width: "100%", minWidth: 900, borderCollapse: "collapse", background: "#fff" }}>
+            <thead><tr style={{ background: "#eef7f5", textAlign: "left" }}>
+              {["N° SALIDA","TIPO","CÓDIGO","FECHA Y HORA DE ENVÍO","RESPONSABLE","GUARDIA","TURNO"].map(h => <th key={h} style={{ padding: 11, borderBottom: "1px solid #d9e4e1", fontSize: 12 }}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {exitResults.map((r,i) => <tr key={`${r.correlative}-${r.code}-${i}`}>
+                <td style={{ padding: 10, borderBottom: "1px solid #edf2f0", fontWeight: 800 }}>{r.correlative}</td>
+                <td style={{ padding: 10, borderBottom: "1px solid #edf2f0" }}>{r.type || "—"}</td>
+                <td style={{ padding: 10, borderBottom: "1px solid #edf2f0", fontWeight: 800 }}>{r.code}</td>
+                <td style={{ padding: 10, borderBottom: "1px solid #edf2f0" }}>{r.dateTime ? new Date(r.dateTime).toLocaleString("es-PE", { timeZone: "America/Lima" }) : "—"}</td>
+                <td style={{ padding: 10, borderBottom: "1px solid #edf2f0" }}>{r.responsible || "—"}</td>
+                <td style={{ padding: 10, borderBottom: "1px solid #edf2f0" }}>{r.guard || "—"}</td>
+                <td style={{ padding: 10, borderBottom: "1px solid #edf2f0" }}>{r.shift || "—"}</td>
+              </tr>)}
+              {!exitResults.length && <tr><td colSpan={7} style={{ padding: 24, textAlign: "center", color: "#6b7d78" }}>Selecciona los filtros y pulsa Buscar.</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </section>}
       {activeView === "personas" && <section className="empty-view data-view"><div className="people-toolbar"><div><h2>BD CLIENTES</h2><p>Fuente maestra para autocompletar por DNI.</p></div><button onClick={loadClients} disabled={busy}>Actualizar</button></div><div className="people-table"><div className="table-head"><span>DNI</span><span>Nombres y apellidos</span><span>Celular</span><span>Licencia</span><span>Estado</span></div>{clients.map(person => <div className="table-row" key={person.dni}><span>{person.dni}</span><strong>{person.name}</strong><span>{person.phone}</span><span>{person.license ? `${person.license} · ${person.category}` : "—"}</span><em>{person.role || "ACTIVO"}</em></div>)}</div>{!clients.length && <p className="empty-message">Pulsa Actualizar para consultar BD CLIENTES.</p>}</section>}
     </section>
