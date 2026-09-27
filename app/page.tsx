@@ -975,11 +975,11 @@ export default function Home() {
 <meta charset="UTF-8"/>
 <title>${escapeHtml(cargoCorrelative)}</title>
 <style>
-  @page { size: A4 portrait; margin: 3mm; }
+  @page { size: A4 portrait; margin: 2mm; }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; background:#fff; color:#000; font-family:Arial,Helvetica,sans-serif; }
-  body { font-size:11px; }
-  .sheet { width:204mm; max-width:204mm; margin:0 auto; }
+  body { font-size:12px; }
+  .sheet { width:100%; max-width:none; margin:0; }
 
   .header-grid {
     display:grid; grid-template-columns:27% 53% 20%;
@@ -1003,7 +1003,7 @@ export default function Home() {
   }
   .info-grid > div { border-bottom:1px solid #aaa; display:flex; align-items:center; padding:1px 4px; }
   .info-label { font-weight:800; }
-  .info-value { justify-content:center; font-weight:700; border-right:1px solid #aaa; }
+  .info-value { justify-content:center; font-weight:800; font-size:12px; border-right:1px solid #aaa; }
   .auth-text { grid-column:3; grid-row:1 / span 2; line-height:1.25; border-bottom:1px solid #aaa; }
 
   .type-grid { display:grid; grid-template-columns:27% 73%; border:1.4px solid #000; border-top:0; min-height:7mm; }
@@ -1015,8 +1015,8 @@ export default function Home() {
 
   table.items { width:100%; border-collapse:collapse; table-layout:fixed; }
   .items th, .items td { border:1px solid #000; height:7mm; padding:1px 3px; vertical-align:middle; }
-  .items th { background:#eee; font-size:10px; font-weight:800; text-align:center; }
-  .items td { font-size:10px; text-align:center; }
+  .items th { background:#eee; font-size:11px; font-weight:800; text-align:center; }
+  .items td { font-size:12px; font-weight:600; text-align:center; }
   .items td.n { font-weight:800; }
   .chala-table th:nth-child(1){width:7%}
   .chala-table th:nth-child(2){width:20%}
@@ -1036,13 +1036,23 @@ export default function Home() {
   .responsibility > div { border-right:1px solid #000; padding:2px 3px; }
   .responsibility > div:nth-child(3n) { }
   .role { text-align:center; font-weight:800; min-height:6mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
-  .person { text-align:center; font-weight:700; min-height:7mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
+  .person { text-align:center; font-weight:800; font-size:12px; min-height:7mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
   .provider-name { background:#dcebf7; }
   .signature { min-height:38mm; display:flex; align-items:flex-end; font-weight:800; border-top:1px solid #000; padding-bottom:2px !important; }
 
   @media print {
-    html, body { width:210mm; margin:0 !important; padding:0 !important; }
-    .sheet { width:204mm !important; max-width:204mm !important; margin:0 auto !important; }
+    html, body {
+      width:100% !important;
+      margin:0 !important;
+      padding:0 !important;
+    }
+    .sheet {
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      zoom:1.22;
+      transform-origin:top left;
+    }
     thead { display:table-header-group; }
     tr { page-break-inside:avoid; }
   }
@@ -1059,7 +1069,12 @@ ${documentBody}
 </body>
 </html>`);
     printWindow.document.close();
-    resetCargoAfterPrint();
+
+    // El cargo ya fue guardado. La impresión se abre en una ventana independiente
+    // y la pantalla principal queda lista inmediatamente para el siguiente registro.
+    window.setTimeout(() => {
+      resetCargoAfterPrint();
+    }, 150);
   }
 
   return <main className="app-shell">
