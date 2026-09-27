@@ -22,6 +22,7 @@ type CargoRow = { id: number; type: string; code: string; weight: string; destin
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
 const SESSION_KEY = "atencion_usuario_sesion_v1";
+const ENTRY_DRAFT_KEY = "atencion_ingreso_pendiente_v1";
 const GENERAL_EXIT_TYPES = ["ÚTILES DE OFICINA", "ARTÍCULOS DE LIMPIEZA", "REGALOS BBSS", "EPPS", "PRENDAS DE CAMPAMENTO", "BIDÓN DE AGUA", "BIDÓN DE GASOLINA", "REPUESTOS PARA MOTOCARGA", "BALÓN DE GAS", "MATERIALES DE INSTALACIÓN"];
 const CARGO_SAMPLE_TYPES = ["PPO", "RI", "RM", "2RI", "3RI", "2RM", "DIRIMENCIA", "DUPLICADO", "FACP", "REFERENCIALES", "RF"] as const;
 const CONDUCTORS = ["JHOMAR GARCIA OSPINO", "WILDER CONCE YAURI", "WILMER ALVARADO ALIAGA", "DONALD ZAMBRANO BASURTO"];
@@ -279,6 +280,7 @@ export default function Home() {
   const [loginPin, setLoginPin] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
   const [cargoType, setCargoType] = useState<CargoType>("CHALA");
   const [generalExitType, setGeneralExitType] = useState(GENERAL_EXIT_TYPES[0]);
   const [cargoRows, setCargoRows] = useState<CargoRow[]>([blankCargoRow(1)]);
@@ -629,20 +631,34 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const updateClock = () => {
-      if (activeView !== "registro") return;
-      const current = nowValue();
-      setDateTime(current);
-      setEvent(previous => ({ ...previous, shift: shiftFromDateTime(current) }));
-    };
-    const handleVisibility = () => { if (document.visibilityState === "visible") updateClock(); };
-    const clockTimer = window.setInterval(updateClock, 15_000);
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => {
-      window.clearInterval(clockTimer);
-      document.removeEventListener("visibilitychange", handleVisibility);
-    };
-  }, [activeView]);
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(ENTRY_DRAFT_KEY) || "null") as {
+        activeCase?: number; dateTime?: string; event?: EventForm; participants?: Participant[]; regularizingId?: string | null;
+      } | null;
+      if (saved?.dateTime && saved?.event && Array.isArray(saved?.participants)) {
+        setActiveCase(saved.activeCase || 1);
+        setDateTime(saved.dateTime);
+        setEvent(saved.event);
+        setParticipants(saved.participants);
+        setRegularizingId(saved.regularizingId || null);
+      }
+    } catch {
+      window.localStorage.removeItem(ENTRY_DRAFT_KEY);
+    } finally {
+      setDraftReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady || regularizingId) return;
+    try {
+      window.localStorage.setItem(ENTRY_DRAFT_KEY, JSON.stringify({
+        activeCase, dateTime, event, participants, regularizingId: null,
+      }));
+    } catch {
+      // Si el almacenamiento local está bloqueado, el formulario continúa funcionando.
+    }
+  }, [draftReady, activeCase, dateTime, event, participants, regularizingId]);
 
   function updateParticipant(id: number, changes: Partial<Participant>) { setParticipants((current) => current.map((person) => person.id === id ? { ...person, ...changes } : person)); }
   function deferProvider(person: Participant) {
@@ -729,14 +745,35 @@ export default function Home() {
     flash("La persona se añadirá a BD CLIENTES al guardar el ingreso", "warning");
   }
 
-  function applyCase(caseId: number) {
+  function startNewEntry() {
     const nextDateTime = nowValue();
-    setRegularizingId(null); setActiveCase(caseId); setDateTime(nextDateTime);
-    setEvent(current => ({ ...current, motive: caseId === 5 ? "RETIRO DE LOTE" : "PROCESO", plate: "", zone: "", shift: shiftFromDateTime(nextDateTime) }));
+    setActiveView("registro");
+    setRegularizingId(null);
+    setActiveCase(1);
+    setDateTime(nextDateTime);
+    setEvent(current => ({ ...current, motive: "PROCESO", plate: "", zone: "", shift: shiftFromDateTime(nextDateTime) }));
+    setParticipants(emptyParticipantsForCase(1));
+    try {
+      window.localStorage.setItem(ENTRY_DRAFT_KEY, JSON.stringify({
+        activeCase: 1,
+        dateTime: nextDateTime,
+        event: { ...event, motive: "PROCESO", plate: "", zone: "", shift: shiftFromDateTime(nextDateTime) },
+        participants: emptyParticipantsForCase(1),
+        regularizingId: null,
+      }));
+    } catch {}
+  }
+
+  function applyCase(caseId: number) {
+    // Cambiar el tipo de atención NO cambia la fecha/hora inicial del ingreso.
+    setRegularizingId(null);
+    setActiveCase(caseId);
+    setEvent(current => ({ ...current, motive: caseId === 5 ? "RETIRO DE LOTE" : "PROCESO", plate: "", zone: "", shift: shiftFromDateTime(dateTime) }));
     setParticipants(emptyParticipantsForCase(caseId));
   }
 
   function clearEntryKeepingGeneral() {
+    window.localStorage.removeItem(ENTRY_DRAFT_KEY);
     const currentDateTime = nowValue();
     setDateTime(currentDateTime);
     setEvent(current => ({ ...current, motive: activeCase === 5 ? "RETIRO DE LOTE" : activeCase === 6 ? "MUESTREO" : "PROCESO", plate: "", zone: "", shift: shiftFromDateTime(currentDateTime) }));
@@ -853,7 +890,26 @@ export default function Home() {
   async function saveCargoDocument() {
     const nonEmpty = cargoRows.filter(r => Object.entries(r).some(([k,v]) => k !== "id" && String(v || "").trim()));
     if (!nonEmpty.length) return flash("Agrega al menos un ítem al documento.");
-    if (cargoType === "PROVEEDORES" && !cargoProvider.trim()) return flash("Falta identificar el proveedor.");
+    if (!cargoConductor.trim()) return flash("El conductor es obligatorio.");
+
+    for (let i = 0; i < nonEmpty.length; i++) {
+      const row = nonEmpty[i];
+      const n = i + 1;
+      if (cargoType === "GENERALES") {
+        if (!generalExitType.trim()) return flash("El tipo de salida es obligatorio.");
+        if (!row.description.trim()) return flash(`Fila ${n}: la descripción es obligatoria.`);
+        if (!row.reason.trim()) return flash(`Fila ${n}: el motivo de salida es obligatorio.`);
+        if (!row.quantity.trim()) return flash(`Fila ${n}: la cantidad es obligatoria.`);
+        if (!row.unit.trim()) return flash(`Fila ${n}: la unidad de medida es obligatoria.`);
+      } else {
+        if (!row.type.trim()) return flash(`Fila ${n}: el tipo es obligatorio.`);
+        if (!row.code.trim()) return flash(`Fila ${n}: el código es obligatorio.`);
+        if (cargoType === "CHALA" && !row.weight.trim()) return flash(`Fila ${n}: el peso aproximado es obligatorio.`);
+        if (!row.destination.trim()) return flash(`Fila ${n}: el destino es obligatorio.`);
+      }
+    }
+
+    if (cargoType === "PROVEEDORES" && !cargoProvider.trim()) return flash("El proveedor es obligatorio.");
     setCargoSaving(true);
     try {
       const data = await sheetsApi<{ id: string; correlative: string }>("saveCargo", {
@@ -1241,7 +1297,7 @@ ${documentBody}
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">AC</span><div><strong>Atención al Cliente</strong><small>Control de ingresos</small></div></div>
       <nav aria-label="Navegación principal">
-        <button className={activeView === "registro" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("registro")}><span>＋</span> Nuevo ingreso</button>
+        <button className={activeView === "registro" ? "nav-item active" : "nav-item"} onClick={startNewEntry}><span>＋</span> Nuevo ingreso</button>
         <button className={activeView === "hoy" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("hoy"); void loadToday(); }}><span>▦</span> Reporte diario</button>
         <button className={activeView === "pendientes" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("pendientes"); void loadPending(); }}><span>◷</span> Por regularizar {pendingEvents.length > 0 && <b>{pendingEvents.length}</b>}</button>
         <button className={activeView === "buscar" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("buscar")}><span>⌕</span> Buscar</button>
@@ -1263,7 +1319,7 @@ ${documentBody}
 
         <form onSubmit={(e) => e.preventDefault()} className="form-layout"><div className="main-column">
           <section className="form-card"><div className="section-title"><span>1</span><div><h2>Datos generales</h2><p>Fecha, responsable, guardia y turno</p></div><em>OPCIÓN {OPTION_NUMBER[activeCase] || 1}: {caseInfo.title.toUpperCase()}</em></div><div className="fields-grid general-grid">
-            <label>Fecha y hora de ingreso<input type="datetime-local" value={dateTime} onInput={(e) => { const value = e.currentTarget.value; setDateTime(value); setEvent(current => ({ ...current, shift: shiftFromDateTime(value) })); }} onChange={() => undefined} /></label>
+            <label>Fecha y hora de ingreso<input type="datetime-local" value={dateTime} readOnly title="Hora fijada al iniciar este registro" /></label>
             <label className={!event.responsible.trim() ? "required-field" : ""}>Responsable<input aria-invalid={!event.responsible.trim()} value={event.responsible} onChange={(e) => setEvent({ ...event, responsible: e.target.value.replace(/[^A-ZÁÉÍÓÚÑ\s]/gi, "").toUpperCase() })} /></label>
             <label className={!event.guard ? "required-field" : ""}>Guardia<select aria-invalid={!event.guard} value={event.guard} onChange={(e) => setEvent({ ...event, guard: e.target.value })}><option value="">Seleccionar</option><option>A</option><option>B</option><option>C</option></select></label>
             <label>Turno<select value={event.shift} disabled><option>DÍA</option><option>NOCHE</option></select><small>Automático: Día 07:00–18:59 · Noche 19:00–06:59</small></label>
@@ -1359,15 +1415,15 @@ ${documentBody}
 
           <div className="cargo-meta">
             <label>Atención al cliente<input value={currentUser.name} readOnly /></label>
-            {cargoType === "GENERALES" && <label>Tipo de salida<select value={generalExitType} onChange={e => { setGeneralExitType(e.target.value); setCargoSaved(false); }}>{GENERAL_EXIT_TYPES.map(x => <option key={x}>{x}</option>)}</select></label>}
-            {cargoType === "PROVEEDORES" && <label>Proveedor<input value={cargoProvider} onChange={e => { setCargoProvider(e.target.value.toUpperCase()); setProviderSource("MANUAL"); setCargoSaved(false); }} placeholder="Automático al ingresar un código" /><small>{providerSource ? `Origen: ${providerSource}` : "Se buscará en PROCESOS - GUIAS"}</small></label>}
-            <label>Conductor<select value={cargoConductor} onChange={e => { setCargoConductor(e.target.value); setCargoSaved(false); }}><option value="">Seleccionar</option>{CONDUCTORS.map(x => <option key={x}>{x}</option>)}</select></label>
+            {cargoType === "GENERALES" && <label>Tipo de salida *<select value={generalExitType} onChange={e => { setGeneralExitType(e.target.value); setCargoSaved(false); }}>{GENERAL_EXIT_TYPES.map(x => <option key={x}>{x}</option>)}</select></label>}
+            {cargoType === "PROVEEDORES" && <label>Proveedor *<input value={cargoProvider} onChange={e => { setCargoProvider(e.target.value.toUpperCase()); setProviderSource("MANUAL"); setCargoSaved(false); }} placeholder="Automático al ingresar un código" /><small>{providerSource ? `Origen: ${providerSource}` : "Se buscará en PROCESOS - GUIAS"}</small></label>}
+            <label>Conductor *<select value={cargoConductor} onChange={e => { setCargoConductor(e.target.value); setCargoSaved(false); }}><option value="">Seleccionar</option>{CONDUCTORS.map(x => <option key={x}>{x}</option>)}</select></label>
           </div>
           <div className="cargo-lines">{cargoRows.map((row,index) => <div className="cargo-line" key={row.id}><b>{index+1}</b>{cargoType === "GENERALES" ? <>
-            <input placeholder="Descripción" value={row.description} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,description:e.target.value.toUpperCase()} : x))} />
-            <input placeholder="Motivo de salida" value={row.reason} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,reason:e.target.value.toUpperCase()} : x))} />
-            <input placeholder="Cant." value={row.quantity} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,quantity:e.target.value} : x))} />
-            <input placeholder="Und. medida" value={row.unit} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,unit:e.target.value.toUpperCase()} : x))} />
+            <input placeholder="Descripción *" value={row.description} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,description:e.target.value.toUpperCase()} : x))} />
+            <input placeholder="Motivo de salida *" value={row.reason} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,reason:e.target.value.toUpperCase()} : x))} />
+            <input placeholder="Cant. *" value={row.quantity} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,quantity:e.target.value} : x))} />
+            <input placeholder="Und. medida *" value={row.unit} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,unit:e.target.value.toUpperCase()} : x))} />
           </> : <>
             <select
   value={row.type}
@@ -1378,14 +1434,14 @@ ${documentBody}
     setCargoSaved(false);
   }}
 >
-  <option value="">Tipo</option>
+  <option value="">Tipo *</option>
   {CARGO_SAMPLE_TYPES.map(tipo => (
     <option key={tipo} value={tipo}>{tipo}</option>
   ))}
 </select>
-            <input placeholder="Código" value={row.code} onChange={e => { const code=e.target.value.toUpperCase(); setCargoRows(a => a.map(x => x.id===row.id ? {...x,code} : x)); if (cargoType === "PROVEEDORES") { setCargoProvider(""); setProviderSource(""); } setCargoSaved(false); }} onBlur={() => { if (cargoType === "PROVEEDORES" && row.code.trim()) void lookupCargoProvider(row.code); }} />
-            {cargoType === "CHALA" && <input placeholder="Peso aprox. (g)" value={row.weight} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,weight:e.target.value} : x))} />}
-            <input placeholder="Destino" value={row.destination} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,destination:e.target.value.toUpperCase()} : x))} />
+            <input placeholder="Código *" value={row.code} onChange={e => { const code=e.target.value.toUpperCase(); setCargoRows(a => a.map(x => x.id===row.id ? {...x,code} : x)); if (cargoType === "PROVEEDORES") { setCargoProvider(""); setProviderSource(""); } setCargoSaved(false); }} onBlur={() => { if (cargoType === "PROVEEDORES" && row.code.trim()) void lookupCargoProvider(row.code); }} />
+            {cargoType === "CHALA" && <input placeholder="Peso aprox. (g) *" value={row.weight} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,weight:e.target.value} : x))} />}
+            <input placeholder="Destino *" value={row.destination} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,destination:e.target.value.toUpperCase()} : x))} />
           </>}<input placeholder="Observaciones" value={row.observations} onChange={e => { setCargoRows(a => a.map(x => x.id===row.id ? {...x,observations:e.target.value.toUpperCase()} : x)); setCargoSaved(false); }} />
             <button
               type="button"
