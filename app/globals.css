@@ -602,3 +602,29 @@ button {
 small {
   line-height: 1.4;
 }
+
+/* X para eliminar filas en Cargos y Salidas */
+.cargo-delete-row {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #d64545;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.cargo-delete-row:hover:not(:disabled) {
+  background: #fdecec;
+}
+
+.cargo-delete-row:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
