@@ -825,7 +825,7 @@ export default function Home() {
     setCargoRows([blankCargoRow(1)]);
     setCargoProvider("");
     setCargoConductor("");
-    setGeneralExitType("");
+    setGeneralExitType(GENERAL_EXIT_TYPES[0]);
     setProviderSource("");
     setCargoSaved(false);
     setCargoSaving(false);
@@ -860,10 +860,11 @@ export default function Home() {
       Object.entries(row).some(([key, value]) => key !== "id" && String(value ?? "").trim() !== "")
     );
 
-    const makeRows = (kind: "CHALA" | "PROVEEDORES") => {
+    const makeRows = (kind: "CHALA" | "PROVEEDORES" | "GENERALES") => {
       const totalRows = Math.max(1, validRows.length);
       return Array.from({ length: totalRows }, (_, index) => {
         const row = validRows[index];
+
         if (kind === "CHALA") {
           return `<tr>
             <td class="n">${index + 1}</td>
@@ -874,6 +875,18 @@ export default function Home() {
             <td>${row ? escapeHtml(row.observations) : ""}</td>
           </tr>`;
         }
+
+        if (kind === "GENERALES") {
+          return `<tr>
+            <td class="n">${index + 1}</td>
+            <td>${row ? escapeHtml(row.description) : ""}</td>
+            <td>${row ? escapeHtml(row.reason) : ""}</td>
+            <td>${row ? escapeHtml(row.quantity) : ""}</td>
+            <td>${row ? escapeHtml(row.unit) : ""}</td>
+            <td>${row ? escapeHtml(row.observations) : ""}</td>
+          </tr>`;
+        }
+
         return `<tr>
           <td class="n">${index + 1}</td>
           <td>${row ? escapeHtml(row.type) : ""}</td>
@@ -978,8 +991,55 @@ export default function Home() {
           </div>
         </div>`;
     } else {
-      flash("El formato de impresión GENERALES se configurará con su formato correspondiente.", "warning");
-      return;
+      documentBody = `
+        <div class="sheet">
+          <div class="header-grid">
+            <div class="logo-cell">${logoHtml}</div>
+            <div class="title-cell">AUTORIZACIÓN DE SALIDA</div>
+            <div class="correlative-cell">${escapeHtml(cargoCorrelative)}</div>
+          </div>
+
+          <div class="info-grid">
+            <div class="info-label">FECHA:</div><div class="info-value">${fecha}</div>
+            <div class="auth-text">La administración de comercialización y acopio de Analytica Mineral Services autoriza la salida de lo siguiente:</div>
+            <div class="info-label">HORA:</div><div class="info-value">${hora}</div>
+          </div>
+
+          <div class="type-grid">
+            <div class="type-label">TIPO DE SALIDA</div>
+            <div class="type-value generales">${escapeHtml(generalExitType)}</div>
+          </div>
+
+          <table class="items generales-table">
+            <thead><tr>
+              <th>N°</th>
+              <th>DESCRIPCIÓN</th>
+              <th>MOTIVO DE SALIDA</th>
+              <th>CANT.</th>
+              <th>UNID MEDIDA</th>
+              <th>OBSERVACIONES</th>
+            </tr></thead>
+            <tbody>${makeRows("GENERALES")}</tbody>
+          </table>
+
+          <div class="responsibility responsibility-3">
+            <div><b>ENTREGADO POR:</b></div>
+            <div><b>TRASLADADO POR:</b></div>
+            <div><b>RECIBIDO POR:</b></div>
+
+            <div class="role">ATENCIÓN AL CLIENTE</div>
+            <div class="role">CONDUCTOR</div>
+            <div class="role">OFICINA CHALA</div>
+
+            <div class="person">${escapeHtml(currentUser.name)}</div>
+            <div class="person">${escapeHtml(cargoConductor)}</div>
+            <div class="person"></div>
+
+            <div class="signature">FIRMA:</div>
+            <div class="signature">FIRMA:</div>
+            <div class="signature">FIRMA:</div>
+          </div>
+        </div>`;
     }
 
     const printWindow = window.open("", "_blank", "width=1150,height=850");
