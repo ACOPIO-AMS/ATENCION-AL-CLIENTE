@@ -828,7 +828,7 @@ export default function Home() {
     );
 
     const makeRows = (kind: "CHALA" | "PROVEEDORES") => {
-      const totalRows = Math.max(13, validRows.length);
+      const totalRows = Math.max(1, validRows.length);
       return Array.from({ length: totalRows }, (_, index) => {
         const row = validRows[index];
         if (kind === "CHALA") {
@@ -896,7 +896,7 @@ export default function Home() {
             <div class="role">OFICINA CHALA</div>
 
             <div class="person">${escapeHtml(currentUser.name)}</div>
-            <div class="person">${escapeHtml(cargoConductor)}</div>
+            <div class="person">${escapeHtml(cargoConductor || "CONDUCTOR DE RUTINA")}</div>
             <div class="person"></div>
 
             <div class="signature">FIRMA:</div>
@@ -963,20 +963,20 @@ export default function Home() {
 <meta charset="UTF-8"/>
 <title>${escapeHtml(cargoCorrelative)}</title>
 <style>
-  @page { size: A4 portrait; margin: 8mm; }
+  @page { size: A4 portrait; margin: 5mm; }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; background:#fff; color:#000; font-family:Arial,Helvetica,sans-serif; }
-  body { font-size:10px; }
-  .sheet { width:100%; max-width:194mm; margin:0 auto; }
+  body { font-size:11px; }
+  .sheet { width:100%; max-width:none; margin:0; }
 
   .header-grid {
     display:grid; grid-template-columns:27% 53% 20%;
-    min-height:15mm; border:1.4px solid #000;
+    min-height:18mm; border:1.4px solid #000;
   }
   .header-grid > div { display:flex; align-items:center; justify-content:center; }
   .logo-cell, .title-cell { border-right:1px solid #000; }
-  .title-cell { font-size:15px; font-weight:800; text-align:center; padding:3px; }
-  .correlative-cell { font-size:17px; font-weight:900; }
+  .title-cell { font-size:17px; font-weight:800; text-align:center; padding:3px; }
+  .correlative-cell { font-size:19px; font-weight:900; }
 
   .analytica-logo { text-align:center; line-height:1; }
   .analytica-word { font-family:Georgia,"Times New Roman",serif; font-size:22px; font-weight:900; letter-spacing:-1px; }
@@ -1002,9 +1002,9 @@ export default function Home() {
   .type-value.proveedores { background:#f9e2c8; }
 
   table.items { width:100%; border-collapse:collapse; table-layout:fixed; }
-  .items th, .items td { border:1px solid #000; height:5.4mm; padding:1px 3px; vertical-align:middle; }
-  .items th { background:#eee; font-size:9px; font-weight:800; text-align:center; }
-  .items td { font-size:9px; text-align:center; }
+  .items th, .items td { border:1px solid #000; height:7mm; padding:1px 3px; vertical-align:middle; }
+  .items th { background:#eee; font-size:10px; font-weight:800; text-align:center; }
+  .items td { font-size:10px; text-align:center; }
   .items td.n { font-weight:800; }
   .chala-table th:nth-child(1){width:7%}
   .chala-table th:nth-child(2){width:20%}
@@ -1026,7 +1026,7 @@ export default function Home() {
   .role { text-align:center; font-weight:800; min-height:6mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
   .person { text-align:center; font-weight:700; min-height:7mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
   .provider-name { background:#dcebf7; }
-  .signature { min-height:22mm; display:flex; align-items:flex-end; font-weight:800; border-top:1px solid #000; padding-bottom:2px !important; }
+  .signature { min-height:38mm; display:flex; align-items:flex-end; font-weight:800; border-top:1px solid #000; padding-bottom:2px !important; }
 
   @media print {
     html, body { width:210mm; }
