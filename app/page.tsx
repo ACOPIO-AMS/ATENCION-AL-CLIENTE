@@ -561,13 +561,6 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (activeView === "cargos" && !cargoSaved) {
-      void loadCargoCorrelativePreview(cargoType);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeView]);
-
-  useEffect(() => {
     const updateClock = () => {
       if (activeView !== "registro") return;
       const current = nowValue();
@@ -789,18 +782,6 @@ export default function Home() {
     }
   }
 
-  async function loadCargoCorrelativePreview(type: CargoType) {
-    setCargoSaved(false);
-    setCargoId("");
-    setCargoCorrelative("");
-    try {
-      const data = await sheetsApi<{ correlative: string }>("previewCargoCorrelative", { type });
-      setCargoCorrelative(data.correlative || "");
-    } catch (error) {
-      flash(error instanceof Error ? error.message : "No se pudo consultar el próximo correlativo", "warning");
-    }
-  }
-
   async function saveCargoDocument() {
     const nonEmpty = cargoRows.filter(r => Object.entries(r).some(([k,v]) => k !== "id" && String(v || "").trim()));
     if (!nonEmpty.length) return flash("Agrega al menos un ítem al documento.");
@@ -993,20 +974,20 @@ export default function Home() {
 <meta charset="UTF-8"/>
 <title>${escapeHtml(cargoCorrelative)}</title>
 <style>
-  @page { size: A4 portrait; margin: 3mm; }
+  @page { size: A4 portrait; margin: 2mm; }
   * { box-sizing: border-box; }
   html, body { margin:0; padding:0; background:#fff; color:#000; font-family:Arial,Helvetica,sans-serif; }
-  body { font-size:12px; }
-  .sheet { width:204mm; max-width:204mm; margin:0 auto; }
+  body { font-size:14px; }
+  .sheet { width:206mm; max-width:206mm; min-height:293mm; margin:0 auto; display:flex; flex-direction:column; }
 
   .header-grid {
     display:grid; grid-template-columns:27% 53% 20%;
-    min-height:18mm; border:1.4px solid #000;
+    min-height:25mm; border:1.4px solid #000;
   }
   .header-grid > div { display:flex; align-items:center; justify-content:center; }
   .logo-cell, .title-cell { border-right:1px solid #000; }
-  .title-cell { font-size:17px; font-weight:800; text-align:center; padding:3px; }
-  .correlative-cell { font-size:19px; font-weight:900; }
+  .title-cell { font-size:21px; font-weight:800; text-align:center; padding:3px; }
+  .correlative-cell { font-size:23px; font-weight:900; }
 
   .analytica-logo {
     width:100%;
@@ -1019,7 +1000,7 @@ export default function Home() {
   .analytica-logo img {
     display:block;
     width:100%;
-    max-width:48mm;
+    max-width:56mm;
     height:auto;
     object-fit:contain;
   }
@@ -1027,25 +1008,25 @@ export default function Home() {
   .info-grid {
     display:grid;
     grid-template-columns:11% 15% 74%;
-    grid-template-rows:6mm 6mm;
+    grid-template-rows:8mm 8mm;
     border-left:1.4px solid #000; border-right:1.4px solid #000;
   }
   .info-grid > div { border-bottom:1px solid #aaa; display:flex; align-items:center; padding:1px 4px; }
   .info-label { font-weight:800; }
-  .info-value { justify-content:center; font-weight:800; font-size:13px; border-right:1px solid #aaa; }
+  .info-value { justify-content:center; font-weight:800; font-size:15px; border-right:1px solid #aaa; }
   .auth-text { grid-column:3; grid-row:1 / span 2; line-height:1.25; border-bottom:1px solid #aaa; }
 
-  .type-grid { display:grid; grid-template-columns:27% 73%; border:1.4px solid #000; border-top:0; min-height:8mm; }
+  .type-grid { display:grid; grid-template-columns:27% 73%; border:1.4px solid #000; border-top:0; min-height:10mm; }
   .type-grid > div { display:flex; align-items:center; justify-content:center; font-weight:800; }
   .type-label { border-right:1px solid #000; }
-  .type-value { font-family:Georgia,"Times New Roman",serif; font-size:12px; }
+  .type-value { font-family:Georgia,"Times New Roman",serif; font-size:14px; }
   .type-value.chala { background:#dcebf7; }
   .type-value.proveedores { background:#f9e2c8; }
 
   table.items { width:100%; border-collapse:collapse; table-layout:fixed; }
-  .items th, .items td { border:1px solid #000; height:8mm; padding:1px 3px; vertical-align:middle; }
-  .items th { background:#eee; font-size:11px; font-weight:800; text-align:center; }
-  .items td { font-size:14px; font-weight:700; text-align:center; }
+  .items th, .items td { border:1px solid #000; height:11mm; padding:2px 4px; vertical-align:middle; }
+  .items th { background:#eee; font-size:13px; font-weight:800; text-align:center; }
+  .items td { font-size:16px; font-weight:700; text-align:center; }
   .items td.n { font-weight:800; }
   .chala-table th:nth-child(1){width:7%}
   .chala-table th:nth-child(2){width:20%}
@@ -1059,15 +1040,15 @@ export default function Home() {
   .proveedores-table th:nth-child(4){width:25%}
   .proveedores-table th:nth-child(5){width:25%}
 
-  .responsibility { display:grid; border-left:1.4px solid #000; border-right:1.4px solid #000; border-bottom:1.4px solid #000; }
+  .responsibility { display:grid; flex:1; min-height:115mm; border-left:1.4px solid #000; border-right:1.4px solid #000; border-bottom:1.4px solid #000; }
   .responsibility-3 { grid-template-columns:1fr 1.18fr 1.45fr; }
   .responsibility-2 { grid-template-columns:1fr 1fr; }
   .responsibility > div { border-right:1px solid #000; padding:2px 3px; }
   .responsibility > div:nth-child(3n) { }
-  .role { text-align:center; font-weight:800; min-height:6mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
-  .person { text-align:center; font-weight:800; font-size:13px; min-height:8mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
+  .role { text-align:center; font-weight:800; min-height:8mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
+  .person { text-align:center; font-weight:800; font-size:15px; min-height:10mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
   .provider-name { background:#dcebf7; }
-  .signature { min-height:38mm; display:flex; align-items:flex-end; font-weight:800; border-top:1px solid #000; padding-bottom:2px !important; }
+  .signature { min-height:82mm; display:flex; align-items:flex-end; font-weight:800; border-top:1px solid #000; padding-bottom:2px !important; }
 
   @media print {
     html, body {
@@ -1076,8 +1057,9 @@ export default function Home() {
       padding:0 !important;
     }
     .sheet {
-      width:204mm !important;
-      max-width:204mm !important;
+      width:206mm !important;
+      max-width:206mm !important;
+      min-height:293mm !important;
       margin:0 auto !important;
     }
     thead { display:table-header-group; }
@@ -1180,9 +1162,9 @@ ${documentBody}
       {activeView === "cargos" && <section className="empty-view data-view cargo-view">
         <div className="view-heading"><div><span>▤</span><div><h2>Cargos y Salidas</h2><p>Primero se guarda el documento; recién después se habilita la impresión.</p></div></div></div>
         <div className="cargo-type-grid">
-          <button className={cargoType === "CHALA" ? "selected" : ""} onClick={() => { setCargoType("CHALA"); void loadCargoCorrelativePreview("CHALA"); }}><strong>Salida de muestras</strong><small>Oficina Chala · CH</small></button>
-          <button className={cargoType === "PROVEEDORES" ? "selected" : ""} onClick={() => { setCargoType("PROVEEDORES"); setCargoProvider(""); setProviderSource(""); void loadCargoCorrelativePreview("PROVEEDORES"); }}><strong>Salida de muestras</strong><small>Proveedores · PR</small></button>
-          <button className={cargoType === "GENERALES" ? "selected" : ""} onClick={() => { setCargoType("GENERALES"); void loadCargoCorrelativePreview("GENERALES"); }}><strong>Autorización de salida</strong><small>Generales</small></button>
+          <button className={cargoType === "CHALA" ? "selected" : ""} onClick={() => { setCargoType("CHALA"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); }}><strong>Salida de muestras</strong><small>Oficina Chala · CH</small></button>
+          <button className={cargoType === "PROVEEDORES" ? "selected" : ""} onClick={() => { setCargoType("PROVEEDORES"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); setCargoProvider(""); setProviderSource(""); }}><strong>Salida de muestras</strong><small>Proveedores · PR</small></button>
+          <button className={cargoType === "GENERALES" ? "selected" : ""} onClick={() => { setCargoType("GENERALES"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); }}><strong>Autorización de salida</strong><small>Generales</small></button>
         </div>
         <section className="cargo-editor">
           <div
@@ -1202,7 +1184,12 @@ ${documentBody}
               N° DE SALIDA
             </span>
             <strong style={{ fontSize: "22px", color: "#075b54" }}>
-              {cargoCorrelative || "CONSULTANDO…"}
+              {cargoCorrelative ||
+                (cargoType === "CHALA"
+                  ? "CH - SE ASIGNA AL GUARDAR"
+                  : cargoType === "PROVEEDORES"
+                    ? "PR - SE ASIGNA AL GUARDAR"
+                    : "GE - SE ASIGNA AL GUARDAR")}
             </strong>
           </div>
 
@@ -1266,7 +1253,7 @@ ${documentBody}
             </button>
           </div>)}</div>
           <button className="add-person" type="button" onClick={() => { setCargoRows(a => [...a, blankCargoRow(Math.max(...a.map(x=>x.id),0)+1)]); setCargoSaved(false); }}>＋ Agregar fila</button>
-          {cargoSaved && cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
+          {cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
           <div className="cargo-actions"><button className="primary-action" disabled={cargoSaving || cargoSaved} onClick={() => void saveCargoDocument()}>{cargoSaving ? "Guardando…" : cargoSaved ? "Guardado" : "Guardar"}</button><button className="secondary-action" disabled={!cargoSaved} onClick={() => printCargoDocument()}>Imprimir</button></div>
         </section>
       </section>}
