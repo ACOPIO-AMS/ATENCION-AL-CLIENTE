@@ -812,68 +812,240 @@ export default function Home() {
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
+        .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 
     const now = new Date();
-    const fecha = new Intl.DateTimeFormat("es-PE", { timeZone: "America/Lima", day: "2-digit", month: "2-digit", year: "numeric" }).format(now);
-    const hora = new Intl.DateTimeFormat("es-PE", { timeZone: "America/Lima", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+    const fecha = new Intl.DateTimeFormat("es-PE", {
+      timeZone: "America/Lima", day: "2-digit", month: "2-digit", year: "numeric",
+    }).format(now);
+    const hora = new Intl.DateTimeFormat("es-PE", {
+      timeZone: "America/Lima", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    }).format(now);
 
     const validRows = cargoRows.filter(row =>
       Object.entries(row).some(([key, value]) => key !== "id" && String(value ?? "").trim() !== "")
     );
 
+    const makeRows = (kind: "CHALA" | "PROVEEDORES") => {
+      const totalRows = Math.max(13, validRows.length);
+      return Array.from({ length: totalRows }, (_, index) => {
+        const row = validRows[index];
+        if (kind === "CHALA") {
+          return `<tr>
+            <td class="n">${index + 1}</td>
+            <td>${row ? escapeHtml(row.type) : ""}</td>
+            <td>${row ? escapeHtml(row.code) : ""}</td>
+            <td>${row ? escapeHtml(row.weight) : ""}</td>
+            <td>${row ? escapeHtml(row.destination) : ""}</td>
+            <td>${row ? escapeHtml(row.observations) : ""}</td>
+          </tr>`;
+        }
+        return `<tr>
+          <td class="n">${index + 1}</td>
+          <td>${row ? escapeHtml(row.type) : ""}</td>
+          <td>${row ? escapeHtml(row.code) : ""}</td>
+          <td>${row ? escapeHtml(row.destination) : ""}</td>
+          <td>${row ? escapeHtml(row.observations) : ""}</td>
+        </tr>`;
+      }).join("");
+    };
+
+    const logoHtml = `
+      <div class="analytica-logo">
+        <div class="analytica-word"><span class="analytica-a">A</span>nalytica</div>
+        <div class="analytica-sub">Analytica Mineral Services S.A.C.</div>
+      </div>`;
+
     let documentBody = "";
 
-    if (cargoType === "PROVEEDORES") {
-      const minimumRows = 13;
-      const totalRows = Math.max(minimumRows, validRows.length);
-      const rowsHtml = Array.from({ length: totalRows }, (_, index) => {
-        const row = validRows[index];
-        return `<tr><td class="numero">${index + 1}</td><td>${row ? escapeHtml(row.type) : ""}</td><td>${row ? escapeHtml(row.code) : ""}</td><td>${row ? escapeHtml(row.destination) : ""}</td><td>${row ? escapeHtml(row.observations) : ""}</td></tr>`;
-      }).join("");
-
+    if (cargoType === "CHALA") {
       documentBody = `
-        <div class="documento">
-          <div class="cabecera">
-            <div class="logo"><div class="logo-analytica"><span class="logo-a">A</span><div><strong>Analytica</strong><small>MINERAL SERVICES S.A.C.</small></div></div></div>
-            <div class="titulo">AUTORIZACIÓN DE SALIDA DE MUESTRAS</div>
-            <div class="correlativo">${escapeHtml(cargoCorrelative)}</div>
+        <div class="sheet">
+          <div class="header-grid">
+            <div class="logo-cell">${logoHtml}</div>
+            <div class="title-cell">CARGO DE SALIDA DE MUESTRAS</div>
+            <div class="correlative-cell">${escapeHtml(cargoCorrelative)}</div>
           </div>
-          <div class="fecha-hora"><div><strong>FECHA:</strong><span>${fecha}</span></div><div><strong>HORA:</strong><span>${hora}</span></div></div>
-          <div class="texto-autorizacion">La administración de comercialización y acopio de Analytica Mineral Services autoriza la salida de lo siguiente:</div>
-          <div class="tipo-salida"><div class="tipo-label">TIPO DE SALIDA</div><div class="tipo-valor">MUESTRAS - PROVEEDORES</div></div>
-          <table class="tabla-items"><thead><tr><th class="col-numero">N°</th><th class="col-tipo">TIPO</th><th class="col-codigo">CÓDIGO</th><th class="col-destino">DESTINO</th><th class="col-observaciones">OBSERVACIONES</th></tr></thead><tbody>${rowsHtml}</tbody></table>
-          <div class="firmas">
-            <div class="firma-bloque"><div class="firma-titulo">ENTREGADO POR:</div><div class="firma-cargo">ATENCIÓN AL CLIENTE</div><div class="firma-nombre">${escapeHtml(currentUser.name)}</div><div class="linea-firma"></div><div class="firma-pie">FIRMA:</div></div>
-            <div class="firma-bloque"><div class="firma-titulo">RECIBIDO POR:</div><div class="firma-cargo">PROVEEDOR</div><div class="firma-nombre">${escapeHtml(cargoProvider)}</div><div class="linea-firma"></div><div class="firma-pie">FIRMA Y HUELLA:</div></div>
+
+          <div class="info-grid">
+            <div class="info-label">FECHA:</div><div class="info-value">${fecha}</div>
+            <div class="auth-text" rowspan="2">La administración de comercialización y acopio de Analytica Mineral Services autoriza la salida de lo siguiente:</div>
+            <div class="info-label">HORA:</div><div class="info-value">${hora}</div>
+          </div>
+
+          <div class="type-grid">
+            <div class="type-label">TIPO DE SALIDA</div>
+            <div class="type-value chala">MUESTRAS - OFICINA CHALA</div>
+          </div>
+
+          <table class="items chala-table">
+            <thead><tr>
+              <th>N°</th><th>TIPO</th><th>CÓDIGO</th><th>PESO APROX (gr)</th><th>DESTINO</th><th>OBSERVACIONES</th>
+            </tr></thead>
+            <tbody>${makeRows("CHALA")}</tbody>
+          </table>
+
+          <div class="responsibility responsibility-3">
+            <div><b>ENTREGADO POR:</b></div>
+            <div><b>TRASLADADO POR:</b></div>
+            <div><b>RECIBIDO POR:</b></div>
+
+            <div class="role">ATENCIÓN AL CLIENTE</div>
+            <div class="role">CONDUCTOR DE RUTINA</div>
+            <div class="role">OFICINA CHALA</div>
+
+            <div class="person">${escapeHtml(currentUser.name)}</div>
+            <div class="person">${escapeHtml(cargoConductor)}</div>
+            <div class="person"></div>
+
+            <div class="signature">FIRMA:</div>
+            <div class="signature">FIRMA:</div>
+            <div class="signature"></div>
           </div>
         </div>`;
-    }
+    } else if (cargoType === "PROVEEDORES") {
+      documentBody = `
+        <div class="sheet">
+          <div class="header-grid">
+            <div class="logo-cell">${logoHtml}</div>
+            <div class="title-cell">AUTORIZACIÓN DE SALIDA DE MUESTRAS</div>
+            <div class="correlative-cell">${escapeHtml(cargoCorrelative)}</div>
+          </div>
 
-    if (cargoType === "CHALA") {
-      flash("El formato de impresión CHALA será configurado a continuación.", "warning");
+          <div class="info-grid">
+            <div class="info-label">FECHA:</div><div class="info-value">${fecha}</div>
+            <div class="auth-text">La administración de comercialización y acopio de Analytica Mineral Services autoriza la salida de lo siguiente:</div>
+            <div class="info-label">HORA:</div><div class="info-value">${hora}</div>
+          </div>
+
+          <div class="type-grid">
+            <div class="type-label">TIPO DE SALIDA</div>
+            <div class="type-value proveedores">MUESTRAS - PROVEEDORES</div>
+          </div>
+
+          <table class="items proveedores-table">
+            <thead><tr>
+              <th>N°</th><th>TIPO</th><th>CÓDIGO</th><th>DESTINO</th><th>OBSERVACIONES</th>
+            </tr></thead>
+            <tbody>${makeRows("PROVEEDORES")}</tbody>
+          </table>
+
+          <div class="responsibility responsibility-2">
+            <div><b>ENTREGADO POR:</b></div>
+            <div><b>RECIBIDO POR:</b></div>
+
+            <div class="role">ATENCIÓN AL CLIENTE</div>
+            <div class="role">PROVEEDOR</div>
+
+            <div class="person">${escapeHtml(currentUser.name)}</div>
+            <div class="person provider-name">${escapeHtml(cargoProvider)}</div>
+
+            <div class="signature">FIRMA:</div>
+            <div class="signature">FIRMA Y HUELLA:</div>
+          </div>
+        </div>`;
+    } else {
+      flash("El formato de impresión GENERALES se configurará con su formato correspondiente.", "warning");
       return;
     }
-    if (cargoType === "GENERALES") {
-      flash("El formato de impresión GENERALES será configurado a continuación.", "warning");
-      return;
-    }
 
-    const printWindow = window.open("", "_blank", "width=1100,height=850");
+    const printWindow = window.open("", "_blank", "width=1150,height=850");
     if (!printWindow) {
       flash("El navegador bloqueó la ventana de impresión. Habilita las ventanas emergentes.");
       return;
     }
 
     printWindow.document.open();
-    printWindow.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>${escapeHtml(cargoCorrelative)}</title><style>
-      @page{size:A4 portrait;margin:12mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif}body{font-size:11px}.documento{width:100%;margin:0 auto}
-      .cabecera{display:grid;grid-template-columns:25% 50% 25%;align-items:center;min-height:78px;border:1.5px solid #000}.logo{height:100%;display:flex;align-items:center;padding:8px 10px;border-right:1px solid #000}.logo-analytica{display:flex;align-items:center;gap:7px}.logo-a{width:38px;height:38px;border:3px solid #e58b25;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:800;color:#e58b25}.logo-analytica strong{display:block;font-size:20px;line-height:20px}.logo-analytica small{display:block;font-size:6.5px;margin-top:3px;letter-spacing:.4px}.titulo{height:100%;display:flex;align-items:center;justify-content:center;padding:10px;text-align:center;font-size:15px;font-weight:700;border-right:1px solid #000}.correlativo{text-align:center;font-size:22px;font-weight:800;padding:10px}
-      .fecha-hora{display:flex;justify-content:flex-end;gap:22px;padding:10px 4px 8px}.fecha-hora div{display:flex;align-items:center;gap:7px}.fecha-hora span{min-width:85px;border-bottom:1px solid #000;text-align:center;padding:2px 5px}.texto-autorizacion{padding:7px 2px 11px;line-height:1.5}.tipo-salida{display:grid;grid-template-columns:25% 75%;border:1px solid #000}.tipo-label,.tipo-valor{padding:7px;font-weight:700;text-align:center}.tipo-label{border-right:1px solid #000;background:#eee}
-      .tabla-items{width:100%;border-collapse:collapse;table-layout:fixed}.tabla-items th,.tabla-items td{border:1px solid #000;padding:4px 5px;height:25px;vertical-align:middle;word-break:break-word}.tabla-items th{text-align:center;font-size:10px;font-weight:700;background:#eee}.tabla-items td{font-size:10px}.tabla-items .numero{text-align:center;font-weight:600}.col-numero{width:6%}.col-tipo{width:16%}.col-codigo{width:19%}.col-destino{width:24%}.col-observaciones{width:35%}
-      .firmas{display:grid;grid-template-columns:1fr 1fr;gap:55px;margin-top:28px;padding:0 28px}.firma-bloque{text-align:center}.firma-titulo{text-align:left;font-weight:700;margin-bottom:17px}.firma-cargo{font-weight:700;margin-bottom:5px}.firma-nombre{min-height:18px;font-weight:600}.linea-firma{height:55px;border-bottom:1px solid #000;margin:0 18px 6px}.firma-pie{font-size:9px;font-weight:700}@media print{html,body{width:210mm;min-height:297mm}.documento{page-break-inside:avoid}thead{display:table-header-group}tr{page-break-inside:avoid}}
-    </style></head><body>${documentBody}<script>window.onload=function(){setTimeout(function(){window.print();},250)};window.onafterprint=function(){window.close()};<\/script></body></html>`);
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>${escapeHtml(cargoCorrelative)}</title>
+<style>
+  @page { size: A4 portrait; margin: 8mm; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:#fff; color:#000; font-family:Arial,Helvetica,sans-serif; }
+  body { font-size:10px; }
+  .sheet { width:100%; max-width:194mm; margin:0 auto; }
+
+  .header-grid {
+    display:grid; grid-template-columns:27% 53% 20%;
+    min-height:15mm; border:1.4px solid #000;
+  }
+  .header-grid > div { display:flex; align-items:center; justify-content:center; }
+  .logo-cell, .title-cell { border-right:1px solid #000; }
+  .title-cell { font-size:15px; font-weight:800; text-align:center; padding:3px; }
+  .correlative-cell { font-size:17px; font-weight:900; }
+
+  .analytica-logo { text-align:center; line-height:1; }
+  .analytica-word { font-family:Georgia,"Times New Roman",serif; font-size:22px; font-weight:900; letter-spacing:-1px; }
+  .analytica-a { color:#d98318; font-size:25px; }
+  .analytica-sub { margin-top:2px; font-size:5.8px; font-weight:700; letter-spacing:.15px; }
+
+  .info-grid {
+    display:grid;
+    grid-template-columns:11% 15% 74%;
+    grid-template-rows:6mm 6mm;
+    border-left:1.4px solid #000; border-right:1.4px solid #000;
+  }
+  .info-grid > div { border-bottom:1px solid #aaa; display:flex; align-items:center; padding:1px 4px; }
+  .info-label { font-weight:800; }
+  .info-value { justify-content:center; font-weight:700; border-right:1px solid #aaa; }
+  .auth-text { grid-column:3; grid-row:1 / span 2; line-height:1.25; border-bottom:1px solid #aaa; }
+
+  .type-grid { display:grid; grid-template-columns:27% 73%; border:1.4px solid #000; border-top:0; min-height:7mm; }
+  .type-grid > div { display:flex; align-items:center; justify-content:center; font-weight:800; }
+  .type-label { border-right:1px solid #000; }
+  .type-value { font-family:Georgia,"Times New Roman",serif; font-size:12px; }
+  .type-value.chala { background:#dcebf7; }
+  .type-value.proveedores { background:#f9e2c8; }
+
+  table.items { width:100%; border-collapse:collapse; table-layout:fixed; }
+  .items th, .items td { border:1px solid #000; height:5.4mm; padding:1px 3px; vertical-align:middle; }
+  .items th { background:#eee; font-size:9px; font-weight:800; text-align:center; }
+  .items td { font-size:9px; text-align:center; }
+  .items td.n { font-weight:800; }
+  .chala-table th:nth-child(1){width:7%}
+  .chala-table th:nth-child(2){width:20%}
+  .chala-table th:nth-child(3){width:16%}
+  .chala-table th:nth-child(4){width:18%}
+  .chala-table th:nth-child(5){width:20%}
+  .chala-table th:nth-child(6){width:19%}
+  .proveedores-table th:nth-child(1){width:8%}
+  .proveedores-table th:nth-child(2){width:20%}
+  .proveedores-table th:nth-child(3){width:22%}
+  .proveedores-table th:nth-child(4){width:25%}
+  .proveedores-table th:nth-child(5){width:25%}
+
+  .responsibility { display:grid; border-left:1.4px solid #000; border-right:1.4px solid #000; border-bottom:1.4px solid #000; }
+  .responsibility-3 { grid-template-columns:1fr 1.18fr 1.45fr; }
+  .responsibility-2 { grid-template-columns:1fr 1fr; }
+  .responsibility > div { border-right:1px solid #000; padding:2px 3px; }
+  .responsibility > div:nth-child(3n) { }
+  .role { text-align:center; font-weight:800; min-height:6mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
+  .person { text-align:center; font-weight:700; min-height:7mm; display:flex; align-items:center; justify-content:center; border-top:1px solid #000; }
+  .provider-name { background:#dcebf7; }
+  .signature { min-height:22mm; display:flex; align-items:flex-end; font-weight:800; border-top:1px solid #000; padding-bottom:2px !important; }
+
+  @media print {
+    html, body { width:210mm; }
+    .sheet { page-break-inside:avoid; }
+    thead { display:table-header-group; }
+    tr { page-break-inside:avoid; }
+  }
+</style>
+</head>
+<body>
+${documentBody}
+<script>
+  window.onload = function () {
+    setTimeout(function () { window.print(); }, 300);
+  };
+  window.onafterprint = function () { window.close(); };
+<\/script>
+</body>
+</html>`);
     printWindow.document.close();
   }
 
