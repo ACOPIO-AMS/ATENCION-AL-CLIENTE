@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
-type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas";
+type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos";
 type PersonRecord = { name: string; phone: string; license?: string; category?: string };
 type Participant = { id: number; dni: string; name: string; phone: string; role: Role; license: string; category: string; found: boolean | null; newPerson: boolean; automaticDriver: boolean; expectedLater: boolean; lots: string; detail: string; lotCodes: string[]; cargoRegularize: boolean };
 type EventForm = { motive: string; plate: string; zone: string; guard: string; shift: string; responsible: string };
@@ -15,10 +15,16 @@ type Connection = "checking" | "online" | "offline" | "unconfigured" | "outdated
 type QueueItem = { queueId: string; localId: string; action: "saveEvent" | "regularizeEvent"; payload: Record<string, unknown>; createdAt: string; attempts: number; lastError?: string; repairLegacy?: boolean };
 type AlertType = "success" | "error" | "warning";
 type ModalAlertType = Exclude<AlertType, "warning">;
+type CargoType = "CHALA" | "PROVEEDORES" | "GENERALES";
+type CargoRow = { id: number; type: string; code: string; weight: string; destination: string; description: string; reason: string; quantity: string; unit: string; observations: string };
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
-const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-21-V11-LIGERO", "ATENCION-2026-08-21-V12-COLA-ROBUSTA", "ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA", "ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS"];
+const GENERAL_EXIT_TYPES = ["ÚTILES DE OFICINA", "ARTÍCULOS DE LIMPIEZA", "REGALOS BBSS", "EPPS", "PRENDAS DE CAMPAMENTO", "BIDÓN DE AGUA", "BIDÓN DE GASOLINA", "REPUESTOS PARA MOTOCARGA", "BALÓN DE GAS", "MATERIALES DE INSTALACIÓN"];
+const CONDUCTORS = ["JHOMAR GARCIA OSPINO", "WILDER CONCE YAURI", "WILMER ALVARADO ALIAGA", "DONALD ZAMBRANO BASURTO"];
+const blankCargoRow = (id: number): CargoRow => ({ id, type: "", code: "", weight: "", destination: "", description: "", reason: "", quantity: "", unit: "", observations: "" });
+
+const SUPPORTED_BACKEND_VERSIONS = ["ATENCION-2026-08-21-V11-LIGERO", "ATENCION-2026-08-21-V12-COLA-ROBUSTA", "ATENCION-2026-08-21-V13-REGULARIZACION-SEGURA", "ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS", "ATENCION-2026-09-27-V15-CARGOS"];
 
 class SheetsApiError extends Error {
   status: number;
@@ -264,6 +270,18 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<SheetEvent[]>([]);
   const [clients, setClients] = useState<Array<PersonRecord & { dni: string; role?: string }>>([]);
   const [recent, setRecent] = useState<RecentItem[]>([]);
+  // Fase 1: el usuario se centraliza aquí. En la siguiente fase vendrá de la sesión/BD USUARIOS.
+  const [currentUser] = useState({ name: "LIZETH SURICHAQUI", role: "RESPONSABLE DE ATENCIÓN" });
+  const [cargoType, setCargoType] = useState<CargoType>("CHALA");
+  const [generalExitType, setGeneralExitType] = useState(GENERAL_EXIT_TYPES[0]);
+  const [cargoRows, setCargoRows] = useState<CargoRow[]>([blankCargoRow(1)]);
+  const [cargoProvider, setCargoProvider] = useState("");
+  const [cargoConductor, setCargoConductor] = useState("");
+  const [cargoSaved, setCargoSaved] = useState(false);
+  const [cargoSaving, setCargoSaving] = useState(false);
+  const [cargoCorrelative, setCargoCorrelative] = useState("");
+  const [cargoId, setCargoId] = useState("");
+  const [providerSource, setProviderSource] = useState<"AUTOMÁTICO" | "MANUAL" | "">("");
 
   const caseInfo = CASES.find((item) => item.id === activeCase) ?? LEGACY_CASES[activeCase] ?? CASES[0];
   const hasVehicle = activeCase !== 6;
@@ -744,6 +762,43 @@ export default function Home() {
     setActiveView("registro"); flash(`${item.id} abierto: las personas nuevas se insertarán debajo de su bloque`, "warning");
   }
 
+  async function lookupCargoProvider(code: string) {
+    if (cargoType !== "PROVEEDORES" || !code.trim()) return;
+    try {
+      const data = await sheetsApi<{ found: boolean; provider: string }>("lookupCargoProvider", { code: code.trim() });
+      if (data.found && data.provider) {
+        setCargoProvider(data.provider.toUpperCase());
+        setProviderSource("AUTOMÁTICO");
+        flash(`Proveedor encontrado: ${data.provider}`, "success");
+      } else {
+        setCargoProvider("");
+        setProviderSource("MANUAL");
+        flash("Código no encontrado en PROCESOS - GUIAS. Ingresa el proveedor manualmente.", "warning");
+      }
+    } catch (error) {
+      setProviderSource("MANUAL");
+      flash(error instanceof Error ? error.message : "No se pudo buscar el proveedor");
+    }
+  }
+
+  async function saveCargoDocument() {
+    const nonEmpty = cargoRows.filter(r => Object.entries(r).some(([k,v]) => k !== "id" && String(v || "").trim()));
+    if (!nonEmpty.length) return flash("Agrega al menos un ítem al documento.");
+    if (cargoType === "PROVEEDORES" && !cargoProvider.trim()) return flash("Falta identificar el proveedor.");
+    setCargoSaving(true);
+    try {
+      const data = await sheetsApi<{ id: string; correlative: string }>("saveCargo", {
+        type: cargoType, generalExitType, attentionUser: currentUser.name, conductor: cargoConductor,
+        provider: cargoProvider, providerSource: providerSource || (cargoProvider ? "MANUAL" : ""), rows: nonEmpty,
+      });
+      setCargoId(data.id); setCargoCorrelative(data.correlative); setCargoSaved(true);
+      flash(`Documento ${data.correlative} guardado correctamente. Ya puedes imprimir.`, "success");
+    } catch (error) {
+      setCargoSaved(false);
+      flash(error instanceof Error ? error.message : "No se pudo guardar el documento");
+    } finally { setCargoSaving(false); }
+  }
+
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">AC</span><div><strong>Atención al Cliente</strong><small>Control de ingresos</small></div></div>
@@ -753,13 +808,14 @@ export default function Home() {
         <button className={activeView === "pendientes" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("pendientes"); void loadPending(); }}><span>◷</span> Por regularizar {pendingEvents.length > 0 && <b>{pendingEvents.length}</b>}</button>
         <button className={activeView === "buscar" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("buscar")}><span>⌕</span> Buscar</button>
         <button className={activeView === "personas" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("personas"); void loadClients(); }}><span>◎</span> BD Clientes</button>
+        <button className={activeView === "cargos" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("cargos")}><span>▤</span> Cargos y Salidas</button>
       </nav>
       <div className={`sidebar-card connection-${connection}`}><span className="status-dot" /><div><strong>{connectionTitle}</strong><small>{queue.length ? `${queue.length} registro(s) por sincronizar` : connection === "online" ? "Lectura y escritura habilitadas" : connection === "outdated" ? "Actualiza la implementación de Apps Script" : connection === "unconfigured" ? "Falta configurar Apps Script" : "Los registros quedarán en este equipo"}</small>{queue.length > 0 && <button className="sidebar-sync" type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button>}</div></div>
-      <div className="user-card"><span>LS</span><div><strong>Lizeth Surichaqui</strong><small>Responsable de atención</small></div></div>
+      <div className="user-card"><span>{currentUser.name.split(" ").map(part => part[0]).slice(0,2).join("")}</span><div><strong>{currentUser.name}</strong><small>{currentUser.role}</small></div></div>
     </aside>
 
     <section className="workspace">
-      <header className="topbar"><div><p>REGISTRO DE PROVEEDORES ATENCIÓN AL CLIENTE - AMS - v001crq.</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : "BD Clientes"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
+      <header className="topbar"><div><p>REGISTRO DE PROVEEDORES ATENCIÓN AL CLIENTE - AMS - v001crq.</p><h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : activeView === "personas" ? "BD Clientes" : "Cargos y Salidas"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
       {showQueueManager && queue.length > 0 && <section className="queue-manager"><div className="queue-manager-head"><div><strong>Pendientes guardados en este dispositivo</strong><span>Un registro con error ya no detiene a los demás. Revísalo antes de eliminarlo.</span></div><button type="button" className="danger-link" onClick={removeAllQueued}>Eliminar todos</button></div><div className="queue-list">{queue.map(item => { const preview = queuePreview(item); return <article className={item.lastError ? "queue-item has-error" : "queue-item"} key={item.queueId}><div className="queue-item-main"><strong>{item.localId}</strong><span>{formatDateTime(item.createdAt)} · {item.action === "regularizeEvent" ? "REGULARIZACIÓN" : "NUEVO INGRESO"}</span><p>{preview.plate} · {preview.people}</p>{item.lastError && <em>{item.lastError}</em>}</div><div className="queue-item-actions"><button type="button" onClick={() => retryQueued(item.queueId)} disabled={syncing}>Reintentar</button><button type="button" className="danger" onClick={() => removeQueued(item.queueId)} disabled={syncing}>Eliminar</button></div></article>; })}</div></section>}
 
@@ -815,6 +871,37 @@ export default function Home() {
 
       {activeView === "pendientes" && <section className="empty-view data-view"><div className="view-heading"><div><span>◷</span><div><h2>Eventos por regularizar</h2><p>Las personas nuevas se insertarán debajo del bloque existente.</p></div></div><button onClick={loadPending} disabled={busy}>Actualizar</button></div><div className="pending-table dynamic">{pendingEvents.length ? pendingEvents.map(item => <div key={item.id}><strong>{item.id}</strong><span>{item.plate || "SIN PLACA"} · {item.persons.map(person => person.name).join(", ")}</span><em>{item.pendingReasons?.join(" · ") || "Datos pendientes"}</em><button onClick={() => openRegularization(item)}>Regularizar</button></div>) : <p className="empty-message">{connection === "online" ? "No hay eventos pendientes." : "Conecta Google Sheets para consultar los pendientes."}</p>}</div></section>}
       {activeView === "buscar" && <section className="empty-view data-view"><div className="view-heading"><div><span>⌕</span><div><h2>Búsqueda en MATRIZ</h2><p>Placa, código de lote, persona, DNI o ID.</p></div></div></div><div className="record-search"><input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => { if (e.key === "Enter") void runSearch(); }} placeholder="Ej. ABC-450, RM-120, nombre o DNI" /><button onClick={runSearch} disabled={busy}>{busy ? "Buscando…" : "Buscar"}</button></div><div className="search-results">{searchResults.map(item => <article className="search-result" key={item.id}><div className="search-result-head"><div><strong>{item.id}</strong><span>{formatDateTime(item.dateTime)} · {item.plate || "SIN PLACA"} · {item.zone || "SIN ZONA"}</span></div><button onClick={() => openRegularization(item)}>{item.status === "PENDIENTE" ? "Regularizar" : "Abrir"}</button></div><div className="result-persons">{item.persons.map((person, index) => <div key={`${item.id}-${person.dni}-${index}`}><strong>{person.name}</strong><span>DNI {person.dni} · {person.role}</span><small>{person.lots ? `${person.lots} lote(s): ${person.lotCodes.length ? person.lotCodes.join(", ") : person.detail}` : "Sin lotes asignados"}</small></div>)}</div></article>)}{!searchResults.length && <p className="empty-message">Los resultados aparecerán del más reciente al más antiguo.</p>}</div></section>}
+
+      {activeView === "cargos" && <section className="empty-view data-view cargo-view">
+        <div className="view-heading"><div><span>▤</span><div><h2>Cargos y Salidas</h2><p>Primero se guarda el documento; recién después se habilita la impresión.</p></div></div></div>
+        <div className="cargo-type-grid">
+          <button className={cargoType === "CHALA" ? "selected" : ""} onClick={() => { setCargoType("CHALA"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); }}><strong>Salida de muestras</strong><small>Oficina Chala · CH</small></button>
+          <button className={cargoType === "PROVEEDORES" ? "selected" : ""} onClick={() => { setCargoType("PROVEEDORES"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); setCargoProvider(""); setProviderSource(""); }}><strong>Salida de muestras</strong><small>Proveedores · PR</small></button>
+          <button className={cargoType === "GENERALES" ? "selected" : ""} onClick={() => { setCargoType("GENERALES"); setCargoSaved(false); setCargoCorrelative(""); setCargoId(""); }}><strong>Autorización de salida</strong><small>Generales</small></button>
+        </div>
+        <section className="cargo-editor">
+          <div className="cargo-meta">
+            <label>Atención al cliente<input value={currentUser.name} readOnly /></label>
+            {cargoType === "GENERALES" && <label>Tipo de salida<select value={generalExitType} onChange={e => { setGeneralExitType(e.target.value); setCargoSaved(false); }}>{GENERAL_EXIT_TYPES.map(x => <option key={x}>{x}</option>)}</select></label>}
+            {cargoType === "PROVEEDORES" && <label>Proveedor<input value={cargoProvider} onChange={e => { setCargoProvider(e.target.value.toUpperCase()); setProviderSource("MANUAL"); setCargoSaved(false); }} placeholder="Automático al ingresar un código" /><small>{providerSource ? `Origen: ${providerSource}` : "Se buscará en PROCESOS - GUIAS"}</small></label>}
+            <label>Conductor<select value={cargoConductor} onChange={e => { setCargoConductor(e.target.value); setCargoSaved(false); }}><option value="">Seleccionar</option>{CONDUCTORS.map(x => <option key={x}>{x}</option>)}</select></label>
+          </div>
+          <div className="cargo-lines">{cargoRows.map((row,index) => <div className="cargo-line" key={row.id}><b>{index+1}</b>{cargoType === "GENERALES" ? <>
+            <input placeholder="Descripción" value={row.description} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,description:e.target.value.toUpperCase()} : x))} />
+            <input placeholder="Motivo de salida" value={row.reason} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,reason:e.target.value.toUpperCase()} : x))} />
+            <input placeholder="Cant." value={row.quantity} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,quantity:e.target.value} : x))} />
+            <input placeholder="Und. medida" value={row.unit} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,unit:e.target.value.toUpperCase()} : x))} />
+          </> : <>
+            <input placeholder="Tipo" value={row.type} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,type:e.target.value.toUpperCase()} : x))} />
+            <input placeholder="Código" value={row.code} onChange={e => { const code=e.target.value.toUpperCase(); setCargoRows(a => a.map(x => x.id===row.id ? {...x,code} : x)); if (cargoType === "PROVEEDORES") { setCargoProvider(""); setProviderSource(""); } setCargoSaved(false); }} onBlur={() => { if (cargoType === "PROVEEDORES" && row.code.trim()) void lookupCargoProvider(row.code); }} />
+            {cargoType === "CHALA" && <input placeholder="Peso aprox. kg" value={row.weight} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,weight:e.target.value} : x))} />}
+            <input placeholder="Destino" value={row.destination} onChange={e => setCargoRows(a => a.map(x => x.id===row.id ? {...x,destination:e.target.value.toUpperCase()} : x))} />
+          </>}<input placeholder="Observaciones" value={row.observations} onChange={e => { setCargoRows(a => a.map(x => x.id===row.id ? {...x,observations:e.target.value.toUpperCase()} : x)); setCargoSaved(false); }} /></div>)}</div>
+          <button className="add-person" type="button" onClick={() => { setCargoRows(a => [...a, blankCargoRow(Math.max(...a.map(x=>x.id),0)+1)]); setCargoSaved(false); }}>＋ Agregar fila</button>
+          {cargoCorrelative && <div className="cargo-saved-banner"><strong>{cargoCorrelative}</strong><span>Guardado · ID {cargoId}</span></div>}
+          <div className="cargo-actions"><button className="primary-action" disabled={cargoSaving || cargoSaved} onClick={() => void saveCargoDocument()}>{cargoSaving ? "Guardando…" : cargoSaved ? "Guardado" : "Guardar"}</button><button className="secondary-action" disabled={!cargoSaved} onClick={() => window.print()}>Imprimir</button></div>
+        </section>
+      </section>}
       {activeView === "personas" && <section className="empty-view data-view"><div className="people-toolbar"><div><h2>BD CLIENTES</h2><p>Fuente maestra para autocompletar por DNI.</p></div><button onClick={loadClients} disabled={busy}>Actualizar</button></div><div className="people-table"><div className="table-head"><span>DNI</span><span>Nombres y apellidos</span><span>Celular</span><span>Licencia</span><span>Estado</span></div>{clients.map(person => <div className="table-row" key={person.dni}><span>{person.dni}</span><strong>{person.name}</strong><span>{person.phone}</span><span>{person.license ? `${person.license} · ${person.category}` : "—"}</span><em>{person.role || "ACTIVO"}</em></div>)}</div>{!clients.length && <p className="empty-message">Pulsa Actualizar para consultar BD CLIENTES.</p>}</section>}
     </section>
     {notice && <div className="notice-toast" role="status" aria-live="polite">{notice}</div>}
