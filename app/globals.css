@@ -524,3 +524,81 @@ label select:disabled { color: #65716f; background: #eef2f0; cursor: not-allowed
 .cargo-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:18px; }
 @media(max-width:720px){.cargo-type-grid,.cargo-meta{grid-template-columns:1fr}.cargo-line{grid-template-columns:32px 1fr}.cargo-actions{grid-template-columns:1fr}}
 .cargo-saved-banner{display:flex;align-items:center;gap:14px;padding:12px 16px;margin-top:14px;border:1px solid #b8d9d2;border-radius:10px;background:#eef8f5}.cargo-saved-banner strong{font-size:18px;color:#143a37}.cargo-saved-banner span{font-size:12px;color:#56706c}
+/* =========================================================
+   LEGIBILIDAD GENERAL DE TODA LA APLICACIÓN
+   ========================================================= */
+
+body {
+  font-size: 16px;
+}
+
+/* Menú lateral */
+.nav-item {
+  font-size: 15px;
+}
+
+/* Usuario y estado de conexión */
+.user-card strong {
+  font-size: 14px;
+}
+
+.user-card small,
+.connection-card small {
+  font-size: 13px;
+}
+
+/* Encabezados principales */
+.topbar h1 {
+  font-size: 24px;
+}
+
+.topbar p {
+  font-size: 15px;
+}
+
+/* Títulos de secciones */
+.section-title h2,
+.view-heading h2 {
+  font-size: 22px;
+}
+
+.section-title p,
+.view-heading p {
+  font-size: 14px;
+}
+
+/* Etiquetas de todos los formularios */
+label {
+  font-size: 14px;
+}
+
+/* Campos de texto y listas */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* Textos auxiliares debajo de campos */
+label small {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Botones */
+button {
+  font-size: 15px;
+}
+
+/* Tablas y registros */
+.table-head,
+.table-row,
+.pending-table,
+.search-result {
+  font-size: 14px;
+}
+
+/* Tarjetas y textos secundarios */
+small {
+  line-height: 1.4;
+}
