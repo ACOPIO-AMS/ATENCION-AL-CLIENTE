@@ -1,7 +1,9 @@
-/* AMS ACOPIO - CORRECCION FINAL V5.3
-   TITULOS > SUBTITULOS
-   GRAFICOS CONSERVADOS
-   MENU EN UNA SOLA LINEA
+/* AMS ACOPIO - MENU FINAL V5.4
+   - Sidebar fijo en 250px
+   - Titulos mayores que subtitulos
+   - Subtitulos en una sola linea
+   - Graficos conservados
+   - Sin invadir el area de trabajo
 */
 
 :root{
@@ -12,7 +14,8 @@
   --red:#C83B3B;
 }
 
-html,body{
+html,
+body{
   background:#F4F7F9!important;
 }
 
@@ -31,79 +34,93 @@ html,body{
 .app-shell>.sidebar{
   position:sticky!important;
   top:0!important;
+
   width:250px!important;
   min-width:250px!important;
+
   height:100vh!important;
+
   padding:14px 10px!important;
+
   background:linear-gradient(
     180deg,
     #07395D 0%,
     #0B3A5B 58%,
     #073452 100%
   )!important;
+
+  overflow-x:hidden!important;
 }
 
 .app-shell>.workspace{
   grid-column:2!important;
+
   width:100%!important;
   min-width:0!important;
+
   margin:0!important;
   padding:0!important;
+
   background:#F4F7F9!important;
 }
 
 
 /* =========================================================
-   MENU LATERAL
-   TITULO MAS GRANDE QUE SUBTITULO
+   NAVEGACION
    ========================================================= */
 
 .sidebar .ams-nav{
   margin-top:10px!important;
+
   display:flex!important;
   flex-direction:column!important;
+
   gap:2px!important;
 }
 
 .sidebar .module-block{
   padding:1px 0 4px!important;
-  border-bottom:1px solid rgba(255,255,255,.13)!important;
+
+  border-bottom:
+    1px solid rgba(255,255,255,.13)!important;
 }
 
 
 /* =========================================================
-   TITULOS DE MODULOS
-   1. ATENCION AL CLIENTE
-   2. CARGOS Y SALIDAS
-   3. REGISTRO DE GUIAS
-   4. REGISTRO RI-RM
+   TITULOS PRINCIPALES
    ========================================================= */
 
 .sidebar .module-trigger{
   display:grid!important;
-  grid-template-columns:25px minmax(0,1fr) 14px!important;
+
+  grid-template-columns:
+    25px minmax(0,1fr) 14px!important;
+
   align-items:center!important;
 
   width:100%!important;
+  min-width:0!important;
+
   min-height:36px!important;
 
   padding:5px 6px!important;
+
   gap:6px!important;
 
   border:0!important;
   border-radius:5px!important;
 
   background:transparent!important;
+
   color:#FFFFFF!important;
 
-  /* TITULO */
+  /* TITULO PRINCIPAL */
   font-size:11px!important;
   line-height:1!important;
   font-weight:900!important;
 
   text-align:left!important;
 
-  /* UNA SOLA LINEA */
   white-space:nowrap!important;
 }
 
@@ -112,35 +129,35 @@ html,body{
   background:rgba(22,119,200,.24)!important;
 }
 
+
+/* TEXTO DEL TITULO */
+
 .sidebar .module-trigger>span:not(.nav-graphic){
   min-width:0!important;
-  overflow:visible!important;
+
+  overflow:hidden!important;
   text-overflow:clip!important;
+
   white-space:nowrap!important;
 }
 
 
 /* =========================================================
-   CONTENEDOR DE SUBTITULOS
+   SUBMENU
    ========================================================= */
 
 .sidebar .module-children{
-  padding:2px 3px 4px 9px!important;
   display:grid!important;
+
   gap:1px!important;
+
+  padding:
+    2px 1px 4px 7px!important;
 }
 
 
 /* =========================================================
    SUBTITULOS
-   Nuevo ingreso
-   Reporte diario
-   Por regularizar
-   Buscar
-   BD Clientes
-   Registrar
-   Historial...
-   etc.
    ========================================================= */
 
 .sidebar .module-children .nav-item,
@@ -148,8 +165,8 @@ html,body{
 
   display:grid!important;
 
-  /* ICONO + TEXTO + CONTADOR */
-  grid-template-columns:25px minmax(0,1fr) auto!important;
+  grid-template-columns:
+    25px minmax(0,1fr) auto!important;
 
   align-items:center!important;
 
@@ -159,24 +176,26 @@ html,body{
   min-height:31px!important;
   height:auto!important;
 
-  padding:3px 5px!important;
-  gap:6px!important;
+  padding:3px 3px!important;
+
+  gap:5px!important;
+
   margin:0!important;
 
   border:0!important;
   border-radius:5px!important;
 
   background:transparent!important;
+
   color:#EAF3FA!important;
 
-  /* SUBTITULO MAS PEQUEÑO */
-  font-size:9px!important;
+  /* SUBTITULO */
+  font-size:8.5px!important;
   line-height:1!important;
   font-weight:500!important;
 
   text-align:left!important;
 
-  /* SIEMPRE UNA SOLA LINEA */
   white-space:nowrap!important;
 
   box-shadow:none!important;
@@ -187,8 +206,10 @@ html,body{
 
 .sidebar .module-children .nav-item>span:not(.nav-graphic){
   min-width:0!important;
-  overflow:visible!important;
+
+  overflow:hidden!important;
   text-overflow:clip!important;
+
   white-space:nowrap!important;
 }
 
@@ -201,18 +222,21 @@ html,body{
 }
 
 
-/* SUBTITULO SELECCIONADO */
+/* SUBTITULO ACTIVO */
 
 .sidebar .module-children .nav-item.active{
   background:#1677C8!important;
+
   color:#FFFFFF!important;
-  box-shadow:0 2px 8px rgba(0,0,0,.16)!important;
+
+  box-shadow:
+    0 2px 8px rgba(0,0,0,.16)!important;
 }
 
 
 /* =========================================================
    GRAFICOS / ICONOS
-   NO SE ELIMINAN
+   SE CONSERVAN
    ========================================================= */
 
 .sidebar .nav-graphic,
@@ -234,11 +258,12 @@ html,body{
   color:#FFFFFF!important;
 
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,.13)!important;
+    inset 0 0 0 1px
+    rgba(255,255,255,.13)!important;
 }
 
 
-/* COLORES DE LOS GRAFICOS */
+/* COLORES DE ICONOS */
 
 .sidebar .tone-blue{
   background:#1677C8!important;
@@ -257,10 +282,11 @@ html,body{
 }
 
 
-/* CONTADOR POR REGULARIZAR */
+/* CONTADOR */
 
 .sidebar .nav-count{
   background:#E58A18!important;
+
   color:#FFFFFF!important;
 
   border-radius:99px!important;
@@ -274,9 +300,6 @@ html,body{
 
 /* =========================================================
    ATENCION AL CLIENTE
-   AZUL
-   ROJO = OBLIGATORIO
-   VERDE = ESTADO CORRECTO
    ========================================================= */
 
 .case-panel{
@@ -318,7 +341,9 @@ html,body{
 }
 
 
-/* CAMPOS OBLIGATORIOS */
+/* =========================================================
+   CAMPOS OBLIGATORIOS EN ROJO
+   ========================================================= */
 
 label.required-field{
   color:#C83B3B!important;
@@ -329,9 +354,12 @@ label.required-field select,
 label.required-field .search-control input,
 [aria-invalid="true"]{
   background:#FFF2F2!important;
+
   border-color:#C83B3B!important;
+
   box-shadow:
-    0 0 0 1px rgba(200,59,59,.08)!important;
+    0 0 0 1px
+    rgba(200,59,59,.08)!important;
 }
 
 label.required-field small,
@@ -342,7 +370,9 @@ label.required-field small,
 }
 
 
-/* ESTADOS CORRECTOS */
+/* =========================================================
+   VERDE SOLO PARA ESTADOS CORRECTOS
+   ========================================================= */
 
 .online:not(.offline){
   color:#16825D!important;
@@ -365,7 +395,9 @@ label.required-field small,
 
 .cargo-view{
   padding:28px!important;
+
   text-align:left!important;
+
   background:#FFFFFF!important;
 }
 
@@ -388,7 +420,6 @@ label.required-field small,
 }
 
 .cargo-type-grid>button{
-
   min-height:70px!important;
 
   display:flex!important;
@@ -401,10 +432,13 @@ label.required-field small,
 
   padding:13px 15px!important;
 
-  border:1px solid #D7E2EA!important;
+  border:
+    1px solid #D7E2EA!important;
+
   border-radius:11px!important;
 
   background:#FFFFFF!important;
+
   color:#172125!important;
 
   text-align:left!important;
@@ -417,11 +451,13 @@ label.required-field small,
 
 .cargo-type-grid>button small{
   font-size:9px!important;
+
   color:#607B91!important;
 }
 
 .cargo-type-grid>button.selected{
   border-color:#1677C8!important;
+
   background:#EAF4FC!important;
 
   box-shadow:
@@ -429,15 +465,18 @@ label.required-field small,
 }
 
 
-/* EDITOR DE CARGO */
+/* =========================================================
+   EDITOR DE CARGOS
+   ========================================================= */
 
 .cargo-editor{
-
   display:block!important;
 
   padding:20px!important;
 
-  border:1px solid #DDE6EC!important;
+  border:
+    1px solid #DDE6EC!important;
+
   border-radius:14px!important;
 
   background:#FFFFFF!important;
@@ -450,6 +489,7 @@ label.required-field small,
 
 .cargo-current-number{
   border-color:#A9CFEA!important;
+
   background:#EEF6FC!important;
 }
 
@@ -465,7 +505,6 @@ label.required-field small,
 /* DATOS GENERALES */
 
 .cargo-meta{
-
   display:grid!important;
 
   grid-template-columns:
@@ -481,15 +520,17 @@ label.required-field small,
 }
 
 
-/* FILAS */
+/* =========================================================
+   FILAS DE CARGO
+   ========================================================= */
 
 .cargo-lines{
   display:grid!important;
+
   gap:9px!important;
 }
 
 .cargo-line{
-
   display:grid!important;
 
   grid-template-columns:
@@ -507,14 +548,15 @@ label.required-field small,
 
   padding:9px!important;
 
-  border:1px solid #E0E7EC!important;
+  border:
+    1px solid #E0E7EC!important;
+
   border-radius:10px!important;
 
   background:#FAFCFD!important;
 }
 
 .cargo-line>b{
-
   width:26px!important;
   height:26px!important;
 
@@ -524,6 +566,7 @@ label.required-field small,
   border-radius:7px!important;
 
   background:#EAF4FC!important;
+
   color:#1677C8!important;
 
   font-size:10px!important;
@@ -531,7 +574,6 @@ label.required-field small,
 
 .cargo-line input,
 .cargo-line select{
-
   width:100%!important;
   min-width:0!important;
 
@@ -541,7 +583,9 @@ label.required-field small,
 
   padding:8px 9px!important;
 
-  border:1px solid #CBD9E2!important;
+  border:
+    1px solid #CBD9E2!important;
+
   border-radius:8px!important;
 
   background:#FFFFFF!important;
@@ -551,17 +595,21 @@ label.required-field small,
 }
 
 
-/* ELIMINAR FILA */
+/* =========================================================
+   ELIMINAR FILA
+   ========================================================= */
 
 .cargo-delete-row{
-
   width:30px!important;
   height:30px!important;
 
-  border:1px solid #E4A5A5!important;
+  border:
+    1px solid #E4A5A5!important;
+
   border-radius:7px!important;
 
   background:#FFF3F3!important;
+
   color:#C83B3B!important;
 
   font-size:18px!important;
@@ -570,27 +618,31 @@ label.required-field small,
 
 .cargo-delete-row:disabled{
   opacity:.35!important;
+
   cursor:not-allowed!important;
 }
 
 
-/* AGREGAR FILA */
+/* =========================================================
+   AGREGAR FILA
+   ========================================================= */
 
 .cargo-editor>.add-person{
-
   margin-top:10px!important;
 
   border-color:#9CC7E5!important;
 
   background:#F4F9FD!important;
+
   color:#1677C8!important;
 }
 
 
-/* BOTONES */
+/* =========================================================
+   ACCIONES
+   ========================================================= */
 
 .cargo-actions{
-
   display:grid!important;
 
   grid-template-columns:
@@ -606,18 +658,19 @@ label.required-field small,
 }
 
 .cargo-actions .secondary-action{
-
   border-color:#1677C8!important;
 
   background:#F4F9FD!important;
+
   color:#0B3A5B!important;
 }
 
 
-/* GUARDADO */
+/* =========================================================
+   MENSAJE GUARDADO
+   ========================================================= */
 
 .cargo-saved-banner{
-
   display:flex!important;
 
   justify-content:space-between!important;
@@ -630,62 +683,82 @@ label.required-field small,
   border-radius:9px!important;
 
   background:#EAF4FC!important;
+
   color:#0B3A5B!important;
 }
 
 
 /* =========================================================
-   CABECERAS Y BOTONES
+   CABECERAS
    ========================================================= */
 
 .view-heading>div>span{
   background:#EAF4FC!important;
+
   color:#1677C8!important;
 }
 
 .add-person{
   color:#1677C8!important;
+
   border-color:#9CC7E5!important;
+
   background:#F4F9FD!important;
 }
 
 
 /* =========================================================
-   RESPONSIVE
+   PANTALLAS MEDIANAS
+   IMPORTANTE:
+   EL SIDEBAR YA NO BAJA A 230px
    ========================================================= */
 
 @media(max-width:1100px){
 
   .app-shell{
     grid-template-columns:
-      230px minmax(0,1fr)!important;
+      250px minmax(0,1fr)!important;
   }
 
   .app-shell>.sidebar{
-    width:230px!important;
-    min-width:230px!important;
+    width:250px!important;
+    min-width:250px!important;
   }
 
-  /* En pantallas menores reducimos solo un poco
-     para conservar todos los textos en una línea */
+
+  /* TITULOS SIGUEN SIENDO MAYORES */
 
   .sidebar .module-trigger{
-    font-size:10px!important;
+    font-size:11px!important;
+
+    font-weight:900!important;
+
     gap:5px!important;
   }
+
+
+  /* SUBTITULOS MAS PEQUEÑOS */
 
   .sidebar .module-children .nav-item,
   .sidebar .module-children .nav-item:not(.active){
+
     font-size:8.5px!important;
+
+    font-weight:500!important;
+
     gap:5px!important;
+
     padding-left:3px!important;
     padding-right:3px!important;
   }
 
   .sidebar .module-children{
-    padding-left:6px!important;
+    padding-left:7px!important;
     padding-right:1px!important;
   }
+
+
+  /* CARGOS */
 
   .cargo-line{
     grid-template-columns:
@@ -698,6 +771,10 @@ label.required-field small,
   }
 }
 
+
+/* =========================================================
+   MOVIL
+   ========================================================= */
 
 @media(max-width:760px){
 
@@ -712,6 +789,8 @@ label.required-field small,
     min-width:0!important;
 
     height:auto!important;
+
+    overflow-x:hidden!important;
   }
 
   .app-shell>.workspace{
@@ -721,7 +800,8 @@ label.required-field small,
   .cargo-type-grid,
   .cargo-meta,
   .cargo-actions{
-    grid-template-columns:1fr!important;
+    grid-template-columns:
+      1fr!important;
   }
 
   .cargo-line{
