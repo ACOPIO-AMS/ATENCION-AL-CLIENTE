@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import SidebarMenu from "./components/layout/Sidebar";
 import { GUIAS_HTML_INTEGRADO } from "./lib/guias-html";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
@@ -249,7 +250,6 @@ function cachePerson(dni: string, person: PersonRecord) {
     // El registro principal no debe fallar si el almacenamiento local está bloqueado.
   }
 }
-
 
 export default function Home() {
   const [activeCase, setActiveCase] = useState(1);
@@ -1354,32 +1354,21 @@ ${documentBody}
   return <main className="app-shell">
     <aside className="sidebar">
       <div className="brand"><span className="brand-mark">AMS</span><div><strong>AMS ACOPIO</strong><small>Sistema de operaciones</small></div></div>
-      <nav aria-label="Navegación principal">
-        <button className="nav-item" onClick={() => setOpenModule(openModule === "atencion" ? null : "atencion")}><span>{openModule === "atencion" ? "▾" : "▸"}</span> 1. ATENCIÓN AL CLIENTE</button>
-        {openModule === "atencion" && <div style={{ paddingLeft: 12 }}>
-          <button className={activeView === "registro" ? "nav-item active" : "nav-item"} onClick={startNewEntry}><span>＋</span> Nuevo ingreso</button>
-          <button className={activeView === "hoy" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("hoy"); void loadToday(); }}><span>▦</span> Reporte diario</button>
-          <button className={activeView === "pendientes" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("pendientes"); void loadPending(); }}><span>◷</span> Por regularizar {pendingEvents.length > 0 && <b>{pendingEvents.length}</b>}</button>
-          <button className={activeView === "buscar" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("buscar")}><span>⌕</span> Buscar</button>
-          <button className={activeView === "personas" ? "nav-item active" : "nav-item"} onClick={() => { setActiveView("personas"); void loadClients(); }}><span>◎</span> BD Clientes</button>
-        </div>}
-
-        <button className="nav-item" onClick={() => setOpenModule(openModule === "cargos" ? null : "cargos")}><span>{openModule === "cargos" ? "▾" : "▸"}</span> 2. CARGOS Y SALIDAS</button>
-        {openModule === "cargos" && <div style={{ paddingLeft: 12 }}>
-          <button className={activeView === "cargos" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("cargos")}><span>▤</span> Registrar salida</button>
-          <button className={activeView === "buscarSalidas" ? "nav-item active" : "nav-item"} onClick={() => setActiveView("buscarSalidas")}><span>⌕</span> Buscar salidas</button>
-        </div>}
-
-        <button className="nav-item" onClick={() => setOpenModule(openModule === "guias" ? null : "guias")}><span>{openModule === "guias" ? "▾" : "▸"}</span> 3. REGISTRO DE GUÍAS</button>
-        {openModule === "guias" && <div style={{ paddingLeft: 12 }}>
-          <button className={activeView === "guias" && guiasSection === "registrar" ? "nav-item active" : "nav-item"} onClick={() => openGuiasSection("registrar")}><span>📝</span> Registrar</button>
-          <button className={activeView === "guias" && guiasSection === "historial" ? "nav-item active" : "nav-item"} onClick={() => openGuiasSection("historial")}><span>📋</span> Historial de registros</button>
-          <button className={activeView === "guias" && guiasSection === "indicadores" ? "nav-item active" : "nav-item"} onClick={() => openGuiasSection("indicadores")}><span>📊</span> Indicadores</button>
-          <button className={activeView === "guias" && guiasSection === "sacos" ? "nav-item active" : "nav-item"} onClick={() => openGuiasSection("sacos")}><span>📦</span> Registro de Sacos Mineros</button>
-        </div>}
-
-        <button className="nav-item" onClick={() => setOpenModule(openModule === "rirm" ? null : "rirm")}><span>{openModule === "rirm" ? "▾" : "▸"}</span> 4. REGISTRO RI-RM</button>
-      </nav>
+      <SidebarMenu
+        activeView={activeView}
+        openModule={openModule}
+        guiasSection={guiasSection}
+        pendingCount={pendingEvents.length}
+        setOpenModule={setOpenModule}
+        nuevo={startNewEntry}
+        hoy={() => { setActiveView("hoy"); void loadToday(); }}
+        pendientes={() => { setActiveView("pendientes"); void loadPending(); }}
+        buscar={() => setActiveView("buscar")}
+        clientes={() => { setActiveView("personas"); void loadClients(); }}
+        registrarSalida={() => setActiveView("cargos")}
+        buscarSalidas={() => setActiveView("buscarSalidas")}
+        abrirGuias={openGuiasSection}
+      />
       <div className={`sidebar-card connection-${connection}`}><span className="status-dot" /><div><strong>{connectionTitle}</strong><small>{queue.length ? `${queue.length} registro(s) por sincronizar` : connection === "online" ? "Lectura y escritura habilitadas" : connection === "outdated" ? "Actualiza la implementación de Apps Script" : connection === "unconfigured" ? "Falta configurar Apps Script" : "Los registros quedarán en este equipo"}</small>{queue.length > 0 && <button className="sidebar-sync" type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button>}</div></div>
       <div className="user-card"><span>{currentUser.name.split(" ").map(part => part[0]).slice(0,2).join("")}</span><div><strong>{currentUser.name}</strong><small>{currentUser.role}</small><button type="button" onClick={logout} style={{ marginTop: 5, border: 0, background: "transparent", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 800, textDecoration: "underline" }}>Cerrar sesión</button></div></div>
     </aside>
@@ -1390,7 +1379,16 @@ ${documentBody}
     </button>
 
     <section className="workspace">
-      <header className="topbar"><div>{["registro","hoy","pendientes","buscar","personas"].includes(activeView) && <p>REGISTRO DE PROVEEDORES ATENCIÓN AL CLIENTE - AMS - v001crq.</p>}<h1>{activeView === "registro" ? (regularizingId ? `Regularizar ${regularizingId}` : "Registrar ingreso") : activeView === "hoy" ? "Reporte diario" : activeView === "pendientes" ? "Eventos por regularizar" : activeView === "buscar" ? "Buscar registros" : activeView === "personas" ? "BD Clientes" : activeView === "buscarSalidas" ? "Buscar salidas" : activeView === "guias" ? "Registro de Guías" : "Cargos y Salidas"}</h1></div><div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div></header>
+      <header className="topbar ams-integrated-topbar">
+        <div className="ams-topbar-brand"><strong>AMS ACOPIO</strong><span>SISTEMA INTEGRADO DE ATENCIÓN, CARGOS, GUÍAS Y RI-RM</span></div>
+        <div className="header-actions"><span className={`online connection-pill-${connection}`}>● {connectionLabel}</span></div>
+      </header>
+      <section className="module-page-heading">
+        <div>
+          <h1>{activeView === "registro" || activeView === "hoy" || activeView === "pendientes" || activeView === "buscar" || activeView === "personas" ? "1. ATENCIÓN AL CLIENTE" : activeView === "cargos" || activeView === "buscarSalidas" ? "2. CARGOS Y SALIDAS" : activeView === "guias" ? "3. REGISTRO DE GUÍAS" : "4. REGISTRO RI-RM"}</h1>
+          <p>{activeView === "registro" ? "REGISTRO DE PROVEEDORES Y VEHÍCULOS" : activeView === "hoy" ? "REPORTE DIARIO" : activeView === "pendientes" ? "REGISTROS POR REGULARIZAR" : activeView === "buscar" ? "BÚSQUEDA DE REGISTROS" : activeView === "personas" ? "BASE DE DATOS DE CLIENTES" : activeView === "cargos" ? "REGISTRO DE SALIDAS DE MATERIALES" : activeView === "buscarSalidas" ? "CONSULTA DE SALIDAS" : activeView === "guias" ? "GESTIÓN Y SEGUIMIENTO DE GUÍAS" : "MUESTREO Y REGISTRO DE RI / RM"}</p>
+        </div>
+      </section>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
       {showQueueManager && queue.length > 0 && <section className="queue-manager"><div className="queue-manager-head"><div><strong>Pendientes guardados en este dispositivo</strong><span>Un registro con error ya no detiene a los demás. Revísalo antes de eliminarlo.</span></div><button type="button" className="danger-link" onClick={removeAllQueued}>Eliminar todos</button></div><div className="queue-list">{queue.map(item => { const preview = queuePreview(item); return <article className={item.lastError ? "queue-item has-error" : "queue-item"} key={item.queueId}><div className="queue-item-main"><strong>{item.localId}</strong><span>{formatDateTime(item.createdAt)} · {item.action === "regularizeEvent" ? "REGULARIZACIÓN" : "NUEVO INGRESO"}</span><p>{preview.plate} · {preview.people}</p>{item.lastError && <em>{item.lastError}</em>}</div><div className="queue-item-actions"><button type="button" onClick={() => retryQueued(item.queueId)} disabled={syncing}>Reintentar</button><button type="button" className="danger" onClick={() => removeQueued(item.queueId)} disabled={syncing}>Eliminar</button></div></article>; })}</div></section>}
 
