@@ -606,3 +606,140 @@ label select:disabled { color: #65716f; background: #eef2f0; cursor: not-allowed
   .ams-topbar-brand span{display:none!important}
   .ams-topbar-brand strong{font-size:17px!important}
 }
+
+
+/* =========================================================
+   V4 · AJUSTE VISUAL SOLICITADO
+   Mantiene escala original, elimina hueco, azul corporativo.
+   ========================================================= */
+html,body{background:#F4F7F9!important}
+.app-shell{
+  display:grid!important;
+  grid-template-columns:214px minmax(0,1fr)!important;
+  min-height:100vh!important;
+  width:100%!important;
+}
+.app-shell>.sidebar{
+  position:sticky!important;
+  top:0!important;left:auto!important;
+  width:214px!important;
+  min-width:214px!important;
+  height:100vh!important;
+  grid-column:1!important;
+  background:linear-gradient(180deg,#07395d 0%,#0B3A5B 58%,#073452 100%)!important;
+  padding:14px 10px!important;
+}
+.app-shell>.workspace{
+  grid-column:2!important;
+  width:100%!important;
+  min-width:0!important;
+  margin-left:0!important;
+  padding-left:0!important;
+  background:#F4F7F9!important;
+}
+.sidebar .ams-nav{margin-top:10px!important;gap:2px!important}
+.sidebar .module-block{padding:1px 0 4px!important}
+.sidebar .module-trigger{
+  grid-template-columns:25px minmax(0,1fr) 14px!important;
+  min-height:34px!important;
+  padding:4px 5px!important;
+  gap:5px!important;
+  font-size:10px!important;
+  line-height:1.15!important;
+  font-weight:800!important;
+  white-space:nowrap!important;
+}
+.sidebar .module-trigger>span:not(.nav-graphic){overflow:hidden!important;text-overflow:ellipsis!important}
+.sidebar .module-children{padding:1px 3px 3px 8px!important;gap:1px!important}
+.sidebar .module-children .nav-item,
+.sidebar .module-children .nav-item:not(.active){
+  grid-template-columns:25px minmax(0,1fr) auto!important;
+  min-height:30px!important;
+  padding:3px 5px!important;
+  gap:5px!important;
+  font-size:9.5px!important;
+  line-height:1.1!important;
+  white-space:nowrap!important;
+}
+.sidebar .module-children .nav-item>span:not(.nav-graphic){overflow:hidden!important;text-overflow:ellipsis!important}
+.sidebar .module-children .nav-item.active{
+  background:#1677C8!important;
+  color:#fff!important;
+}
+.sidebar .nav-graphic,
+.sidebar .nav-item span.nav-graphic,
+.sidebar .module-trigger span.nav-graphic{
+  width:22px!important;height:22px!important;min-width:22px!important;
+  display:grid!important;place-items:center!important;
+  font-size:13px!important;line-height:22px!important;
+  border-radius:6px!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)!important;
+}
+.sidebar .tone-blue{background:#1677C8!important}
+.sidebar .tone-cyan{background:#178EB8!important}
+.sidebar .tone-orange{background:#E58A18!important}
+.sidebar .tone-gold{background:#D99A22!important}
+.sidebar .module-children .nav-item.active .nav-graphic{filter:brightness(1.08)!important}
+.sidebar .nav-count{background:#E58A18!important;color:#fff!important}
+
+/* Identidad azul: Atención y Cargos. Verde solo para estados positivos. */
+.workspace .case-card.active,
+.workspace .option-card.active,
+.workspace .cargo-tab.active,
+.workspace .type-tab.active,
+.workspace .selected,
+.workspace button.primary:not(.danger),
+.workspace .btn-primary{
+  border-color:#1677C8!important;
+}
+.workspace .case-card.active,
+.workspace .option-card.active,
+.workspace .cargo-tab.active,
+.workspace .type-tab.active{
+  background:#EAF4FC!important;
+  color:#0B3A5B!important;
+}
+.workspace button.primary:not(.danger),
+.workspace .btn-primary{
+  background:#1677C8!important;
+  color:#fff!important;
+}
+.workspace .online,
+.workspace [class*="success"],
+.workspace .success{ /* estados positivos sí conservan verde */
+  --status-positive:#16825D;
+}
+
+/* No alterar el rojo funcional de campos obligatorios/errores. */
+.workspace .required,
+.workspace .error,
+.workspace .invalid,
+.workspace [aria-invalid="true"]{
+  border-color:#C83B3B!important;
+}
+.workspace .required-label,
+.workspace .error-message,
+.workspace .field-error{
+  color:#C83B3B!important;
+}
+
+/* Barra superior compacta como antes. */
+.ams-integrated-topbar{min-height:52px!important;padding:0 18px!important}
+.ams-topbar-brand strong{font-size:18px!important}
+.module-page-heading{padding:11px 18px 8px!important}
+.module-page-heading h1{font-size:16px!important}
+.module-page-heading p{font-size:9px!important}
+
+/* El contenido comienza inmediatamente después del menú. */
+.workspace>main,
+.workspace>.main-content,
+.workspace>.content,
+.workspace>.content-area{margin-left:0!important;padding-left:18px!important;padding-right:18px!important}
+
+@media(max-width:760px){
+  .app-shell{grid-template-columns:92px minmax(0,1fr)!important}
+  .app-shell>.sidebar{width:92px!important;min-width:92px!important}
+  .app-shell>.workspace{margin-left:0!important}
+  .sidebar .module-trigger{grid-template-columns:24px minmax(0,1fr) 12px!important;font-size:8px!important;white-space:normal!important}
+  .sidebar .module-children .nav-item{grid-template-columns:24px minmax(0,1fr)!important;font-size:8px!important;white-space:normal!important}
+}
