@@ -1,6 +1,9 @@
+/* AMS ACOPIO - CORRECCION FINAL V5.3
+   TITULOS > SUBTITULOS
+   GRAFICOS CONSERVADOS
+   MENU EN UNA SOLA LINEA
+*/
 
-/* AMS ACOPIO - CORRECCION FINAL V5
-   Este archivo se carga DESPUES de globals.css para no destruir estilos funcionales. */
 :root{
   --teal:#1677C8;
   --teal-dark:#0B3A5B;
@@ -8,126 +11,734 @@
   --canvas:#F4F7F9;
   --red:#C83B3B;
 }
-html,body{background:#F4F7F9!important}
 
-/* ===== LAYOUT SIN HUECO ===== */
+html,body{
+  background:#F4F7F9!important;
+}
+
+
+/* =========================================================
+   LAYOUT GENERAL
+   ========================================================= */
+
 .app-shell{
   display:grid!important;
   grid-template-columns:250px minmax(0,1fr)!important;
-  width:100%!important;min-height:100vh!important;
+  width:100%!important;
+  min-height:100vh!important;
 }
+
 .app-shell>.sidebar{
-  position:sticky!important;top:0!important;
-  width:250px!important;min-width:250px!important;height:100vh!important;
+  position:sticky!important;
+  top:0!important;
+  width:250px!important;
+  min-width:250px!important;
+  height:100vh!important;
   padding:14px 10px!important;
-  background:linear-gradient(180deg,#07395D 0%,#0B3A5B 58%,#073452 100%)!important;
+  background:linear-gradient(
+    180deg,
+    #07395D 0%,
+    #0B3A5B 58%,
+    #073452 100%
+  )!important;
 }
+
 .app-shell>.workspace{
-  grid-column:2!important;width:100%!important;min-width:0!important;
-  margin:0!important;padding:0!important;background:#F4F7F9!important;
+  grid-column:2!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  background:#F4F7F9!important;
 }
 
-/* ===== MENU: TITULO > SUBTITULO, UNA SOLA LINEA ===== */
-.sidebar .ams-nav{margin-top:10px!important;display:flex!important;flex-direction:column!important;gap:2px!important}
-.sidebar .module-block{padding:1px 0 4px!important;border-bottom:1px solid rgba(255,255,255,.13)!important}
+
+/* =========================================================
+   MENU LATERAL
+   TITULO MAS GRANDE QUE SUBTITULO
+   ========================================================= */
+
+.sidebar .ams-nav{
+  margin-top:10px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  gap:2px!important;
+}
+
+.sidebar .module-block{
+  padding:1px 0 4px!important;
+  border-bottom:1px solid rgba(255,255,255,.13)!important;
+}
+
+
+/* =========================================================
+   TITULOS DE MODULOS
+   1. ATENCION AL CLIENTE
+   2. CARGOS Y SALIDAS
+   3. REGISTRO DE GUIAS
+   4. REGISTRO RI-RM
+   ========================================================= */
+
 .sidebar .module-trigger{
-  display:grid!important;grid-template-columns:25px minmax(0,1fr) 14px!important;align-items:center!important;
-  width:100%!important;min-height:36px!important;padding:5px 6px!important;gap:6px!important;
-  border:0!important;border-radius:5px!important;background:transparent!important;color:#fff!important;
-  font-size:11px!important;line-height:1!important;font-weight:900!important;text-align:left!important;white-space:nowrap!important;
-}
-.sidebar .module-block.expanded>.module-trigger,.sidebar .module-trigger:hover{background:rgba(22,119,200,.24)!important}
-.sidebar .module-trigger>span:not(.nav-graphic){overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important}
-.sidebar .module-children{padding:2px 3px 4px 9px!important;display:grid!important;gap:1px!important}
-.sidebar .module-children .nav-item,.sidebar .module-children .nav-item:not(.active){
-  display:grid!important;grid-template-columns:25px minmax(0,1fr) auto!important;align-items:center!important;
-  width:100%!important;min-height:31px!important;height:auto!important;padding:3px 5px!important;gap:6px!important;margin:0!important;
-  border:0!important;border-radius:5px!important;background:transparent!important;color:#EAF3FA!important;
-  font-size:10px!important;line-height:1!important;font-weight:650!important;text-align:left!important;white-space:nowrap!important;box-shadow:none!important;
-}
-.sidebar .module-children .nav-item>span:not(.nav-graphic){overflow:visible!important;text-overflow:clip!important;white-space:nowrap!important}
-.sidebar .module-children .nav-item:hover{background:rgba(255,255,255,.08)!important;color:#fff!important}
-.sidebar .module-children .nav-item.active{background:#1677C8!important;color:#fff!important;box-shadow:0 2px 8px rgba(0,0,0,.16)!important}
-.sidebar .nav-graphic,.sidebar .nav-item span.nav-graphic,.sidebar .module-trigger span.nav-graphic{
-  width:22px!important;height:22px!important;min-width:22px!important;display:grid!important;place-items:center!important;
-  font-size:13px!important;line-height:22px!important;border-radius:6px!important;color:#fff!important;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.13)!important;
-}
-.sidebar .tone-blue{background:#1677C8!important}.sidebar .tone-cyan{background:#178EB8!important}
-.sidebar .tone-orange{background:#E58A18!important}.sidebar .tone-gold{background:#D99A22!important}
-.sidebar .nav-count{background:#E58A18!important;color:#fff!important;border-radius:99px!important;padding:2px 6px!important;font-size:9px!important}
-
-/* ===== ATENCION: AZUL; ROJO OBLIGATORIO; VERDE SOLO ESTADO ===== */
-.case-panel{background:linear-gradient(115deg,#0B3A5B 0%,#1677C8 100%)!important}
-.section-title>span,.search-control button,.primary-action,.pending-table button,.people-toolbar button,
-.record-search button,.search-result-head button,.view-heading button{background:#1677C8!important}
-.primary-action:hover{background:#0B3A5B!important}
-.section-title em,.summary-title>span,.empty-icon,.view-heading>div>span,.person-number,
-.recent-person-main>span,.today-person-name>span{background:#EAF4FC!important;color:#1677C8!important}
-.today-card>header{background:#1677C8!important}
-label.required-field{color:#C83B3B!important}
-label.required-field input,label.required-field select,label.required-field .search-control input,[aria-invalid="true"]{
-  background:#FFF2F2!important;border-color:#C83B3B!important;box-shadow:0 0 0 1px rgba(200,59,59,.08)!important
-}
-label.required-field small,.required-label,.error-message,.field-error{color:#C83B3B!important}
-.online:not(.offline){color:#16825D!important}.status-dot{background:#59D4A5!important}
-.match-message.success,.validation-ready,.recent-event-head em.done{color:#16825D!important}
-
-/* ===== CARGOS: RECUPERA ESTRUCTURA Y PASA VERDE DECORATIVO A AZUL ===== */
-.cargo-view{padding:28px!important;text-align:left!important;background:#fff!important}
-.cargo-view .view-heading{margin-bottom:18px!important}
-.cargo-type-grid{
-  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
-  gap:12px!important;margin:16px 0 18px!important;
-}
-.cargo-type-grid>button{
-  min-height:70px!important;display:flex!important;flex-direction:column!important;align-items:flex-start!important;justify-content:center!important;
-  gap:4px!important;padding:13px 15px!important;border:1px solid #D7E2EA!important;border-radius:11px!important;
-  background:#fff!important;color:#172125!important;text-align:left!important;
-}
-.cargo-type-grid>button strong{font-size:12px!important;line-height:1.2!important}
-.cargo-type-grid>button small{font-size:9px!important;color:#607B91!important}
-.cargo-type-grid>button.selected{border-color:#1677C8!important;background:#EAF4FC!important;box-shadow:inset 3px 0 #1677C8!important}
-.cargo-editor{display:block!important;padding:20px!important;border:1px solid #DDE6EC!important;border-radius:14px!important;background:#fff!important;text-align:left!important}
-.cargo-current-number{border-color:#A9CFEA!important;background:#EEF6FC!important}
-.cargo-current-number span{color:#315A76!important}.cargo-current-number strong{color:#0B3A5B!important}
-.cargo-meta{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;margin-bottom:18px!important}
-.cargo-meta label{display:block!important}
-.cargo-lines{display:grid!important;gap:9px!important}
-.cargo-line{
   display:grid!important;
-  grid-template-columns:30px minmax(125px,.85fr) minmax(165px,1.2fr) minmax(100px,.65fr) minmax(135px,.85fr) minmax(150px,1fr) 34px!important;
-  gap:8px!important;align-items:center!important;padding:9px!important;border:1px solid #E0E7EC!important;border-radius:10px!important;background:#FAFCFD!important;
-}
-.cargo-line>b{width:26px!important;height:26px!important;display:grid!important;place-items:center!important;border-radius:7px!important;background:#EAF4FC!important;color:#1677C8!important;font-size:10px!important}
-.cargo-line input,.cargo-line select{
-  width:100%!important;min-width:0!important;min-height:40px!important;margin:0!important;padding:8px 9px!important;
-  border:1px solid #CBD9E2!important;border-radius:8px!important;background:#fff!important;font-size:11px!important;font-weight:600!important;
-}
-.cargo-delete-row{width:30px!important;height:30px!important;border:1px solid #E4A5A5!important;border-radius:7px!important;background:#FFF3F3!important;color:#C83B3B!important;font-size:18px!important;font-weight:800!important}
-.cargo-delete-row:disabled{opacity:.35!important;cursor:not-allowed!important}
-.cargo-editor>.add-person{margin-top:10px!important;border-color:#9CC7E5!important;background:#F4F9FD!important;color:#1677C8!important}
-.cargo-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:10px!important;margin-top:12px!important}
-.cargo-actions .primary-action{background:#1677C8!important}
-.cargo-actions .secondary-action{border-color:#1677C8!important;background:#F4F9FD!important;color:#0B3A5B!important}
-.cargo-saved-banner{display:flex!important;justify-content:space-between!important;align-items:center!important;margin-top:12px!important;padding:10px 12px!important;border-radius:9px!important;background:#EAF4FC!important;color:#0B3A5B!important}
+  grid-template-columns:25px minmax(0,1fr) 14px!important;
+  align-items:center!important;
 
-/* Cabeceras y botones decorativos azules */
-.view-heading>div>span{background:#EAF4FC!important;color:#1677C8!important}
-.add-person{color:#1677C8!important;border-color:#9CC7E5!important;background:#F4F9FD!important}
+  width:100%!important;
+  min-height:36px!important;
 
-/* ===== RESPONSIVE ===== */
+  padding:5px 6px!important;
+  gap:6px!important;
+
+  border:0!important;
+  border-radius:5px!important;
+
+  background:transparent!important;
+  color:#FFFFFF!important;
+
+  /* TITULO */
+  font-size:11px!important;
+  line-height:1!important;
+  font-weight:900!important;
+
+  text-align:left!important;
+
+  /* UNA SOLA LINEA */
+  white-space:nowrap!important;
+}
+
+.sidebar .module-block.expanded>.module-trigger,
+.sidebar .module-trigger:hover{
+  background:rgba(22,119,200,.24)!important;
+}
+
+.sidebar .module-trigger>span:not(.nav-graphic){
+  min-width:0!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+}
+
+
+/* =========================================================
+   CONTENEDOR DE SUBTITULOS
+   ========================================================= */
+
+.sidebar .module-children{
+  padding:2px 3px 4px 9px!important;
+  display:grid!important;
+  gap:1px!important;
+}
+
+
+/* =========================================================
+   SUBTITULOS
+   Nuevo ingreso
+   Reporte diario
+   Por regularizar
+   Buscar
+   BD Clientes
+   Registrar
+   Historial...
+   etc.
+   ========================================================= */
+
+.sidebar .module-children .nav-item,
+.sidebar .module-children .nav-item:not(.active){
+
+  display:grid!important;
+
+  /* ICONO + TEXTO + CONTADOR */
+  grid-template-columns:25px minmax(0,1fr) auto!important;
+
+  align-items:center!important;
+
+  width:100%!important;
+  min-width:0!important;
+
+  min-height:31px!important;
+  height:auto!important;
+
+  padding:3px 5px!important;
+  gap:6px!important;
+  margin:0!important;
+
+  border:0!important;
+  border-radius:5px!important;
+
+  background:transparent!important;
+  color:#EAF3FA!important;
+
+  /* SUBTITULO MAS PEQUEÑO */
+  font-size:9px!important;
+  line-height:1!important;
+  font-weight:500!important;
+
+  text-align:left!important;
+
+  /* SIEMPRE UNA SOLA LINEA */
+  white-space:nowrap!important;
+
+  box-shadow:none!important;
+}
+
+
+/* TEXTO DEL SUBTITULO */
+
+.sidebar .module-children .nav-item>span:not(.nav-graphic){
+  min-width:0!important;
+  overflow:visible!important;
+  text-overflow:clip!important;
+  white-space:nowrap!important;
+}
+
+
+/* HOVER */
+
+.sidebar .module-children .nav-item:hover{
+  background:rgba(255,255,255,.08)!important;
+  color:#FFFFFF!important;
+}
+
+
+/* SUBTITULO SELECCIONADO */
+
+.sidebar .module-children .nav-item.active{
+  background:#1677C8!important;
+  color:#FFFFFF!important;
+  box-shadow:0 2px 8px rgba(0,0,0,.16)!important;
+}
+
+
+/* =========================================================
+   GRAFICOS / ICONOS
+   NO SE ELIMINAN
+   ========================================================= */
+
+.sidebar .nav-graphic,
+.sidebar .nav-item span.nav-graphic,
+.sidebar .module-trigger span.nav-graphic{
+
+  width:22px!important;
+  height:22px!important;
+  min-width:22px!important;
+
+  display:grid!important;
+  place-items:center!important;
+
+  font-size:13px!important;
+  line-height:22px!important;
+
+  border-radius:6px!important;
+
+  color:#FFFFFF!important;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.13)!important;
+}
+
+
+/* COLORES DE LOS GRAFICOS */
+
+.sidebar .tone-blue{
+  background:#1677C8!important;
+}
+
+.sidebar .tone-cyan{
+  background:#178EB8!important;
+}
+
+.sidebar .tone-orange{
+  background:#E58A18!important;
+}
+
+.sidebar .tone-gold{
+  background:#D99A22!important;
+}
+
+
+/* CONTADOR POR REGULARIZAR */
+
+.sidebar .nav-count{
+  background:#E58A18!important;
+  color:#FFFFFF!important;
+
+  border-radius:99px!important;
+
+  padding:2px 5px!important;
+
+  font-size:8px!important;
+  line-height:1!important;
+}
+
+
+/* =========================================================
+   ATENCION AL CLIENTE
+   AZUL
+   ROJO = OBLIGATORIO
+   VERDE = ESTADO CORRECTO
+   ========================================================= */
+
+.case-panel{
+  background:linear-gradient(
+    115deg,
+    #0B3A5B 0%,
+    #1677C8 100%
+  )!important;
+}
+
+.section-title>span,
+.search-control button,
+.primary-action,
+.pending-table button,
+.people-toolbar button,
+.record-search button,
+.search-result-head button,
+.view-heading button{
+  background:#1677C8!important;
+}
+
+.primary-action:hover{
+  background:#0B3A5B!important;
+}
+
+.section-title em,
+.summary-title>span,
+.empty-icon,
+.view-heading>div>span,
+.person-number,
+.recent-person-main>span,
+.today-person-name>span{
+  background:#EAF4FC!important;
+  color:#1677C8!important;
+}
+
+.today-card>header{
+  background:#1677C8!important;
+}
+
+
+/* CAMPOS OBLIGATORIOS */
+
+label.required-field{
+  color:#C83B3B!important;
+}
+
+label.required-field input,
+label.required-field select,
+label.required-field .search-control input,
+[aria-invalid="true"]{
+  background:#FFF2F2!important;
+  border-color:#C83B3B!important;
+  box-shadow:
+    0 0 0 1px rgba(200,59,59,.08)!important;
+}
+
+label.required-field small,
+.required-label,
+.error-message,
+.field-error{
+  color:#C83B3B!important;
+}
+
+
+/* ESTADOS CORRECTOS */
+
+.online:not(.offline){
+  color:#16825D!important;
+}
+
+.status-dot{
+  background:#59D4A5!important;
+}
+
+.match-message.success,
+.validation-ready,
+.recent-event-head em.done{
+  color:#16825D!important;
+}
+
+
+/* =========================================================
+   CARGOS Y SALIDAS
+   ========================================================= */
+
+.cargo-view{
+  padding:28px!important;
+  text-align:left!important;
+  background:#FFFFFF!important;
+}
+
+.cargo-view .view-heading{
+  margin-bottom:18px!important;
+}
+
+
+/* TIPOS DE SALIDA */
+
+.cargo-type-grid{
+  display:grid!important;
+
+  grid-template-columns:
+    repeat(3,minmax(0,1fr))!important;
+
+  gap:12px!important;
+
+  margin:16px 0 18px!important;
+}
+
+.cargo-type-grid>button{
+
+  min-height:70px!important;
+
+  display:flex!important;
+  flex-direction:column!important;
+
+  align-items:flex-start!important;
+  justify-content:center!important;
+
+  gap:4px!important;
+
+  padding:13px 15px!important;
+
+  border:1px solid #D7E2EA!important;
+  border-radius:11px!important;
+
+  background:#FFFFFF!important;
+  color:#172125!important;
+
+  text-align:left!important;
+}
+
+.cargo-type-grid>button strong{
+  font-size:12px!important;
+  line-height:1.2!important;
+}
+
+.cargo-type-grid>button small{
+  font-size:9px!important;
+  color:#607B91!important;
+}
+
+.cargo-type-grid>button.selected{
+  border-color:#1677C8!important;
+  background:#EAF4FC!important;
+
+  box-shadow:
+    inset 3px 0 #1677C8!important;
+}
+
+
+/* EDITOR DE CARGO */
+
+.cargo-editor{
+
+  display:block!important;
+
+  padding:20px!important;
+
+  border:1px solid #DDE6EC!important;
+  border-radius:14px!important;
+
+  background:#FFFFFF!important;
+
+  text-align:left!important;
+}
+
+
+/* NUMERO DE SALIDA */
+
+.cargo-current-number{
+  border-color:#A9CFEA!important;
+  background:#EEF6FC!important;
+}
+
+.cargo-current-number span{
+  color:#315A76!important;
+}
+
+.cargo-current-number strong{
+  color:#0B3A5B!important;
+}
+
+
+/* DATOS GENERALES */
+
+.cargo-meta{
+
+  display:grid!important;
+
+  grid-template-columns:
+    repeat(2,minmax(0,1fr))!important;
+
+  gap:14px!important;
+
+  margin-bottom:18px!important;
+}
+
+.cargo-meta label{
+  display:block!important;
+}
+
+
+/* FILAS */
+
+.cargo-lines{
+  display:grid!important;
+  gap:9px!important;
+}
+
+.cargo-line{
+
+  display:grid!important;
+
+  grid-template-columns:
+    30px
+    minmax(125px,.85fr)
+    minmax(165px,1.2fr)
+    minmax(100px,.65fr)
+    minmax(135px,.85fr)
+    minmax(150px,1fr)
+    34px!important;
+
+  gap:8px!important;
+
+  align-items:center!important;
+
+  padding:9px!important;
+
+  border:1px solid #E0E7EC!important;
+  border-radius:10px!important;
+
+  background:#FAFCFD!important;
+}
+
+.cargo-line>b{
+
+  width:26px!important;
+  height:26px!important;
+
+  display:grid!important;
+  place-items:center!important;
+
+  border-radius:7px!important;
+
+  background:#EAF4FC!important;
+  color:#1677C8!important;
+
+  font-size:10px!important;
+}
+
+.cargo-line input,
+.cargo-line select{
+
+  width:100%!important;
+  min-width:0!important;
+
+  min-height:40px!important;
+
+  margin:0!important;
+
+  padding:8px 9px!important;
+
+  border:1px solid #CBD9E2!important;
+  border-radius:8px!important;
+
+  background:#FFFFFF!important;
+
+  font-size:11px!important;
+  font-weight:600!important;
+}
+
+
+/* ELIMINAR FILA */
+
+.cargo-delete-row{
+
+  width:30px!important;
+  height:30px!important;
+
+  border:1px solid #E4A5A5!important;
+  border-radius:7px!important;
+
+  background:#FFF3F3!important;
+  color:#C83B3B!important;
+
+  font-size:18px!important;
+  font-weight:800!important;
+}
+
+.cargo-delete-row:disabled{
+  opacity:.35!important;
+  cursor:not-allowed!important;
+}
+
+
+/* AGREGAR FILA */
+
+.cargo-editor>.add-person{
+
+  margin-top:10px!important;
+
+  border-color:#9CC7E5!important;
+
+  background:#F4F9FD!important;
+  color:#1677C8!important;
+}
+
+
+/* BOTONES */
+
+.cargo-actions{
+
+  display:grid!important;
+
+  grid-template-columns:
+    1fr 1fr!important;
+
+  gap:10px!important;
+
+  margin-top:12px!important;
+}
+
+.cargo-actions .primary-action{
+  background:#1677C8!important;
+}
+
+.cargo-actions .secondary-action{
+
+  border-color:#1677C8!important;
+
+  background:#F4F9FD!important;
+  color:#0B3A5B!important;
+}
+
+
+/* GUARDADO */
+
+.cargo-saved-banner{
+
+  display:flex!important;
+
+  justify-content:space-between!important;
+  align-items:center!important;
+
+  margin-top:12px!important;
+
+  padding:10px 12px!important;
+
+  border-radius:9px!important;
+
+  background:#EAF4FC!important;
+  color:#0B3A5B!important;
+}
+
+
+/* =========================================================
+   CABECERAS Y BOTONES
+   ========================================================= */
+
+.view-heading>div>span{
+  background:#EAF4FC!important;
+  color:#1677C8!important;
+}
+
+.add-person{
+  color:#1677C8!important;
+  border-color:#9CC7E5!important;
+  background:#F4F9FD!important;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
 @media(max-width:1100px){
-  .app-shell{grid-template-columns:230px minmax(0,1fr)!important}
-  .app-shell>.sidebar{width:230px!important;min-width:230px!important}
-  .cargo-line{grid-template-columns:28px repeat(2,minmax(130px,1fr))!important}
-  .cargo-line>*{min-width:0!important}
+
+  .app-shell{
+    grid-template-columns:
+      230px minmax(0,1fr)!important;
+  }
+
+  .app-shell>.sidebar{
+    width:230px!important;
+    min-width:230px!important;
+  }
+
+  /* En pantallas menores reducimos solo un poco
+     para conservar todos los textos en una línea */
+
+  .sidebar .module-trigger{
+    font-size:10px!important;
+    gap:5px!important;
+  }
+
+  .sidebar .module-children .nav-item,
+  .sidebar .module-children .nav-item:not(.active){
+    font-size:8.5px!important;
+    gap:5px!important;
+    padding-left:3px!important;
+    padding-right:3px!important;
+  }
+
+  .sidebar .module-children{
+    padding-left:6px!important;
+    padding-right:1px!important;
+  }
+
+  .cargo-line{
+    grid-template-columns:
+      28px
+      repeat(2,minmax(130px,1fr))!important;
+  }
+
+  .cargo-line>*{
+    min-width:0!important;
+  }
 }
+
+
 @media(max-width:760px){
-  .app-shell{display:block!important}
-  .app-shell>.sidebar{position:relative!important;width:100%!important;min-width:0!important;height:auto!important}
-  .app-shell>.workspace{width:100%!important}
-  .cargo-type-grid,.cargo-meta,.cargo-actions{grid-template-columns:1fr!important}
-  .cargo-line{grid-template-columns:28px 1fr!important}
-  .cargo-line>*{grid-column:2!important}.cargo-line>b{grid-column:1!important;grid-row:1!important}.cargo-delete-row{grid-column:1!important}
+
+  .app-shell{
+    display:block!important;
+  }
+
+  .app-shell>.sidebar{
+    position:relative!important;
+
+    width:100%!important;
+    min-width:0!important;
+
+    height:auto!important;
+  }
+
+  .app-shell>.workspace{
+    width:100%!important;
+  }
+
+  .cargo-type-grid,
+  .cargo-meta,
+  .cargo-actions{
+    grid-template-columns:1fr!important;
+  }
+
+  .cargo-line{
+    grid-template-columns:
+      28px 1fr!important;
+  }
+
+  .cargo-line>*{
+    grid-column:2!important;
+  }
+
+  .cargo-line>b{
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+
+  .cargo-delete-row{
+    grid-column:1!important;
+  }
 }
