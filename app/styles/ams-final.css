@@ -1,8 +1,9 @@
-/* AMS ACOPIO - MENU FINAL V5.4
-   - Sidebar fijo en 250px
+/* AMS ACOPIO - CORRECCION FINAL MENU V5.5
+   - Sidebar 270px
    - Titulos mayores que subtitulos
-   - Subtitulos en una sola linea
+   - Subtitulos completos en una sola linea
    - Graficos conservados
+   - Sin cortar textos
    - Sin invadir el area de trabajo
 */
 
@@ -26,7 +27,7 @@ body{
 
 .app-shell{
   display:grid!important;
-  grid-template-columns:250px minmax(0,1fr)!important;
+  grid-template-columns:270px minmax(0,1fr)!important;
   width:100%!important;
   min-height:100vh!important;
 }
@@ -35,8 +36,9 @@ body{
   position:sticky!important;
   top:0!important;
 
-  width:250px!important;
-  min-width:250px!important;
+  width:270px!important;
+  min-width:270px!important;
+  max-width:270px!important;
 
   height:100vh!important;
 
@@ -50,6 +52,7 @@ body{
   )!important;
 
   overflow-x:hidden!important;
+  box-sizing:border-box!important;
 }
 
 .app-shell>.workspace{
@@ -114,7 +117,6 @@ body{
 
   color:#FFFFFF!important;
 
-  /* TITULO PRINCIPAL */
   font-size:11px!important;
   line-height:1!important;
   font-weight:900!important;
@@ -122,6 +124,8 @@ body{
   text-align:left!important;
 
   white-space:nowrap!important;
+
+  box-sizing:border-box!important;
 }
 
 .sidebar .module-block.expanded>.module-trigger,
@@ -130,12 +134,12 @@ body{
 }
 
 
-/* TEXTO DEL TITULO */
+/* TEXTO DE TITULOS */
 
 .sidebar .module-trigger>span:not(.nav-graphic){
   min-width:0!important;
 
-  overflow:hidden!important;
+  overflow:visible!important;
   text-overflow:clip!important;
 
   white-space:nowrap!important;
@@ -151,8 +155,7 @@ body{
 
   gap:1px!important;
 
-  padding:
-    2px 1px 4px 7px!important;
+  padding:2px 4px 4px 9px!important;
 }
 
 
@@ -174,11 +177,11 @@ body{
   min-width:0!important;
 
   min-height:31px!important;
-  height:auto!important;
+  height:31px!important;
 
-  padding:3px 3px!important;
+  padding:3px 5px!important;
 
-  gap:5px!important;
+  gap:6px!important;
 
   margin:0!important;
 
@@ -189,8 +192,8 @@ body{
 
   color:#EAF3FA!important;
 
-  /* SUBTITULO */
-  font-size:8.5px!important;
+  /* SUBTITULOS MENORES QUE TITULOS */
+  font-size:10px!important;
   line-height:1!important;
   font-weight:500!important;
 
@@ -199,15 +202,20 @@ body{
   white-space:nowrap!important;
 
   box-shadow:none!important;
+
+  box-sizing:border-box!important;
 }
 
 
-/* TEXTO DEL SUBTITULO */
+/* TEXTO COMPLETO DEL SUBTITULO */
 
-.sidebar .module-children .nav-item>span:not(.nav-graphic){
+.sidebar .module-children .nav-item>span:not(.nav-graphic):not(.nav-count){
+  display:block!important;
+
   min-width:0!important;
+  width:auto!important;
 
-  overflow:hidden!important;
+  overflow:visible!important;
   text-overflow:clip!important;
 
   white-space:nowrap!important;
@@ -236,7 +244,6 @@ body{
 
 /* =========================================================
    GRAFICOS / ICONOS
-   SE CONSERVAN
    ========================================================= */
 
 .sidebar .nav-graphic,
@@ -295,6 +302,8 @@ body{
 
   font-size:8px!important;
   line-height:1!important;
+
+  white-space:nowrap!important;
 }
 
 
@@ -709,24 +718,24 @@ label.required-field small,
 
 /* =========================================================
    PANTALLAS MEDIANAS
-   IMPORTANTE:
-   EL SIDEBAR YA NO BAJA A 230px
+   EL SIDEBAR SE MANTIENE EN 270px
    ========================================================= */
 
 @media(max-width:1100px){
 
   .app-shell{
     grid-template-columns:
-      250px minmax(0,1fr)!important;
+      270px minmax(0,1fr)!important;
   }
 
   .app-shell>.sidebar{
-    width:250px!important;
-    min-width:250px!important;
+    width:270px!important;
+    min-width:270px!important;
+    max-width:270px!important;
   }
 
 
-  /* TITULOS SIGUEN SIENDO MAYORES */
+  /* TITULOS */
 
   .sidebar .module-trigger{
     font-size:11px!important;
@@ -737,24 +746,24 @@ label.required-field small,
   }
 
 
-  /* SUBTITULOS MAS PEQUEÑOS */
+  /* SUBTITULOS */
 
   .sidebar .module-children .nav-item,
   .sidebar .module-children .nav-item:not(.active){
 
-    font-size:8.5px!important;
+    font-size:10px!important;
 
     font-weight:500!important;
 
-    gap:5px!important;
+    gap:6px!important;
 
-    padding-left:3px!important;
-    padding-right:3px!important;
+    padding-left:5px!important;
+    padding-right:5px!important;
   }
 
   .sidebar .module-children{
-    padding-left:7px!important;
-    padding-right:1px!important;
+    padding-left:9px!important;
+    padding-right:4px!important;
   }
 
 
@@ -787,6 +796,7 @@ label.required-field small,
 
     width:100%!important;
     min-width:0!important;
+    max-width:none!important;
 
     height:auto!important;
 
