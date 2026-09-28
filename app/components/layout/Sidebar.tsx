@@ -20,7 +20,7 @@ export default function SidebarMenu(p: Props) {
     <div className={`module-block${p.openModule==="atencion"?" expanded":""}`}>
       <button className="module-trigger" onClick={()=>toggle("atencion")}><Icon tone="cyan">👥</Icon><span>1. ATENCIÓN AL CLIENTE</span><b>{p.openModule==="atencion"?"⌃":"⌄"}</b></button>
       {p.openModule==="atencion" && <div className="module-children">
-        <button className={p.activeView==="registro"?"nav-item active":"nav-item"} onClick={p.nuevo}><Icon tone="blue">📝</Icon><span>Nuevo ingreso</span></button>
+        <button className={p.activeView==="registro"?"nav-item active":"nav-item"} onClick={p.nuevo}><Icon tone="blue">➕</Icon><span>Nuevo ingreso</span></button>
         <button className={p.activeView==="hoy"?"nav-item active":"nav-item"} onClick={p.hoy}><Icon tone="cyan">📊</Icon><span>Reporte diario</span></button>
         <button className={p.activeView==="pendientes"?"nav-item active":"nav-item"} onClick={p.pendientes}><Icon tone="orange">🕘</Icon><span>Por regularizar</span>{p.pendingCount>0&&<b className="nav-count">{p.pendingCount}</b>}</button>
         <button className={p.activeView==="buscar"?"nav-item active":"nav-item"} onClick={p.buscar}><Icon tone="blue">🔎</Icon><span>Buscar</span></button>
