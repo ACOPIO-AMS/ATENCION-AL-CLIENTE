@@ -1,0 +1,15 @@
+/* AMS ACOPIO - V5.1 SOLO JERARQUIA TIPOGRAFICA
+   Basado en ams-final.css V5. ÚNICOS CAMBIOS:
+   - Títulos de módulo: 12px
+   - Subtítulos: 10px
+   Gráficos, colores, layout y funcionalidad permanecen iguales.
+*/
+
+/* SOLO CAMBIO DE TAMAÑO DE LETRAS - OPCIÓN A */
+.sidebar .module-trigger{
+  font-size:12px!important;
+}
+.sidebar .module-children .nav-item,
+.sidebar .module-children .nav-item:not(.active){
+  font-size:10px!important;
+}
