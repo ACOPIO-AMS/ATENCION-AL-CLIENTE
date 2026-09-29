@@ -48,6 +48,12 @@ export default function SidebarMenu(p: Props) {
 
     <div className={`module-block${p.openModule==="rirm"?" expanded":""}`}>
       <button className="module-trigger" onClick={()=>toggle("rirm")}><Icon tone="orange">⚗</Icon><span>4. REGISTRO RI-RM</span><b>{p.openModule==="rirm"?"⌃":"⌄"}</b></button>
+      {p.openModule==="rirm" && <div className="module-children">
+        <a className="nav-item" href="/registro-ri-rm?seccion=pendientes"><Icon tone="orange">🕘</Icon><span>Pendientes</span></a>
+        <a className="nav-item" href="/registro-ri-rm?seccion=nueva-solicitud"><Icon tone="blue">➕</Icon><span>Nueva solicitud</span></a>
+        <a className="nav-item" href="/registro-ri-rm?seccion=mis-solicitudes"><Icon tone="cyan">📋</Icon><span>Mis solicitudes</span></a>
+        <a className="nav-item" href="/registro-ri-rm?seccion=historial-buscar"><Icon tone="blue">🔎</Icon><span>Historial / Buscar</span></a>
+      </div>}
     </div>
   </nav>;
 }
