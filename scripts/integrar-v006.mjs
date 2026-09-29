@@ -1,0 +1,14 @@
+import fs from "node:fs";
+const f="app/page.tsx";let s=fs.readFileSync(f,"utf8"),o=s;
+function R(a,b,n){if(s.includes(b))return;if(!s.includes(a))throw new Error("No encontré "+n);s=s.replace(a,b)}
+R('import SidebarMenu from "./components/layout/Sidebar";','import SidebarMenu from "./components/layout/Sidebar";\nimport RiRmFrame, {type RirmSection} from "./components/registro-ri-rm/RiRmFrame";\nimport AdminPanel, {type AdminSection} from "./components/admin/AdminPanel";',"imports");
+R('type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos" | "buscarSalidas" | "guias";','type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos" | "buscarSalidas" | "guias" | "rirm" | "admin";',"View");
+R('const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | null>("atencion");\n  const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos">("registrar");','const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | "admin" | null>("atencion");\n  const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos">("registrar");\n  const [rirmSection,setRirmSection]=useState<RirmSection>("pendientes");\n  const [adminSection,setAdminSection]=useState<AdminSection>("panel");',"states");
+const mark='  useEffect(() => {\n    try {\n      const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;';
+const fun='  function openRirmSection(section:RirmSection){setRirmSection(section);setActiveView("rirm");setOpenModule("rirm");}\n  function openAdminSection(section:AdminSection){if(!["ADMIN","ADMINISTRADOR"].includes(String(currentUser?.role||"").toUpperCase()))return;setAdminSection(section);setActiveView("admin");setOpenModule("admin");}\n\n';
+R(mark,fun+mark,"navigation");
+R('guiasSection={guiasSection}','guiasSection={guiasSection}\n          rirmSection={rirmSection}\n          adminSection={adminSection}\n          isAdmin={["ADMIN","ADMINISTRADOR"].includes(String(currentUser.role||"").toUpperCase())}',"sidebar props 1");
+R('abrirGuias={openGuiasSection}','abrirGuias={openGuiasSection}\n          abrirRirm={openRirmSection}\n          abrirAdmin={openAdminSection}',"sidebar props 2");
+const a='      {activeView === "personas" && <section className="empty-view data-view">';
+R(a,'      {activeView === "rirm" && <RiRmFrame section={rirmSection} user={currentUser} />}\n      {activeView === "admin" && ["ADMIN","ADMINISTRADOR"].includes(String(currentUser.role||"").toUpperCase()) && <AdminPanel section={adminSection} />}\n\n'+a,"render");
+if(s!==o){fs.writeFileSync(f+".bak-v006",o);fs.writeFileSync(f,s);console.log("OK V006")}else console.log("Ya integrado");

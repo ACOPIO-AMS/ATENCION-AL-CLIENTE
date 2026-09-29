@@ -1,27 +1,3 @@
-import { NextRequest, NextResponse } from "next/server";
-
-export const runtime = "edge";
-export const dynamic = "force-dynamic";
-
-export async function POST(request: NextRequest) {
-  const body = await request.json().catch(() => ({}));
-  const url = process.env.RIRM_APPS_SCRIPT_URL;
-  const apiKey = process.env.RIRM_APPS_SCRIPT_API_KEY;
-  if (!url || !apiKey) {
-    return NextResponse.json({ok:false, configured:false, error:"RI-RM todavía no está configurado en el servidor."},{status:503});
-  }
-  try {
-    const upstream=await fetch(url,{
-      method:"POST",
-      headers:{"content-type":"application/json"},
-      body:JSON.stringify({action:body.action,payload:body.payload||{},apiKey}),
-      redirect:"follow",
-      cache:"no-store"
-    });
-    const text=await upstream.text();
-    const data=JSON.parse(text);
-    return NextResponse.json(data,{status:upstream.ok?200:502});
-  } catch(error) {
-    return NextResponse.json({ok:false,error:error instanceof Error?error.message:"No se pudo consultar RI-RM."},{status:502});
-  }
-}
+import {NextRequest,NextResponse} from "next/server";
+export const runtime="edge";export const dynamic="force-dynamic";
+export async function POST(req:NextRequest){const b=await req.json().catch(()=>({}));const url=process.env.RIRM_APPS_SCRIPT_URL,key=process.env.RIRM_APPS_SCRIPT_API_KEY;if(!url||!key)return NextResponse.json({ok:false,error:"RI-RM no configurado."},{status:503});try{const r=await fetch(url,{method:"POST",headers:{"content-type":"text/plain;charset=utf-8"},body:JSON.stringify({apiKey:key,method:String(b.method||""),args:Array.isArray(b.args)?b.args:[]}),redirect:"follow"});const t=await r.text();let j:any;try{j=JSON.parse(t)}catch{return NextResponse.json({ok:false,error:"Respuesta RI-RM inválida."},{status:502})}return NextResponse.json(j,{status:j?.ok?200:400})}catch(e){return NextResponse.json({ok:false,error:e instanceof Error?e.message:"Error de conexión RI-RM."},{status:502})}}
