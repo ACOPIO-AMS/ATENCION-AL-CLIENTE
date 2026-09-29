@@ -1,0 +1,3232 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AMS - Gestión de Solicitudes</title>
+
+  <style>
+    *{box-sizing:border-box}
+    :root{
+      --blue:#2563eb;--blue2:#1d4ed8;--nav:#0f172a;--bg:#f8fafc;--line:#e2e8f0;
+      --text:#0f172a;--muted:#64748b;--green:#16a34a;--orange:#f59e0b;
+      --purple:#7c3aed;--cyan:#0891b2;--red:#dc2626
+    }
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+    button,input,select,textarea{font:inherit} button{cursor:pointer}
+    .hidden{display:none!important}
+    #loginView{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:24px}
+    .login-card{width:min(430px,100%);background:#fff;border-radius:18px;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,.28)}
+    .login-card h1{margin:0 0 6px;font-size:27px}.login-card p{margin:0 0 24px;color:var(--muted)}
+    .field{margin-bottom:16px}.field label{display:block;font-weight:700;margin-bottom:7px;font-size:13px}
+    .field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;background:white;outline:none}
+    .uppercase{text-transform:uppercase}
+    #mainView{display:none}
+    .topbar{height:68px;background:var(--nav);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:sticky;top:0;z-index:20}
+    .brand{font-weight:800;font-size:19px}.brand small{display:block;font-size:11px;font-weight:400;color:#cbd5e1;margin-top:3px}
+    .userbox{text-align:right}.userbox strong{display:block;font-size:13px}.userbox span{font-size:11px;color:#cbd5e1}
+    .layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 68px)}
+    .sidebar{background:#fff;border-right:1px solid var(--line);padding:18px 12px}
+    .nav-btn{width:100%;padding:11px 12px;border:0;background:transparent;text-align:left;border-radius:9px;margin:2px 0;color:#334155;font-weight:700}
+    .nav-btn:hover,.nav-btn.active{background:#eff6ff;color:var(--blue)}
+    .content{padding:26px;min-width:0}.page{display:none}.page.active{display:block}
+    .page-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:20px}
+    .page-head h2{margin:0;font-size:25px}.page-head p{margin:5px 0 0;color:var(--muted)}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 2px 10px rgba(15,23,42,.04)}
+    .btn{border:0;border-radius:9px;padding:10px 14px;font-weight:800}.btn-primary{background:var(--blue);color:#fff}
+    .btn-green{background:var(--green);color:#fff}.btn-orange{background:var(--orange);color:#fff}
+    .btn-cyan{background:var(--cyan);color:#fff}.btn-yellow{background:#f59e0b;color:#fff}
+    .btn-gray{background:#e2e8f0;color:#334155}.btn-red{background:var(--red);color:#fff}.btn-sm{padding:7px 10px;font-size:12px}
+    .muted{color:var(--muted)}
+    .stats{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:12px;margin-bottom:20px}
+    .stat{background:#fff;border:1px solid var(--line);border-radius:13px;padding:15px}.stat .n{font-size:25px;font-weight:900;margin-top:5px}.stat .t{font-size:12px;color:var(--muted)}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
+    table{width:100%;border-collapse:collapse;min-width:900px;background:#fff}
+    th,td{padding:11px 12px;border-bottom:1px solid #edf2f7;text-align:left;font-size:13px;vertical-align:middle}
+    th{background:#f8fafc;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#475569}
+    .codigo-link{background:none;border:0;color:var(--blue);font-weight:900;padding:0}
+    .badge{display:inline-block;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;white-space:nowrap}
+    .b-blue{background:#dbeafe;color:#1d4ed8}.b-green{background:#dcfce7;color:#15803d}.b-orange{background:#ffedd5;color:#c2410c}
+    .b-purple{background:#ede9fe;color:#6d28d9}.b-cyan{background:#cffafe;color:#0e7490}.b-yellow{background:#fef9c3;color:#a16207}.b-gray{background:#e2e8f0;color:#475569}
+    .search-row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.search-row .field{margin:0;min-width:170px}.search-row .code{flex:1;min-width:220px}
+    .result-card{margin-top:16px;display:none}.result-top{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap}.result-code{font-size:24px;font-weight:900}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .item-row{display:grid;grid-template-columns:150px 1fr 1fr 44px;gap:8px;margin-bottom:8px;align-items:center}
+    .item-row input,.item-row select{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:8px}
+    .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.62);display:none;align-items:center;justify-content:center;padding:22px;z-index:100}
+    .modal-bg.open{display:flex}.modal{background:white;border-radius:16px;width:min(980px,100%);max-height:92vh;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+    .modal.wide{width:min(1240px,100%)}.modal-head{position:sticky;top:0;background:white;border-bottom:1px solid var(--line);padding:17px 20px;display:flex;justify-content:space-between;align-items:center;z-index:2}
+    .modal-body{padding:20px}.close{border:0;background:#f1f5f9;border-radius:8px;width:36px;height:36px;font-size:20px}
+    .timeline{display:flex;gap:0;overflow:auto;padding:12px 0 20px}.tl-step{min-width:175px;position:relative;padding-right:22px}
+    .tl-step:after{content:"";position:absolute;top:16px;right:0;width:22px;height:2px;background:#cbd5e1}.tl-step:last-child:after{display:none}
+    .tl-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;background:#e2e8f0;color:#475569;margin-bottom:8px}
+    .tl-step.done .tl-dot{background:#dcfce7;color:#15803d}.tl-step.direct .tl-dot{background:#fef3c7;color:#b45309}.tl-step.reg .tl-dot{background:#dbeafe;color:#1d4ed8}
+    .tl-area{font-size:11px;font-weight:900;color:#475569;text-transform:uppercase}.tl-action{font-size:12px;font-weight:900;margin-top:3px}
+    .tl-resp,.tl-date,.tl-detail{font-size:11px;color:#64748b;margin-top:3px}.tl-detail{font-weight:700;color:#475569}
+    .alert{padding:12px 14px;border-radius:10px;margin:12px 0;font-size:13px;font-weight:700}.alert-yellow{background:#fef9c3;color:#854d0e;border:1px solid #fde047}
+    .responsable-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:9px;padding:11px 12px;font-weight:900;color:#1d4ed8;margin-bottom:14px}
+    .choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}.choice-btn{padding:14px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-weight:800}.choice-btn.active{border-color:var(--blue);background:#eff6ff;color:var(--blue)}
+    .radio-row{display:flex;gap:16px;flex-wrap:wrap;padding:8px 0}
+    #camposLab,#camposAtencionRecep,#camposEnvio,#camposDecisionLab{display:none}
+    #toast{position:fixed;right:20px;bottom:20px;z-index:300;display:none;max-width:380px;padding:13px 16px;border-radius:10px;color:white;font-weight:800;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+    #toast.ok{background:#15803d}#toast.err{background:#b91c1c}
+    @media(max-width:1000px){
+      .layout{grid-template-columns:1fr}.sidebar{display:flex;gap:5px;overflow:auto;border-right:0;border-bottom:1px solid var(--line)}
+      .nav-btn{min-width:max-content;width:auto}.stats{grid-template-columns:repeat(2,1fr)}.grid2,.grid3{grid-template-columns:1fr}
+      .item-row{grid-template-columns:120px 1fr}.item-row .obs{grid-column:1/3}.item-row .del{grid-column:2;justify-self:end}.content{padding:16px}
+    }
+  
+.item-head{display:grid;grid-template-columns:150px 1fr 1fr 44px;gap:8px;margin-bottom:7px;color:#475569;font-size:11px}
+.dup{border:2px solid #dc2626!important;background:#fef2f2!important}
+.shift-old{display:inline-block;background:#fef3c7;color:#92400e;padding:4px 7px;border-radius:999px;font-weight:800;font-size:10px}
+.wait-bad{color:#b91c1c;font-weight:900}.wait-warn{color:#c2410c;font-weight:900}
+.flow{display:flex;align-items:center;gap:4px;min-width:420px}.flow-step{font-size:10px;padding:5px 7px;border-radius:999px;background:#e2e8f0;color:#64748b;font-weight:800;white-space:nowrap}.flow-step.done{background:#dcfce7;color:#15803d}.flow-step.current{background:#dbeafe;color:#1d4ed8}.flow-arrow{color:#94a3b8}
+.lead-card{margin-top:18px;padding:16px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:12px}.lead-card strong{font-size:18px;color:#1d4ed8}
+#modalHistorial .modal{width:min(1280px,96vw)}
+@media(max-width:1000px){.item-head{grid-template-columns:120px 1fr 1fr 44px}}
+
+/* ===== CORRECCION FINAL HISTORIAL / BUSCAR ===== */
+.hg-summary{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px;margin-bottom:18px}
+.hg-card{border:1px solid #d8e1ee;border-radius:10px;padding:12px;background:#fff}
+.hg-card .lbl{font-size:11px;color:#52657d;margin-bottom:7px}
+.hg-card .val{font-size:22px;font-weight:900;color:#0f172a}
+.hg-flow{display:flex;align-items:center;gap:4px;min-width:470px;white-space:nowrap}
+.hg-step{padding:4px 6px;border-radius:999px;font-size:9px;font-weight:800;background:#eef2f7;color:#94a3b8}
+.hg-step.done{background:#dcfce7;color:#15803d}
+.hg-step.current{background:#dbeafe;color:#1d4ed8;box-shadow:0 0 0 1px #93c5fd inset}
+.hg-arr{font-size:10px;color:#94a3b8}
+#tablaHistorialGlobal td{vertical-align:middle}
+@media(max-width:900px){.hg-summary{grid-template-columns:repeat(2,1fr)}}
+
+</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+/* ===== AMS V3 - FLUJO OPERATIVO DEFINITIVO ===== */
+function perfilActual(){ const p=upper(usuarioActual?.perfil); return p==="LABORATORIO"?"ASISTENTE A4":p; }
+function areaVisible(a){ a=upper(a); if(a==="LABORATORIO") return "ASISTENTE A4"; if(a==="ATENCION") return "ATENCIÓN AL CLIENTE"; return a; }
+
+configurarPerfil = function(){
+  const p=perfilActual(), admin=p==="ADMIN";
+
+  const inicioBtn=document.querySelector('[data-page="inicio"]');
+  if(inicioBtn) inicioBtn.remove();
+
+  document.getElementById("navNueva").classList.toggle("hidden",p!=="CHALA");
+  document.getElementById("navMis").classList.toggle("hidden",p!=="CHALA");
+  document.getElementById("navAdmin").classList.toggle("hidden",!admin);
+
+  if(document.getElementById("nSolicitante")){
+    document.getElementById("nSolicitante").value=
+      usuarioActual?.responsableSesion||usuarioActual?.nombre||"";
+  }
+
+  ir("pendientes",document.querySelector('[data-page="pendientes"]'));
+};
+
+function esFinal(i){ return upper(i.estado)==="FINALIZADO" || upper(i.etapaActual)==="FINALIZADO" || upper(i.subestadoActual||i.subestado)==="RECIBIDO"; }
+function oficinaResponsable(i){
+  if(esFinal(i)) return "FINALIZADO";
+  let e=upper(i.etapaActual); if(e==="LABORATORIO") e="ASISTENTE A4";
+  return areaVisible(e);
+}
+pendienteDe = function(i,s){
+  if(esFinal(i)) return "—";
+  let e=upper(i.etapaActual); if(e==="LABORATORIO") e="ASISTENTE A4";
+  const st=upper(i.subestadoActual||i.subestado);
+  if(e==="GUIAS"&&st==="SOLICITUD CREADA") return "Coordinar";
+  if(e==="GUIAS"&&st==="COORDINADO") return "Confirmar";
+  if(e==="ASISTENTE A4"&&st==="PENDIENTE DE RECEPCION") return "Recepcionar";
+  if(e==="ATENCION"&&st==="PENDIENTE DE RECEPCION") return "Recepcionar";
+  if(e==="ATENCION"&&st==="RECEPCIONADO") return "Enviar";
+  if(e==="CHALA"&&st==="PENDIENTE DE RECIBIDO") return "Confirmar recepción";
+  return "—";
+};
+siguientesAcciones = function(i,s){
+  const p=perfilActual(); let e=upper(i.etapaActual); if(e==="LABORATORIO")e="ASISTENTE A4";
+  const st=upper(i.subestadoActual||i.subestado);
+  if(p==="GUIAS"&&e==="GUIAS"&&st==="SOLICITUD CREADA") return ["COORDINADO"];
+  if(p==="GUIAS"&&e==="GUIAS"&&st==="COORDINADO") return ["CONFIRMADO"];
+  if(p==="ASISTENTE A4"&&e==="ASISTENTE A4"&&st==="PENDIENTE DE RECEPCION") return ["RECEPCIONADO"];
+  if(p==="ATENCION"&&e==="ATENCION"&&st==="PENDIENTE DE RECEPCION") return ["RECEPCIONADO"];
+  if(p==="ATENCION"&&e==="ATENCION"&&st==="RECEPCIONADO") return ["ENVIADO"];
+  if(p==="CHALA"&&e==="CHALA"&&st==="PENDIENTE DE RECIBIDO") return ["RECIBIDO"];
+  return [];
+};
+itemsAccionables = function(){
+  const arr=[];
+  (solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{if(siguientesAcciones(i,s).length)arr.push({item:i,solicitud:s});}));
+  return arr;
+};
+
+function turnoDeHora(h){ const m=String(h||"").match(/(\d{1,2}):/); const x=m?+m[1]:new Date().getHours(); return x>=7&&x<19?"DÍA":"NOCHE"; }
+function turnoActual(){ return turnoDeHora(new Date().getHours()+":00"); }
+function minutosDesde(fecha,hora){
+  const f=String(fecha||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/), t=String(hora||"").match(/(\d{1,2}):(\d{2})/);
+  if(!f||!t)return null; const d=new Date(+f[3],+f[2]-1,+f[1],+t[1],+t[2]); return Math.max(0,Math.floor((Date.now()-d)/60000));
+}
+function tiempoTexto(m){ if(m==null)return "—"; if(m<60)return m+" min"; return Math.floor(m/60)+" h "+(m%60)+" min"; }
+
+function flujoHTML(i){
+  const seq=["CHALA","GUIAS","ASISTENTE A4","ATENCION","RECEPCIÓN CHALA"], e=upper(i.etapaActual)==="LABORATORIO"?"ASISTENTE A4":upper(i.etapaActual);
+  let idx=0;
+  if(e==="GUIAS")idx=1; else if(e==="ASISTENTE A4")idx=2; else if(e==="ATENCION")idx=3; else if(e==="CHALA")idx=4; else if(e==="FINALIZADO")idx=5;
+  return '<div class="flow">'+seq.map((x,k)=>'<span class="flow-step '+(k<idx?'done':k===idx?'current':'')+'">'+(k<idx?'✓ ':'')+esc(areaVisible(x))+'</span>'+(k<seq.length-1?'<span class="flow-arrow">→</span>':'')).join("")+'</div>';
+}
+
+dibujarMisSolicitudes = function(){
+  const tbody=document.getElementById("tablaMisSolicitudes"); if(!tbody)return;
+  const rows=[];
+  (solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{
+    rows.push("<tr><td>"+esc(s.idSolicitud||"—")+"</td><td>"+esc(i.tipo)+" - "+esc(i.codigo)+"</td><td>"+esc(s.solicitante||s.usuarioCreacion||"—")+"</td><td>"+badgeEstado(esFinal(i)?"FINALIZADO":(i.subestadoActual||i.estado),i)+"</td><td>"+badgeArea(oficinaResponsable(i))+"</td><td>"+esc(pendienteDe(i,s))+"</td><td>"+esc((i.fechaUltimoMovimiento||i.fechaUltimo||"")+" "+(i.horaUltimoMovimiento||i.horaUltimo||""))+"</td><td><button class='btn btn-gray btn-sm' onclick=\"abrirHistorial('"+escJS(i.tipo)+"','"+escJS(i.codigo)+"')\">Ver</button></td></tr>");
+  }));
+  tbody.innerHTML=rows.join("")||'<tr><td colspan="8" style="text-align:center;padding:28px">Sin solicitudes.</td></tr>';
+};
+
+/* render anterior eliminado */
+function validarDuplicadosUI(){
+  const rows=[...document.querySelectorAll("#itemsSolicitud .item-row")], seen={}, dups=[];
+  rows.forEach(r=>{r.querySelector(".itTipo").classList.remove("dup");r.querySelector(".itCodigo").classList.remove("dup");});
+  rows.forEach(r=>{const t=upper(r.querySelector(".itTipo").value),c=upper(r.querySelector(".itCodigo").value),k=t+"||"+c;if(c&&seen[k]){[r,seen[k]].forEach(x=>{x.querySelector(".itTipo").classList.add("dup");x.querySelector(".itCodigo").classList.add("dup");});dups.push(k);}else if(c)seen[k]=r;});
+  return dups.length===0;
+}
+const _agregarItemBase=agregarItem;
+agregarItem=function(data){
+  _agregarItemBase();
+  const r=document.querySelector("#itemsSolicitud .item-row:last-child"); if(!r)return;
+  if(data){r.querySelector(".itTipo").value=upper(data.TIPO||data.tipo);r.querySelector(".itCodigo").value=upper(data["CÓDIGO"]||data.CODIGO||data.codigo);r.querySelector(".itModalidad").value=upper(data.MODALIDAD||data.modalidad);}
+  r.querySelector(".itCodigo").addEventListener("input",validarDuplicadosUI);r.querySelector(".itTipo").addEventListener("change",validarDuplicadosUI);
+};
+function cargarExcelSolicitud(inp){
+  const file=inp.files?.[0]; if(!file)return;
+  const rd=new FileReader();
+  rd.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:"array"}), ws=wb.Sheets[wb.SheetNames[0]], data=XLSX.utils.sheet_to_json(ws,{defval:""});
+      if(!data.length)throw new Error("El archivo no contiene registros.");
+      if(data.length>20)throw new Error("Máximo 20 códigos por solicitud.");
+      const norm=data.map(x=>{const y={};Object.keys(x).forEach(k=>y[upper(k).normalize("NFD").replace(/[\u0300-\u036f]/g,"")]=x[k]);return {TIPO:y.TIPO,CODIGO:y.CODIGO,MODALIDAD:y.MODALIDAD};});
+      if(norm.some(x=>!x.TIPO||!x.CODIGO||!x.MODALIDAD))throw new Error("Excel debe contener TIPO | CÓDIGO | MODALIDAD completos.");
+      document.getElementById("itemsSolicitud").innerHTML=""; norm.forEach(x=>agregarItem(x));
+      validarDuplicadosUI(); toast(norm.length+" registros cargados para revisión.",true);
+    }catch(err){toast(err.message||String(err),false);}
+    inp.value="";
+  }; rd.readAsArrayBuffer(file);
+}
+guardarNuevaSolicitud=function(){
+  if(perfilActual()!=="CHALA"){toast("Tu perfil no puede crear solicitudes.",false);return;}
+  if(!validarDuplicadosUI()){toast("⚠ Este código ya fue solicitado dentro de la carga.",false);return;}
+  const rows=[...document.querySelectorAll("#itemsSolicitud .item-row")],items=[];
+  for(const r of rows){const tipo=upper(r.querySelector(".itTipo").value),codigo=upper(r.querySelector(".itCodigo").value),modalidad=upper(r.querySelector(".itModalidad").value);if(!tipo||!codigo||!modalidad){toast("Complete TIPO, CÓDIGO y MODALIDAD.",false);return;}items.push({tipo,codigo,modalidad});}
+  const d={usuario:usuarioActual,solicitante:usuarioActual.responsableSesion,prioridad:val("nPrioridad"),observacionGeneral:val("nObsGeneral"),items};
+  google.script.run.withSuccessHandler(r=>{toast("Solicitud "+r.idSolicitud+" registrada.",true);limpiarNueva();cargarSolicitudes();ir("mis",document.querySelector('[data-page="mis"]'));}).withFailureHandler(errorServidor).guardarSolicitud(d);
+};
+limpiarNueva=function(){document.getElementById("nSolicitante").value=usuarioActual?.responsableSesion||"";document.getElementById("nObsGeneral").value="";document.getElementById("nPrioridad").value="NORMAL";document.getElementById("itemsSolicitud").innerHTML="";agregarItem();};
+
+abrirMovimiento = function(i,s){
+  const op=siguientesAcciones(i,s); if(!op.length){toast("No hay acción disponible.",false);return;}
+  const a=op[0];
+  if(a==="CONFIRMADO"){ if(confirm("¿Confirma el código "+i.tipo+" - "+i.codigo+"?")) movimientoDirecto(i,a); return; }
+  if(a==="RECIBIDO"){ if(confirm("¿Confirma que recibió el código "+i.tipo+" - "+i.codigo+"?\\n\\nAl confirmar, la solicitud quedará FINALIZADA y se registrará usuario, fecha y hora.")) movimientoDirecto(i,a); return; }
+  itemMovimiento={...i,solicitud:s,accion:a}; txt("movCodigo",i.tipo+" - "+i.codigo);txt("movResponsable",usuarioActual.responsableSesion);
+  document.getElementById("movAccion").value=a;document.getElementById("movObservacion").value="";
+  document.getElementById("labRecepcion").value=usuarioActual.responsableSesion||"";document.getElementById("labEntrega").value="";
+  document.getElementById("atOperarioSellado").value="";document.getElementById("movProveedor").value="";
+  document.getElementById("camposDecisionLab").style.display="none";
+  const needA4=perfilActual()==="ASISTENTE A4"&&a==="RECEPCIONADO";
+  document.getElementById("camposLab").style.display=needA4?"block":"none";document.getElementById("campoRecepcionLab").style.display=needA4?"block":"none";
+  document.getElementById("camposAtencionRecep").style.display=(perfilActual()==="ATENCION"&&a==="RECEPCIONADO")?"block":"none";
+  document.getElementById("camposEnvio").style.display=a==="ENVIADO"?"block":"none";
+  if(needA4){const n=new Date();document.getElementById("labFecha").value=fechaInput(n);document.getElementById("labHora").value=horaInput(n);}
+  if(a==="ENVIADO"){document.querySelector('input[name="medioEntrega"][value="CONDUCTOR"]').checked=true;cambiarMedioEntrega();cargarSelectConductores();}
+  abrirModal("modalMovimiento");
+};
+function movimientoDirecto(i,a){
+  google.script.run.withSuccessHandler(r=>{toast(r?.mensaje||"Movimiento registrado.",true);cargarSolicitudes();}).withFailureHandler(errorServidor).registrarMovimiento({idItem:i.idItem,accion:a,usuario:usuarioActual,observacion:""});
+}
+
+const _guardarMov=guardarMovimientoActual;
+guardarMovimientoActual=function(){
+  if(itemMovimiento && perfilActual()==="ASISTENTE A4" && upper(itemMovimiento.accion)==="RECEPCIONADO"){
+    const d={idItem:itemMovimiento.idItem,accion:"RECEPCIONADO",usuario:usuarioActual,observacion:val("movObservacion"),
+      fechaEvento:val("labFecha"),horaEvento:val("labHora"),responsableRecepcionLab:upper(val("labRecepcion")),responsableEntregaLab:upper(val("labEntrega"))};
+    if(!d.fechaEvento||!d.horaEvento||!d.responsableRecepcionLab||!d.responsableEntregaLab){toast("Complete fecha, hora, responsable de recepción y responsable de entrega.",false);return;}
+    const btn=document.getElementById("btnGuardarMov");btn.disabled=true;btn.textContent="Guardando...";
+    google.script.run.withSuccessHandler(r=>{btn.disabled=false;btn.textContent="Guardar";cerrarModal("modalMovimiento");itemMovimiento=null;aplicarMovimientoLocal_(r);toast(r?.mensaje||"Movimiento registrado.",true);}).withFailureHandler(e=>{btn.disabled=false;btn.textContent="Guardar";errorServidor(e);}).registrarMovimiento(d);return;
+  }
+  _guardarMov();
+};
+
+function parseDT(f,h){const a=String(f||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/),t=String(h||"").match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);if(!a||!t)return null;return new Date(+a[3],+a[2]-1,+a[1],+t[1],+t[2],+(t[3]||0));}
+function duracion(ms){let s=Math.max(0,Math.floor(ms/1000)),d=Math.floor(s/86400);s%=86400;let hh=Math.floor(s/3600);s%=3600;let mm=Math.floor(s/60),ss=s%60;return (d?d+" d ":"")+(hh?hh+" h ":"")+mm+" min "+ss+" s";}
+mostrarHistorial=function(r){
+  const i=r.item||{},s=r.solicitud||{},movs=r.movimientos||[];txt("histTitulo",(i.tipo||"")+" - "+(i.codigo||""));
+  const timeline=movs.length?'<div class="timeline">'+movs.map((m,k)=>'<div class="tl-step done"><div class="tl-dot">'+(k+1)+'</div><div class="tl-area">'+esc(areaVisible(m.area))+'</div><div class="tl-action">'+esc(m.accion||"—")+'</div><div class="tl-resp">'+esc(m.responsable||"—")+' · '+esc(turnoDeHora(m.horaEvento||m.hora))+'</div><div class="tl-date">'+esc((m.fechaEvento||m.fecha||"—")+" "+(m.horaEvento||m.hora||""))+'</div>'+(detalleMovimiento(m)?'<div class="tl-detail">'+esc(detalleMovimiento(m).replaceAll("Lab","A4"))+'</div>':"")+'</div>').join("")+'</div>':'<div class="muted">Sin movimientos.</div>';
+  const first=movs.find(m=>upper(m.accion)==="SOLICITUD CREADA")||movs[0],last=[...movs].reverse().find(m=>upper(m.accion)==="RECIBIDO");
+  const ini=first?parseDT(first.fechaEvento||first.fecha,first.horaEvento||first.hora):null,end=last?parseDT(last.fechaEvento||last.fecha,last.horaEvento||last.hora):null;
+  const lt=ini?duracion((end||new Date())-ini):"—";
+  const lead='<div class="lead-card"><div class="muted">'+(end?"LEAD TIME TOTAL":"LEAD TIME: EN CURSO")+'</div><strong>'+esc(lt)+'</strong><div class="muted">'+(ini?"Inicio: "+ini.toLocaleString("es-PE"):"")+(end?" · Final: "+end.toLocaleString("es-PE"):"")+'</div></div>';
+  document.getElementById("histContenido").innerHTML =
+    '<div class="result-top"><div><div class="result-code">'+esc(i.tipo)+" - "+esc(i.codigo)+
+    '</div><div class="muted">Solicitud: '+esc(s.idSolicitud||i.idSolicitud||"—")+
+    ' · Solicitado por: '+esc(s.solicitante||s.usuarioCreacion||"—")+
+    '</div></div><div>'+badgeArea(oficinaResponsable(i))+" "+
+    badgeEstado(esFinal(i)?"FINALIZADO":i.subestadoActual,i)+
+    '</div></div><h3>Timeline</h3>'+timeline+lead+
+    '<div style="text-align:right;margin-top:16px"><button class="btn btn-gray" onclick="cerrarModal(&quot;modalHistorial&quot;)">Cerrar</button></div>';
+  abrirModal("modalHistorial");
+};
+
+const _nombreArea=nombreArea;
+nombreArea=function(a){a=upper(a);if(a==="LABORATORIO"||a==="ASISTENTE A4")return "Asistente A4";if(a==="ATENCION")return "Atención al Cliente";return _nombreArea(a);};
+
+
+function filaPendienteNueva(x){
+ const i=x.item,s=x.solicitud,m=minutosDesde(i.fechaUltimoMovimiento||i.fechaUltimo,i.horaUltimoMovimiento||i.horaUltimo);
+ const tor=turnoDeHora(i.horaUltimoMovimiento||i.horaUltimo), old=tor!==turnoActual();
+ const a=siguientesAcciones(i,s)[0]||"";
+ return "<tr><td>"+esc(i.tipo)+" - "+esc(i.codigo)+"</td><td>"+badgeEstado(i.subestadoActual||i.estado,i)+"</td><td>"+esc(pendienteDe(i,s))+"</td><td>"+esc((i.fechaUltimoMovimiento||i.fechaUltimo||"")+" "+(i.horaUltimoMovimiento||i.horaUltimo||""))+"</td><td>"+(old?'<span class="shift-old">TURNO ANTERIOR</span>':esc(tor))+"</td><td class='"+(m>=120?"wait-bad":m>=60?"wait-warn":"")+"'>"+esc(tiempoTexto(m))+"</td><td><button class='btn "+claseAccion(a)+" btn-sm' onclick=\"abrirMovimientoPorId('"+escJS(i.idItem)+"')\">"+esc(a)+"</button></td></tr>";
+}
+dibujarPendientes=function(){const tb=document.getElementById("tablaPendientes");if(!tb)return;const a=itemsAccionables().sort((x,y)=>(minutosDesde(y.item.fechaUltimoMovimiento,y.item.horaUltimoMovimiento)||0)-(minutosDesde(x.item.fechaUltimoMovimiento,x.item.horaUltimoMovimiento)||0));tb.innerHTML=a.map(filaPendienteNueva).join("")||'<tr><td colspan="7" style="text-align:center;padding:28px;color:#64748b">No hay códigos pendientes.</td></tr>';};
+
+</script>
+
+<style id="ams-v011-estilos">
+#page-mis .card{padding:20px}
+#page-mis table{min-width:1180px}
+#page-mis th{font-size:12px;padding:13px 14px}
+#page-mis td{font-size:14px;padding:14px 14px}
+#page-mis .btn-sm{font-size:13px;padding:8px 12px}
+.codigo-link.codigo-negro{color:#111827!important;font-weight:400!important;font-size:14px!important;text-decoration:none}
+.lead-cell{font-weight:700;color:#0f172a;white-space:nowrap}
+.tl-lead{margin-top:8px;padding:7px 8px;border-radius:8px;background:#f8fafc;border:1px solid #e2e8f0}
+.tl-lead span{display:block;font-size:10px;color:#64748b;margin-bottom:2px}
+.tl-lead strong{font-size:12px;color:#0f172a}
+#modalHistorial .tl-step{min-width:205px}
+#modalHistorial .lead-card{background:#f8fafc;border-color:#cbd5e1}
+#modalHistorial .lead-card strong{color:#0f172a;font-size:22px}
+</style>
+
+<style id="v013">
+.item-row{position:relative}.item-row.dupRow{padding-bottom:23px}.dup2{border:2px solid #dc2626!important;background:#fef2f2!important;color:#991b1b!important}.dupMsg{position:absolute;left:158px;bottom:1px;color:#dc2626;font-size:11px;font-weight:900}
+#hgTotalCard{background:#eff6ff;border-color:#93c5fd}#hgPendCard{background:#fff7ed;border-color:#fdba74}#hgProcCard{background:#f5f3ff;border-color:#c4b5fd}#hgFinCard{background:#f1f5f9;border-color:#cbd5e1}
+#hgTotalCard .val{color:#1d4ed8}#hgPendCard .val{color:#c2410c}#hgProcCard .val{color:#6d28d9}#hgFinCard .val{color:#475569}
+.lt{font-weight:900;white-space:nowrap;color:#1d4ed8}.lt.final{color:#475569}.ltEtapa{margin-top:6px;padding:5px 7px;border-radius:7px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:900}
+</style>
+</head>
+
+<body>
+
+<section id="loginView">
+  <div class="login-card">
+    <h1>AMS - Gestión de Solicitudes</h1>
+    <p>Control y trazabilidad entre áreas.</p>
+
+    <div class="field">
+      <label>Usuario</label>
+      <input id="loginUsuario" autocomplete="username" placeholder="Ejemplo: guias">
+    </div>
+
+    <div class="field">
+      <label>Contraseña</label>
+      <input id="loginClave" type="password" autocomplete="current-password">
+    </div>
+
+    <div class="field">
+      <label>Nombre del responsable</label>
+      <input id="loginResponsable" class="uppercase" placeholder="NOMBRE Y APELLIDO"
+             oninput="this.value=this.value.toUpperCase()">
+    </div>
+
+    <button class="btn btn-primary" style="width:100%" onclick="login()">Ingresar</button>
+  </div>
+</section>
+
+<section id="mainView">
+  <header class="topbar">
+    <div class="brand">
+      AMS - Gestión de Solicitudes
+      <small>Sistema de trazabilidad</small>
+    </div>
+
+    <div class="userbox">
+      <strong id="headerResponsable">—</strong>
+      <span id="headerPerfil">—</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      
+      <button class="nav-btn" data-page="pendientes" onclick="ir('pendientes',this)">Pendientes</button>
+      <button class="nav-btn hidden" id="navNueva" data-page="nueva" onclick="ir('nueva',this)">Nueva solicitud</button>
+      <button class="nav-btn hidden" id="navMis" data-page="mis" onclick="ir('mis',this)">Mis solicitudes</button>
+      <button class="nav-btn" data-page="buscar" onclick="ir('buscar',this)">Historial / Buscar</button>
+      <button class="nav-btn hidden" id="navAdmin" data-page="admin" onclick="ir('admin',this)">Administración</button>
+      <button class="nav-btn" onclick="cerrarSesion()">Cerrar sesión</button>
+    </aside>
+
+    <main class="content">
+
+      <section class="page active" id="page-inicio">
+        <div class="page-head">
+          <div>
+            <h2>Inicio</h2>
+            <p>Resumen actual de solicitudes.</p>
+          </div>
+          <button class="btn btn-gray" onclick="recargarTodo()">Actualizar</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="t">Guías</div><div class="n" id="stGuias">0</div></div>
+          <div class="stat"><div class="t">Asistente A4</div><div class="n" id="stLab">0</div></div>
+          <div class="stat"><div class="t">Atención al Cliente</div><div class="n" id="stAtencion">0</div></div>
+          <div class="stat"><div class="t">Por recibir Chala</div><div class="n" id="stChala">0</div></div>
+          <div class="stat"><div class="t">Regularización Lab.</div><div class="n" id="stReg">0</div></div>
+          <div class="stat"><div class="t">Finalizados</div><div class="n" id="stFinal">0</div></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Pendientes de mi área</h3>
+          <p class="muted">Solo se muestran códigos donde tu perfil puede hacer una acción.</p>
+          <div id="inicioPendientes"></div>
+        </div>
+      </section>
+
+      <section class="page" id="page-pendientes">
+        <div class="page-head">
+          <div>
+            <h2>Solicitudes pendientes</h2>
+            <p>Códigos que requieren una acción de tu parte.</p>
+          </div>
+          <button class="btn btn-gray" onclick="cargarSolicitudes()">Actualizar</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Tipo - Código</th><th>Estado</th><th>Pendiente de</th><th>Desde</th><th>Turno</th><th>Tiempo espera</th><th>Acción</th></tr></thead>
+              <tbody id="tablaPendientes"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-nueva">
+  <div class="page-head"><div><h2>Nueva solicitud</h2><p id="textoNueva">Puede contener de 1 a 20 códigos.</p></div></div>
+  <div class="card">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="btn btn-primary" onclick="agregarItem()">+ Agregar</button>
+      <button class="btn btn-gray" onclick="document.getElementById('excelSolicitud').click()">Carga masiva (Excel)</button>
+      <input id="excelSolicitud" type="file" accept=".xlsx,.xls" class="hidden" onchange="cargarExcelSolicitud(this)">
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Solicitado por</label><input id="nSolicitante" readonly></div>
+      <div class="field"><label>Prioridad</label><select id="nPrioridad"><option>NORMAL</option><option>URGENTE</option></select></div>
+    </div>
+    <div class="field"><label>Observación general <span class="muted">(opcional)</span></label><textarea id="nObsGeneral" rows="2"></textarea></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+    <div class="item-head"><strong>TIPO</strong><strong>CÓDIGO</strong><strong>MODALIDAD</strong><span></span></div>
+    <div id="itemsSolicitud"></div>
+    <div id="previewExcel" class="hidden"></div>
+    <div style="margin-top:18px"><button class="btn btn-green" onclick="guardarNuevaSolicitud()">Guardar solicitud</button></div>
+  </div>
+</section>
+
+      <section class="page" id="page-mis">
+        <div class="page-head">
+          <div>
+            <h2>Mis solicitudes</h2>
+            <p>Solicitudes creadas por tu oficina, aunque luego pasen a otra área.</p>
+          </div>
+          <button class="btn btn-gray" onclick="cargarSolicitudes()">Actualizar</button>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+<th>Solicitud</th><th>Tipo - Código</th><th>Solicitado por</th><th>Estado</th>
+<th>Oficina responsable</th><th>Pendiente de</th><th>Último movimiento</th><th>Historial</th>
+</tr>
+              </thead>
+              <tbody id="tablaMisSolicitudes"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-buscar">
+        <div class="page-head">
+          <div>
+            <h2>Historial / Buscar</h2>
+            <p>Todos los perfiles pueden consultar la trazabilidad por Tipo + Código.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="search-row">
+            <div class="field">
+              <label>Tipo</label>
+              <select id="buscarTipo"></select>
+            </div>
+
+            <div class="field code">
+              <label>Código</label>
+              <input id="buscarCodigo" class="uppercase" placeholder="Ejemplo: 125210"
+                     oninput="this.value=this.value.toUpperCase()">
+            </div>
+
+            <button class="btn btn-primary" onclick="buscar()">Buscar</button>
+          </div>
+
+          <div class="result-card card" id="resultadoBusqueda"
+               style="box-shadow:none;background:#f8fafc"></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+<div class="stats hist-stats" style="grid-template-columns:repeat(5,minmax(130px,1fr))">
+<div class="stat"><div class="t">Códigos solicitados por Chala</div><div class="n" id="hgChala">0</div></div>
+<div class="stat"><div class="t">Códigos solicitados por Asistente A4</div><div class="n" id="hgA4">0</div></div>
+<div class="stat"><div class="t">Pendientes</div><div class="n" id="hgPend">0</div></div>
+<div class="stat"><div class="t">En proceso</div><div class="n" id="hgProc">0</div></div>
+<div class="stat"><div class="t">Finalizadas</div><div class="n" id="hgFin">0</div></div>
+</div>
+          <div style="display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+            <div>
+              <h3 style="margin:0">Todos los registros</h3>
+              <p class="muted" style="margin:5px 0 0">
+                Visualiza todos los códigos pendientes y finalizados del sistema.
+              </p>
+            </div>
+
+            <div style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+              <div class="field" style="min-width:190px">
+                <label>Estado</label>
+                <select id="filtroHistorialEstado" onchange="dibujarHistorialGlobal()">
+                  <option value="TODOS">TODOS</option>
+                  <option value="PENDIENTES">PENDIENTES</option>
+                  <option value="EN PROCESO">EN PROCESO</option>
+                  <option value="FINALIZADOS">FINALIZADOS</option>
+                </select>
+              </div>
+
+              <button class="btn btn-gray btn-sm" onclick="cargarHistorialGlobal()">
+                Actualizar
+              </button>
+            </div>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+<th>TIPO - CÓDIGO</th><th>ESTADO</th><th>FLUJO ACTUAL</th>
+<th>OFICINA RESPONSABLE</th><th>PENDIENTE DE</th>
+<th>ÚLTIMO MOVIMIENTO</th><th>HISTORIAL</th>
+</tr></thead>
+              <tbody id="tablaHistorialGlobal"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" id="page-admin">
+        <div class="page-head">
+          <div>
+            <h2>Administración</h2>
+            <p>Vista general y control de excepciones.</p>
+          </div>
+          <button class="btn btn-gray" onclick="cargarAdmin()">Actualizar</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat"><div class="t">Solicitudes hoy</div><div class="n" id="adHoy">0</div></div>
+          <div class="stat"><div class="t">En proceso</div><div class="n" id="adProceso">0</div></div>
+          <div class="stat"><div class="t">Urgentes</div><div class="n" id="adUrgentes">0</div></div>
+          <div class="stat"><div class="t">Recepciones directas</div><div class="n" id="adDirectas">0</div></div>
+          <div class="stat"><div class="t">Pend. regularización</div><div class="n" id="adRegPend">0</div></div>
+          <div class="stat"><div class="t">Regularizadas</div><div class="n" id="adRegOk">0</div></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Todas las solicitudes</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Solicitud</th>
+                  <th>Tipo - Código</th>
+                  <th>Solicitante</th>
+                  <th>Oficina</th>
+                  <th>Estado</th>
+                  <th>Responsable</th>
+                  <th>Historial</th>
+                </tr>
+              </thead>
+              <tbody id="tablaAdmin"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</section>
+
+<!-- MODAL MOVIMIENTO -->
+<div class="modal-bg" id="modalMovimiento">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <strong>Registrar movimiento</strong>
+        <div class="muted" id="movCodigo">—</div>
+      </div>
+      <button class="close" onclick="cerrarModal('modalMovimiento')">×</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="responsable-box">
+        Registrado por: <span id="movResponsable">—</span>
+      </div>
+
+      <div id="camposDecisionLab">
+        <div class="field">
+          <label>Decisión de Asistente A4</label>
+          <div class="choice-grid">
+            <button type="button" id="btnLabFinaliza" class="choice-btn"
+                    onclick="elegirDecisionLab('FINALIZAR EN ASISTENTE A4')">
+              Finalizar en Asistente A4
+            </button>
+
+            <button type="button" id="btnLabAtencion" class="choice-btn"
+                    onclick="elegirDecisionLab('PASAR A ATENCION')">
+              Pasar a Atención
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Movimiento</label>
+        <input id="movAccion" readonly>
+      </div>
+
+      <div id="camposLab">
+        <div class="grid2">
+          <div class="field">
+            <label>Fecha real del evento</label>
+            <input id="labFecha" type="date">
+          </div>
+
+          <div class="field">
+            <label>Hora real del evento</label>
+            <input id="labHora" type="time">
+          </div>
+        </div>
+
+        <div class="field" id="campoRecepcionLab">
+          <label>Entregado a Laboratorio por</label>
+          <input id="labRecepcion" class="uppercase"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+
+        <div class="field">
+          <label>Devuelto por Laboratorio por</label>
+          <input id="labEntrega" class="uppercase"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
+
+      <div id="camposAtencionRecep">
+        <div class="field">
+          <label>Nombre del operario de sellado</label>
+          <input id="atOperarioSellado" class="uppercase"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
+
+      <div id="camposEnvio">
+        <div class="field">
+          <label>Medio de entrega</label>
+          <div class="radio-row">
+            <label>
+              <input type="radio" name="medioEntrega" value="CONDUCTOR" checked
+                     onchange="cambiarMedioEntrega()">
+              Conductor
+            </label>
+
+            <label>
+              <input type="radio" name="medioEntrega" value="PROVEEDOR"
+                     onchange="cambiarMedioEntrega()">
+              Proveedor
+            </label>
+          </div>
+        </div>
+
+        <div class="field" id="campoConductor">
+          <label>Conductor</label>
+          <select id="movConductor"></select>
+        </div>
+
+        <div class="field hidden" id="campoProveedor">
+          <label>Nombre del proveedor</label>
+          <input id="movProveedor" class="uppercase"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Observación <span class="muted">(opcional)</span></label>
+        <textarea id="movObservacion" rows="3"></textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-gray" onclick="cerrarModal('modalMovimiento')">Cancelar</button>
+        <button class="btn btn-primary" id="btnGuardarMov" onclick="guardarMovimientoActual()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL HISTORIAL: SOLO TIMELINE -->
+<div class="modal-bg" id="modalHistorial">
+  <div class="modal wide">
+    <div class="modal-head">
+      <div>
+        <strong>Historial completo del código</strong>
+        <div class="muted" id="histTitulo">—</div>
+      </div>
+
+      <button class="close" onclick="cerrarModal('modalHistorial')">×</button>
+    </div>
+
+    <div class="modal-body" id="histContenido"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+let usuarioActual = null;
+let solicitudesActuales = [];
+let historialGlobal = [];
+let tipos = [];
+let conductores = [];
+let itemMovimiento = null;
+let ultimoResultado = null;
+
+document.addEventListener("DOMContentLoaded", function(){
+  ["loginClave","loginResponsable"].forEach(function(id){
+    document.getElementById(id).addEventListener("keydown", function(e){
+      if(e.key === "Enter") login();
+    });
+  });
+});
+
+function login(){
+  const usuario = val("loginUsuario").trim();
+  const clave = val("loginClave").trim();
+  const responsable = val("loginResponsable").trim().toUpperCase();
+
+  if(!usuario || !clave || !responsable){
+    toast("Complete Usuario, Contraseña y Nombre del responsable.", false);
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(!res || !res.ok){
+        toast(res?.mensaje || "No se pudo iniciar sesión.", false);
+        return;
+      }
+
+      usuarioActual = res.usuario || res;
+      usuarioActual.responsableSesion =
+        (usuarioActual.responsableSesion || responsable).toUpperCase();
+      usuarioActual.nombre = usuarioActual.responsableSesion;
+
+      document.getElementById("loginView").style.display = "none";
+      document.getElementById("mainView").style.display = "block";
+
+      txt("headerResponsable", usuarioActual.responsableSesion);
+      txt("headerPerfil", nombreArea(usuarioActual.perfil));
+
+      configurarPerfil();
+      cargarCatalogos();
+      recargarTodo();
+    })
+    .withFailureHandler(errorServidor)
+    .iniciarSesion(usuario,clave,responsable);
+}
+
+function cerrarSesion(){ location.reload(); }
+
+function configurarPerfil(){
+  const p = upper(usuarioActual.perfil);
+  const puedeCrear = ["CHALA","ASISTENTE A4"].includes(p);
+
+  document.getElementById("navNueva").classList.toggle("hidden", !puedeCrear);
+  document.getElementById("navMis").classList.toggle("hidden", !puedeCrear);
+  document.getElementById("navAdmin").classList.toggle("hidden", p !== "ADMIN");
+
+  if(p === "ASISTENTE A4"){
+    txt(
+      "textoNueva",
+      "Asistente A4 puede generar solicitudes. Primero atenderá cada código y luego decidirá si finaliza en Asistente A4 o pasa a Atención al Cliente."
+    );
+  } else {
+    txt("textoNueva","Puede contener de 1 a 20 códigos.");
+  }
+
+  if(p === "ADMIN"){
+    ir("admin",document.getElementById("navAdmin"));
+  }
+}
+
+function ir(page,btn){
+  document.querySelectorAll(".page").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll(".nav-btn").forEach(x => x.classList.remove("active"));
+
+  const p = document.getElementById("page-" + page);
+  if(p) p.classList.add("active");
+  if(btn) btn.classList.add("active");
+
+  if(page === "pendientes") dibujarPendientes();
+  if(page === "mis") dibujarMisSolicitudes();
+  if(page === "buscar") cargarHistorialGlobal();
+  if(page === "admin") cargarAdmin();
+}
+
+function cargarCatalogos(){
+  google.script.run
+    .withSuccessHandler(function(r){
+      tipos = r || [];
+
+      document.getElementById("buscarTipo").innerHTML =
+        tipos.map(x => '<option value="' + escA(x) + '">' + esc(x) + '</option>').join("");
+
+      if(document.getElementById("itemsSolicitud").children.length === 0){
+        agregarItem();
+      }
+    })
+    .withFailureHandler(errorServidor)
+    .obtenerTiposSolicitud();
+
+  google.script.run
+    .withSuccessHandler(function(r){
+      conductores = r || [];
+      cargarSelectConductores();
+    })
+    .withFailureHandler(errorServidor)
+    .obtenerConductores();
+}
+
+function recargarTodo(){
+  cargarResumen();
+  cargarSolicitudes();
+  cargarHistorialGlobal();
+  if(upper(usuarioActual?.perfil) === "ADMIN") cargarAdmin();
+}
+
+function cargarResumen(){
+  google.script.run
+    .withSuccessHandler(function(r){
+      r = r || {};
+      txt("stGuias",r.guias || 0);
+      txt("stLab",r.laboratorio || 0);
+      txt("stAtencion",r.atencion || 0);
+      txt("stChala",r.chala || 0);
+      txt("stReg",r.regularizaciones || 0);
+      txt("stFinal",r.finalizados || 0);
+    })
+    .withFailureHandler(errorServidor)
+    .obtenerResumen();
+}
+
+function cargarSolicitudes(){
+  if(!usuarioActual) return;
+
+  google.script.run
+    .withSuccessHandler(function(lista){
+      solicitudesActuales = lista || [];
+      dibujarPendientes();
+      dibujarInicio();
+
+      if(["CHALA","ASISTENTE A4"].includes(upper(usuarioActual.perfil))){
+        dibujarMisSolicitudes();
+      }
+
+      if(upper(usuarioActual.perfil) === "ADMIN"){
+        dibujarAdmin();
+      }
+    })
+    .withFailureHandler(errorServidor)
+    .obtenerSolicitudes(usuarioActual);
+}
+
+function itemsAccionables(){
+  const p = upper(usuarioActual?.perfil);
+  const arr = [];
+
+  solicitudesActuales.forEach(function(s){
+    (s.items || []).forEach(function(i){
+      const e = upper(i.etapaActual);
+      const st = upper(i.subestadoActual || i.subestado);
+      const origen = upper(s.areaOrigen);
+      let ok = false;
+
+      if(p === "GUIAS"){
+        ok = e === "GUIAS";
+      }
+
+      else if(p === "ASISTENTE A4"){
+        ok =
+          !!i.pendienteRegularizacionLab ||
+          (
+            origen === "CHALA" &&
+            e === "ASISTENTE A4" &&
+            st === "PENDIENTE DE RECEPCION"
+          ) ||
+          (
+            origen === "ASISTENTE A4" &&
+            e === "ASISTENTE A4" &&
+            (st === "SOLICITUD CREADA" || st === "ATENDIDO")
+          );
+      }
+
+      else if(p === "ATENCION"){
+        ok =
+          e === "ATENCION" ||
+          (
+            origen === "CHALA" &&
+            e === "ASISTENTE A4" &&
+            st === "PENDIENTE DE RECEPCION"
+          );
+      }
+
+      else if(p === "CHALA"){
+        ok = e === "CHALA" && st === "PENDIENTE DE RECIBIDO";
+      }
+
+      else if(p === "ADMIN"){
+        ok = true;
+      }
+
+      if(ok) arr.push({solicitud:s,item:i});
+    });
+  });
+
+  return arr;
+}
+
+function dibujarInicio(){
+  const cont = document.getElementById("inicioPendientes");
+  const arr = itemsAccionables()
+    .filter(() => upper(usuarioActual.perfil) !== "ADMIN")
+    .slice(0,8);
+
+  if(!arr.length){
+    cont.innerHTML = '<div class="muted">No hay códigos pendientes para tu área.</div>';
+    return;
+  }
+
+  cont.innerHTML =
+    '<div class="table-wrap"><table><thead><tr>' +
+    '<th>Tipo - Código</th><th>Oficina</th><th>Estado</th><th>Pendiente</th><th>Acción</th>' +
+    '</tr></thead><tbody>' +
+    arr.map(x => filaPendienteHTML(x,true)).join("") +
+    '</tbody></table></div>';
+}
+
+function dibujarPendientes(){
+  const tbody = document.getElementById("tablaPendientes");
+  if(!tbody) return;
+
+  const arr = itemsAccionables().filter(
+    () => upper(usuarioActual.perfil) !== "ADMIN"
+  );
+
+  if(!arr.length){
+    tbody.innerHTML =
+      '<tr><td colspan="8" style="text-align:center;padding:28px;color:#64748b">' +
+      'No hay códigos pendientes.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = arr.map(x => filaPendienteHTML(x,false)).join("");
+}
+
+function cargarHistorialGlobal(){
+  google.script.run
+    .withSuccessHandler(function(lista){
+      historialGlobal = lista || [];
+      dibujarHistorialGlobal();
+    })
+    .withFailureHandler(errorServidor)
+    .obtenerHistorialGlobal();
+}
+
+/* render anterior eliminado */
+
+function dibujarMisSolicitudes(){
+  const tbody = document.getElementById("tablaMisSolicitudes");
+  if(!tbody) return;
+
+  const perfil = upper(usuarioActual?.perfil);
+
+  if(!["CHALA","ASISTENTE A4"].includes(perfil)){
+    tbody.innerHTML =
+      '<tr><td colspan="8" style="text-align:center;padding:28px;color:#64748b">' +
+      'Esta vista corresponde a oficinas que pueden crear solicitudes.</td></tr>';
+    return;
+  }
+
+  const rows = [];
+
+  solicitudesActuales.forEach(function(s){
+    if(upper(s.areaOrigen) !== perfil) return;
+
+    (s.items || []).forEach(function(i){
+      rows.push(
+        "<tr>" +
+        "<td>" + esc(s.idSolicitud || "—") + "</td>" +
+        "<td><button class=\"codigo-link\" onclick=\"abrirHistorial('" +
+          escJS(i.tipo) + "','" + escJS(i.codigo) + "')\">" +
+          esc(i.tipo) + " - " + esc(i.codigo) + "</button></td>" +
+        "<td>" + esc(s.solicitante || "—") + "</td>" +
+        "<td>" + badgeArea(i.etapaActual) + "</td>" +
+        "<td>" + badgeEstado(i.subestadoActual || i.subestado,i) + "</td>" +
+        "<td>" + esc(i.usuarioUltimoMovimiento || i.usuarioUltimo || "—") + "</td>" +
+        "<td>" + esc(
+          (i.fechaUltimoMovimiento || i.fechaUltimo || "") + " " +
+          (i.horaUltimoMovimiento || i.horaUltimo || "")
+        ) + "</td>" +
+        "<td><button class=\"btn btn-gray btn-sm\" onclick=\"abrirHistorial('" +
+          escJS(i.tipo) + "','" + escJS(i.codigo) + "')\">Ver</button></td>" +
+        "</tr>"
+      );
+    });
+  });
+
+  tbody.innerHTML = rows.join("") ||
+    '<tr><td colspan="8" style="text-align:center;padding:28px;color:#64748b">' +
+    'Todavía no tienes solicitudes registradas.</td></tr>';
+}
+
+function filaPendienteHTML(x,resumida){
+  const s = x.solicitud;
+  const i = x.item;
+
+  const opciones = siguientesAcciones(i,s);
+  const accionTexto =
+    opciones.length > 1 ? "DECIDIR" : (opciones[0] || "");
+
+  const acc = accionTexto
+    ? '<button class="btn ' + claseAccion(accionTexto) + ' btn-sm" ' +
+      'onclick="abrirMovimientoPorId(\'' + escJS(i.idItem) + '\')">' +
+      esc(accionTexto) + '</button>'
+    : "—";
+
+  if(resumida){
+    return (
+      "<tr>" +
+      "<td><button class=\"codigo-link\" onclick=\"buscarDirecto('" +
+        escJS(i.tipo) + "','" + escJS(i.codigo) + "')\">" +
+        esc(i.tipo) + " - " + esc(i.codigo) + "</button></td>" +
+      "<td>" + badgeArea(i.etapaActual) + "</td>" +
+      "<td>" + badgeEstado(i.subestadoActual || i.subestado,i) + "</td>" +
+      "<td>" + esc(pendienteDe(i,s)) + "</td>" +
+      "<td>" + acc + "</td>" +
+      "</tr>"
+    );
+  }
+
+  const hist =
+    '<button class="btn btn-gray btn-sm" onclick="abrirHistorial(\'' +
+    escJS(i.tipo) + "','" + escJS(i.codigo) + '\')">Historial</button>';
+
+  return (
+    "<tr>" +
+    "<td><button class=\"codigo-link\" onclick=\"buscarDirecto('" +
+      escJS(i.tipo) + "','" + escJS(i.codigo) + "')\">" +
+      esc(i.tipo) + " - " + esc(i.codigo) + "</button></td>" +
+    "<td>" + esc(s.solicitante || "—") + "</td>" +
+    "<td>" + badgeArea(i.etapaActual) + "</td>" +
+    "<td>" + badgeEstado(i.subestadoActual || i.subestado,i) + "</td>" +
+    "<td>" + esc(pendienteDe(i,s)) + "</td>" +
+    "<td>" + esc(i.usuarioUltimoMovimiento || i.usuarioUltimo || "—") + "</td>" +
+    "<td>" + esc(
+      (i.fechaUltimoMovimiento || i.fechaUltimo || "") + " " +
+      (i.horaUltimoMovimiento || i.horaUltimo || "")
+    ) + "</td>" +
+    '<td style="display:flex;gap:6px;flex-wrap:wrap">' + acc + hist + "</td>" +
+    "</tr>"
+  );
+}
+
+function siguientesAcciones(i,s){
+  const p = upper(usuarioActual?.perfil);
+  const e = upper(i.etapaActual);
+  const st = upper(i.subestadoActual || i.subestado);
+  const origen = upper(s?.areaOrigen);
+
+  if(p === "ASISTENTE A4" && i.pendienteRegularizacionLab){
+    return ["REGULARIZACION ASISTENTE A4"];
+  }
+
+  if(p === "GUIAS" && e === "GUIAS" && st === "SOLICITUD CREADA"){
+    return ["COORDINADO"];
+  }
+
+  if(p === "GUIAS" && e === "GUIAS" && st === "COORDINADO"){
+    return ["CONFIRMADO"];
+  }
+
+  if(
+    p === "ASISTENTE A4" &&
+    origen === "ASISTENTE A4" &&
+    e === "ASISTENTE A4" &&
+    st === "SOLICITUD CREADA"
+  ){
+    return ["ATENDIDO"];
+  }
+
+  if(
+    p === "ASISTENTE A4" &&
+    origen === "ASISTENTE A4" &&
+    e === "ASISTENTE A4" &&
+    st === "ATENDIDO"
+  ){
+    return ["FINALIZAR EN ASISTENTE A4","PASAR A ATENCION"];
+  }
+
+  if(
+    p === "ASISTENTE A4" &&
+    origen === "CHALA" &&
+    e === "ASISTENTE A4" &&
+    st === "PENDIENTE DE RECEPCION"
+  ){
+    return ["RECEPCIONADO"];
+  }
+
+  if(
+    p === "ATENCION" &&
+    origen === "CHALA" &&
+    e === "ASISTENTE A4" &&
+    st === "PENDIENTE DE RECEPCION"
+  ){
+    return ["RECEPCIONADO DIRECTO"];
+  }
+
+  if(
+    p === "ATENCION" &&
+    e === "ATENCION" &&
+    st === "PENDIENTE DE RECEPCION"
+  ){
+    return ["RECEPCIONADO"];
+  }
+
+  if(
+    p === "ATENCION" &&
+    e === "ATENCION" &&
+    st === "RECEPCIONADO"
+  ){
+    return ["ENVIADO"];
+  }
+
+  if(
+    p === "CHALA" &&
+    e === "CHALA" &&
+    st === "PENDIENTE DE RECIBIDO"
+  ){
+    return ["RECIBIDO"];
+  }
+
+  return [];
+}
+
+function pendienteDe(i,s){
+  if(i.pendienteRegularizacionLab) return "Regularización Asistente A4";
+
+  const e = upper(i.etapaActual);
+  const st = upper(i.subestadoActual || i.subestado);
+  const origen = upper(s?.areaOrigen);
+
+  if(e === "GUIAS" && st === "SOLICITUD CREADA") return "Coordinar";
+  if(e === "GUIAS" && st === "COORDINADO") return "Confirmar";
+
+  if(
+    origen === "ASISTENTE A4" &&
+    e === "ASISTENTE A4" &&
+    st === "SOLICITUD CREADA"
+  ){
+    return "Atender solicitud";
+  }
+
+  if(
+    origen === "ASISTENTE A4" &&
+    e === "ASISTENTE A4" &&
+    st === "ATENDIDO"
+  ){
+    return "Decidir si finaliza o pasa a Atención";
+  }
+
+  if(
+    origen === "CHALA" &&
+    e === "ASISTENTE A4" &&
+    st === "PENDIENTE DE RECEPCION"
+  ){
+    return "Recepcionar en Asistente A4";
+  }
+
+  if(e === "ATENCION" && st === "PENDIENTE DE RECEPCION"){
+    return "Recepcionar en Atención";
+  }
+
+  if(e === "ATENCION" && st === "RECEPCIONADO") return "Enviar";
+  if(e === "CHALA" && st === "PENDIENTE DE RECIBIDO") return "Confirmar recepción";
+  if(e === "FINALIZADO") return "Finalizado";
+
+  return "—";
+}
+
+function abrirMovimientoPorId(id){
+  const hit = itemsAccionables().find(
+    x => String(x.item.idItem) === String(id)
+  );
+
+  if(!hit){
+    toast("No se encontró el código en la bandeja actual.",false);
+    return;
+  }
+
+  abrirMovimiento(hit.item,hit.solicitud);
+}
+
+function abrirMovimiento(i,s){
+  const opciones = siguientesAcciones(i,s);
+
+  if(!opciones.length){
+    toast("No hay una acción disponible para este código.",false);
+    return;
+  }
+
+  itemMovimiento = {...i,solicitud:s,accion:opciones.length === 1 ? opciones[0] : ""};
+
+  txt("movCodigo",i.tipo + " - " + i.codigo);
+  txt("movResponsable",usuarioActual.responsableSesion);
+
+  document.getElementById("movAccion").value = itemMovimiento.accion;
+  document.getElementById("movObservacion").value = "";
+  document.getElementById("labRecepcion").value = usuarioActual.responsableSesion || "";
+  document.getElementById("labEntrega").value = "";
+  document.getElementById("atOperarioSellado").value = "";
+  document.getElementById("movProveedor").value = "";
+
+  document.getElementById("camposDecisionLab").style.display =
+    opciones.length > 1 ? "block" : "none";
+
+  ["btnLabFinaliza","btnLabAtencion"].forEach(id =>
+    document.getElementById(id).classList.remove("active")
+  );
+
+  configurarCamposMovimiento();
+  abrirModal("modalMovimiento");
+}
+
+function elegirDecisionLab(accion){
+  if(!itemMovimiento) return;
+
+  itemMovimiento.accion = accion;
+  document.getElementById("movAccion").value = accion;
+
+  document.getElementById("btnLabFinaliza").classList.toggle(
+    "active",
+    accion === "FINALIZAR EN ASISTENTE A4"
+  );
+
+  document.getElementById("btnLabAtencion").classList.toggle(
+    "active",
+    accion === "PASAR A ATENCION"
+  );
+
+  configurarCamposMovimiento();
+}
+
+function configurarCamposMovimiento(){
+  const a = upper(itemMovimiento?.accion);
+  const p = upper(usuarioActual?.perfil);
+
+  const necesitaLab =
+    (
+      p === "ASISTENTE A4" &&
+      ["RECEPCIONADO","REGULARIZACION ASISTENTE A4","PASAR A ATENCION"].includes(a)
+    );
+
+  document.getElementById("camposLab").style.display = necesitaLab ? "block" : "none";
+
+  document.getElementById("campoRecepcionLab").style.display =
+    ["RECEPCIONADO","REGULARIZACION ASISTENTE A4"].includes(a)
+      ? "block"
+      : "none";
+
+  document.getElementById("camposAtencionRecep").style.display =
+    (
+      p === "ATENCION" &&
+      ["RECEPCIONADO","RECEPCIONADO DIRECTO"].includes(a)
+    )
+      ? "block"
+      : "none";
+
+  document.getElementById("camposEnvio").style.display =
+    a === "ENVIADO" ? "block" : "none";
+
+  if(necesitaLab){
+    const now = new Date();
+    document.getElementById("labFecha").value = fechaInput(now);
+    document.getElementById("labHora").value = horaInput(now);
+  }
+
+  if(a === "ENVIADO"){
+    const r = document.querySelector(
+      'input[name="medioEntrega"][value="CONDUCTOR"]'
+    );
+    r.checked = true;
+    cambiarMedioEntrega();
+    cargarSelectConductores();
+  }
+}
+
+function cambiarMedioEntrega(){
+  const m = document.querySelector(
+    'input[name="medioEntrega"]:checked'
+  )?.value || "CONDUCTOR";
+
+  document.getElementById("campoConductor").classList.toggle(
+    "hidden",
+    m !== "CONDUCTOR"
+  );
+
+  document.getElementById("campoProveedor").classList.toggle(
+    "hidden",
+    m !== "PROVEEDOR"
+  );
+}
+
+function cargarSelectConductores(){
+  const s = document.getElementById("movConductor");
+  if(!s) return;
+
+  s.innerHTML =
+    '<option value="">Seleccione conductor</option>' +
+    conductores
+      .map(x => '<option value="' + escA(x) + '">' + esc(x) + '</option>')
+      .join("");
+}
+
+function guardarMovimientoActual(){
+  if(!itemMovimiento) return;
+
+  const a = upper(itemMovimiento.accion);
+
+  if(!a){
+    toast("Seleccione qué hará Asistente A4 con este código.",false);
+    return;
+  }
+
+  const d = {
+    idItem:itemMovimiento.idItem,
+    accion:a,
+    usuario:usuarioActual,
+    observacion:val("movObservacion")
+  };
+
+  if(
+    upper(usuarioActual.perfil) === "ASISTENTE A4" &&
+    ["RECEPCIONADO","REGULARIZACION ASISTENTE A4","PASAR A ATENCION"].includes(a)
+  ){
+    d.fechaEvento = val("labFecha");
+    d.horaEvento = val("labHora");
+    d.responsableRecepcionLab = val("labRecepcion").trim().toUpperCase();
+    d.responsableEntregaLab = val("labEntrega").trim().toUpperCase();
+
+    if(!d.fechaEvento || !d.horaEvento){
+      toast("Complete fecha y hora del evento.",false);
+      return;
+    }
+
+    if(["RECEPCIONADO","REGULARIZACION ASISTENTE A4"].includes(a) &&
+       !d.responsableRecepcionLab){
+      toast("Ingrese el responsable de recepción en Asistente A4.",false);
+      return;
+    }
+
+    if(!d.responsableEntregaLab){
+      toast("Ingrese el responsable de entrega de Asistente A4.",false);
+      return;
+    }
+  }
+
+  if(
+    upper(usuarioActual.perfil) === "ATENCION" &&
+    ["RECEPCIONADO","RECEPCIONADO DIRECTO"].includes(a)
+  ){
+    d.operarioSellado = val("atOperarioSellado").trim().toUpperCase();
+
+    if(!d.operarioSellado){
+      toast("Ingrese el operario de sellado.",false);
+      return;
+    }
+  }
+
+  if(a === "ENVIADO"){
+    const medio = document.querySelector(
+      'input[name="medioEntrega"]:checked'
+    )?.value || "";
+
+    d.medioEntrega = medio;
+
+    d.destinatario =
+      medio === "CONDUCTOR"
+        ? val("movConductor").trim().toUpperCase()
+        : val("movProveedor").trim().toUpperCase();
+
+    if(!d.destinatario){
+      toast(
+        medio === "CONDUCTOR"
+          ? "Seleccione el conductor."
+          : "Ingrese el proveedor.",
+        false
+      );
+      return;
+    }
+  }
+
+  const btn = document.getElementById("btnGuardarMov");
+  btn.disabled = true;
+  btn.textContent = "Guardando...";
+
+  google.script.run
+    .withSuccessHandler(function(r){
+      btn.disabled = false;
+      btn.textContent = "Guardar";
+
+      cerrarModal("modalMovimiento");
+      toast(r?.mensaje || "Movimiento registrado.",true);
+
+      itemMovimiento = null;
+      cargarSolicitudes();
+    })
+    .withFailureHandler(function(e){
+      btn.disabled = false;
+      btn.textContent = "Guardar";
+      errorServidor(e);
+    })
+    .registrarMovimiento(d);
+}
+
+function agregarItem(){
+  const c = document.getElementById("itemsSolicitud");
+
+  if(c.children.length >= 20){
+    toast("Máximo 20 códigos.",false);
+    return;
+  }
+
+  const div = document.createElement("div");
+  div.className = "item-row";
+
+  const opciones = (tipos.length ? tipos : ["RI","RM","RP","ACP","FACP"])
+    .map(x => "<option>" + esc(x) + "</option>")
+    .join("");
+
+  div.innerHTML =
+    '<select class="itTipo">' + opciones + "</select>" +
+    '<input class="itCodigo uppercase" placeholder="Código" ' +
+      'oninput="this.value=this.value.toUpperCase()">' +
+    '<select class="itModalidad obs">' +
+      '<option value="">Seleccionar modalidad</option>' +
+      '<option value="PRESENCIAL">PRESENCIAL</option>' +
+      '<option value="NO PRESENCIAL">NO PRESENCIAL</option>' +
+    '</select>' +
+    '<button class="btn btn-red btn-sm del" onclick="this.parentElement.remove()">×</button>';
+
+  c.appendChild(div);
+}
+
+function guardarNuevaSolicitud(){
+  const perfil = upper(usuarioActual?.perfil);
+
+  if(!["CHALA","ASISTENTE A4"].includes(perfil)){
+    toast("Tu perfil no puede crear solicitudes.",false);
+    return;
+  }
+
+  const rows = [...document.querySelectorAll("#itemsSolicitud .item-row")];
+  const items = [];
+
+  for(const r of rows){
+    const tipo = r.querySelector(".itTipo").value;
+    const codigo = r.querySelector(".itCodigo").value.trim().toUpperCase();
+    const modalidad = r.querySelector(".itModalidad").value;
+
+    if(!codigo){
+      toast("Todos los ítems deben tener código.",false);
+      return;
+    }
+
+    if(!modalidad){
+      toast("Seleccione la modalidad de todos los códigos.",false);
+      return;
+    }
+
+    items.push({tipo,codigo,modalidad});
+  }
+
+  const d = {
+    usuario:usuarioActual,
+    solicitante:val("nSolicitante").trim().toUpperCase(),
+    prioridad:val("nPrioridad"),
+    observacionGeneral:val("nObsGeneral"),
+    items
+  };
+
+  if(!d.solicitante || !d.prioridad){
+    toast("Complete solicitante y prioridad.",false);
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(r){
+      toast("Solicitud " + r.idSolicitud + " registrada.",true);
+      limpiarNueva();
+      recargarTodo();
+
+      ir(
+        "mis",
+        document.querySelector('[data-page="mis"]')
+      );
+    })
+    .withFailureHandler(errorServidor)
+    .guardarSolicitud(d);
+}
+
+function limpiarNueva(){
+  ["nSolicitante","nObsGeneral"].forEach(
+    id => document.getElementById(id).value = ""
+  );
+
+  document.getElementById("nPrioridad").value = "NORMAL";
+  document.getElementById("itemsSolicitud").innerHTML = "";
+  agregarItem();
+}
+
+function buscar(){
+  const t = val("buscarTipo");
+  const c = val("buscarCodigo").trim().toUpperCase();
+
+  if(!t || !c){
+    toast("Ingrese Tipo y Código.",false);
+    return;
+  }
+
+  buscarDirecto(t,c);
+}
+
+function buscarDirecto(tipo,codigo){
+  document.getElementById("buscarTipo").value = tipo;
+  document.getElementById("buscarCodigo").value = codigo;
+
+  ir(
+    "buscar",
+    document.querySelector('[data-page="buscar"]')
+  );
+
+  google.script.run
+    .withSuccessHandler(function(r){
+      if(!r || !r.ok){
+        toast(r?.mensaje || "No encontrado.",false);
+        document.getElementById("resultadoBusqueda").style.display = "none";
+        return;
+      }
+
+      ultimoResultado = r;
+
+      const i = r.item;
+      const s = r.solicitud || {};
+      const box = document.getElementById("resultadoBusqueda");
+
+      box.style.display = "block";
+
+      box.innerHTML =
+        '<div class="result-top">' +
+          "<div>" +
+            '<div class="result-code">' + esc(i.tipo) + " - " + esc(i.codigo) + "</div>" +
+            '<div class="muted">' +
+              "Solicitud: " + esc(s.idSolicitud || i.idSolicitud || "—") +
+              " · Solicitante: " + esc(s.solicitante || "—") +
+            "</div>" +
+          "</div>" +
+          "<div>" +
+            badgeArea(i.etapaActual) + " " +
+            badgeEstado(i.subestadoActual,i) +
+          "</div>" +
+        "</div>" +
+
+        (
+          i.pendienteRegularizacionLab
+            ? '<div class="alert alert-yellow">Pendiente de regularización por Asistente A4.</div>'
+            : ""
+        ) +
+
+        '<div style="margin-top:15px">' +
+          '<button class="btn btn-primary" onclick="abrirHistorialResultado()">' +
+          "Ver historial completo" +
+          "</button>" +
+        "</div>";
+    })
+    .withFailureHandler(errorServidor)
+    .buscarTipoCodigo(tipo,codigo);
+}
+
+function abrirHistorial(tipo,codigo){
+  google.script.run
+    .withSuccessHandler(function(r){
+      if(!r || !r.ok){
+        toast(r?.mensaje || "No encontrado.",false);
+        return;
+      }
+
+      mostrarHistorial(r);
+    })
+    .withFailureHandler(errorServidor)
+    .buscarTipoCodigo(tipo,codigo);
+}
+
+function abrirHistorialResultado(){
+  if(ultimoResultado) mostrarHistorial(ultimoResultado);
+}
+
+/************************************************************
+ * HISTORIAL: SOLO TIMELINE
+ * Se eliminó la tabla "Trazabilidad detallada".
+ ************************************************************/
+
+function mostrarHistorial(r){
+  const i = r.item || {};
+  const s = r.solicitud || {};
+  const movs = r.movimientos || [];
+
+  txt("histTitulo",(i.tipo || "") + " - " + (i.codigo || ""));
+
+  const alerta = i.pendienteRegularizacionLab
+    ? (
+      '<div class="alert alert-yellow">' +
+      "Este código fue recepcionado directamente en Atención al Cliente. " +
+      "Asistente A4 debe regularizar la recepción y entrega." +
+      "</div>"
+    )
+    : "";
+
+  const timeline = movs.length
+    ? (
+      '<div class="timeline">' +
+      movs.map(function(m,k){
+        const tm = upper(m.tipoMovimiento);
+
+        const cls =
+          tm === "DIRECTO"
+            ? "direct"
+            : tm === "REGULARIZACION"
+              ? "reg"
+              : "done";
+
+        const det = detalleMovimiento(m);
+
+        return (
+          '<div class="tl-step ' + cls + '">' +
+            '<div class="tl-dot">' + (k + 1) + "</div>" +
+            '<div class="tl-area">' + esc(nombreArea(m.area)) + "</div>" +
+            '<div class="tl-action">' + esc(m.accion || "—") + "</div>" +
+            '<div class="tl-resp">' + esc(m.responsable || "—") + "</div>" +
+            '<div class="tl-date">' +
+              esc(
+                (m.fechaEvento || m.fecha || "—") + " " +
+                (m.horaEvento || m.hora || "")
+              ) +
+            "</div>" +
+            (
+              det
+                ? '<div class="tl-detail">' + esc(det) + "</div>"
+                : ""
+            ) +
+          "</div>"
+        );
+      }).join("") +
+      "</div>"
+    )
+    : '<div class="muted">Sin movimientos registrados.</div>';
+
+  document.getElementById("histContenido").innerHTML =
+    '<div class="result-top">' +
+      "<div>" +
+        '<div class="result-code">' + esc(i.tipo) + " - " + esc(i.codigo) + "</div>" +
+        '<div class="muted">' +
+          "Solicitud: " + esc(s.idSolicitud || i.idSolicitud || "—") +
+          " · Solicitante: " + esc(s.solicitante || "—") +
+          " · Origen: " + esc(nombreArea(s.areaOrigen || "—")) +
+          " · Creada: " + esc((s.fecha || "") + " " + (s.hora || "")) +
+        "</div>" +
+      "</div>" +
+      "<div>" +
+        badgeArea(i.etapaActual) + " " +
+        badgeEstado(i.subestadoActual,i) +
+      "</div>" +
+    "</div>" +
+
+    alerta +
+
+    "<h3>Timeline</h3>" +
+    timeline +
+
+    '<div style="text-align:right;margin-top:16px">' +
+      '<button class="btn btn-gray" onclick="cerrarModal(\'modalHistorial\')">Cerrar</button>' +
+    "</div>";
+
+  abrirModal("modalHistorial");
+}
+
+function detalleMovimiento(m){
+  const partes = [];
+
+  if(m.responsableRecepcionLab){
+    partes.push("Recepción Lab: " + m.responsableRecepcionLab);
+  }
+
+  if(m.responsableEntregaLab){
+    partes.push("Entrega Lab: " + m.responsableEntregaLab);
+  }
+
+  if(m.operarioSellado){
+    partes.push("Operario sellado: " + m.operarioSellado);
+  }
+
+  if(m.medioEntrega && m.destinatario){
+    partes.push(
+      (upper(m.medioEntrega) === "CONDUCTOR" ? "Conductor: " : "Proveedor: ") +
+      m.destinatario
+    );
+  }
+
+  if(m.observacion){
+    partes.push("Obs.: " + m.observacion);
+  }
+
+  return partes.join(" · ");
+}
+
+function cargarAdmin(){
+  if(upper(usuarioActual?.perfil) !== "ADMIN") return;
+
+  google.script.run
+    .withSuccessHandler(function(r){
+      r = r || {};
+      txt("adHoy",r.solicitudesHoy || 0);
+      txt("adProceso",r.enProceso || 0);
+      txt("adUrgentes",r.urgentes || 0);
+      txt("adDirectas",r.recepcionesDirectas || 0);
+      txt("adRegPend",r.pendientesRegularizacion || 0);
+      txt("adRegOk",r.regularizacionesCompletadas || 0);
+    })
+    .withFailureHandler(errorServidor)
+    .obtenerIndicadoresAdmin();
+
+  dibujarAdmin();
+}
+
+function dibujarAdmin(){
+  const tbody = document.getElementById("tablaAdmin");
+  if(!tbody) return;
+
+  const rows = [];
+
+  solicitudesActuales.forEach(function(s){
+    (s.items || []).forEach(function(i){
+      rows.push(
+        "<tr>" +
+        "<td>" + esc(s.idSolicitud) + "</td>" +
+        "<td><button class=\"codigo-link\" onclick=\"abrirHistorial('" +
+          escJS(i.tipo) + "','" + escJS(i.codigo) + "')\">" +
+          esc(i.tipo) + " - " + esc(i.codigo) + "</button></td>" +
+        "<td>" + esc(s.solicitante || "—") + "</td>" +
+        "<td>" + badgeArea(i.etapaActual) + "</td>" +
+        "<td>" + badgeEstado(i.subestadoActual,i) + "</td>" +
+        "<td>" + esc(i.usuarioUltimoMovimiento || "—") + "</td>" +
+        "<td><button class=\"btn btn-gray btn-sm\" onclick=\"abrirHistorial('" +
+          escJS(i.tipo) + "','" + escJS(i.codigo) + "')\">Ver</button></td>" +
+        "</tr>"
+      );
+    });
+  });
+
+  tbody.innerHTML = rows.join("") ||
+    '<tr><td colspan="7" style="text-align:center;padding:25px">No hay solicitudes.</td></tr>';
+}
+
+function badgeArea(a){
+  const e = upper(a);
+  let c = "b-gray";
+
+  if(e === "GUIAS") c = "b-blue";
+  else if(e === "ASISTENTE A4") c = "b-orange";
+  else if(e === "ATENCION") c = "b-purple";
+  else if(e === "CHALA") c = "b-green";
+  else if(e === "FINALIZADO") c = "b-green";
+  else if(e === "MIXTO") c = "b-cyan";
+
+  return '<span class="badge ' + c + '">' + esc(nombreArea(e)) + "</span>";
+}
+
+function badgeEstado(st,i){
+  const s = upper(st);
+  let c = "b-gray";
+
+  if(s === "SOLICITUD CREADA" || s === "COORDINADO") c = "b-blue";
+  else if(s === "CONFIRMADO" || s === "RECIBIDO" || s === "FINALIZADO EN ASISTENTE A4") c = "b-green";
+  else if(s.includes("PENDIENTE")) c = "b-orange";
+  else if(s === "RECEPCIONADO"){
+    c = i?.pendienteRegularizacionLab ? "b-yellow" : "b-purple";
+  }
+  else if(s === "ENVIADO") c = "b-cyan";
+
+  return '<span class="badge ' + c + '">' + esc(st || "—") + "</span>";
+}
+
+function claseAccion(a){
+  const s = upper(a);
+
+  if(["CONFIRMADO","RECIBIDO","FINALIZAR EN ASISTENTE A4"].includes(s)) return "btn-green";
+  if(s === "RECEPCIONADO DIRECTO") return "btn-yellow";
+  if(s === "RECEPCIONADO") return "btn-orange";
+  if(s === "ENVIADO") return "btn-cyan";
+
+  return "btn-primary";
+}
+
+function nombreArea(a){
+  const s = upper(a);
+
+  const nombres = {
+    GUIAS:"Guías",
+    "ASISTENTE A4":"Asistente A4",
+    ATENCION:"Atención",
+    CHALA:"Chala",
+    FINALIZADO:"Finalizado",
+    ADMIN:"Administrador",
+    MIXTO:"Mixto"
+  };
+
+  return nombres[s] || a || "—";
+}
+
+function abrirModal(id){
+  document.getElementById(id).classList.add("open");
+}
+
+function cerrarModal(id){
+  document.getElementById(id).classList.remove("open");
+}
+
+function val(id){
+  return document.getElementById(id)?.value || "";
+}
+
+function txt(id,v){
+  const e = document.getElementById(id);
+  if(e) e.textContent = v == null ? "" : v;
+}
+
+function upper(v){
+  return String(v || "").trim().toUpperCase();
+}
+
+function fechaInput(d){
+  return (
+    d.getFullYear() + "-" +
+    String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0")
+  );
+}
+
+function horaInput(d){
+  return (
+    String(d.getHours()).padStart(2,"0") + ":" +
+    String(d.getMinutes()).padStart(2,"0")
+  );
+}
+
+function esc(v){
+  return String(v ?? "").replace(/[&<>"']/g,function(m){
+    return {
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#039;"
+    }[m];
+  });
+}
+
+function escA(v){ return esc(v); }
+
+function escJS(v){
+  return String(v ?? "")
+    .replace(/\\/g,"\\\\")
+    .replace(/'/g,"\\'")
+    .replace(/\r?\n/g," ");
+}
+
+function toast(m,ok=true){
+  const t = document.getElementById("toast");
+  t.className = ok ? "ok" : "err";
+  t.textContent = m;
+  t.style.display = "block";
+
+  clearTimeout(window.__toast);
+
+  window.__toast = setTimeout(function(){
+    t.style.display = "none";
+  },3500);
+}
+
+function errorServidor(e){
+  toast(
+    e?.message || String(e || "Ocurrió un error."),
+    false
+  );
+}
+
+/* ==========================================================
+   AMS - CORRECCION FINAL DE HISTORIAL / BUSCAR
+   Esta definición es intencionalmente la última para evitar
+   que funciones antiguas vuelvan a dibujar columnas viejas.
+   ========================================================== */
+function AMS_u(v){ return String(v==null?"":v).trim().toUpperCase(); }
+function AMS_esc(v){
+  return String(v==null?"":v).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function AMS_itemFinal(i){
+  return AMS_u(i.estadoItem||i.estado)==="FINALIZADO" ||
+         AMS_u(i.etapaActual)==="FINALIZADO" ||
+         AMS_u(i.subestadoActual||i.subestado)==="RECIBIDO";
+}
+function AMS_area(i){
+  if(AMS_itemFinal(i)) return "FINALIZADO";
+  let e=AMS_u(i.etapaActual);
+  if(e==="LABORATORIO") e="ASISTENTE A4";
+  if(e==="ATENCION") return "ATENCIÓN AL CLIENTE";
+  return e||"—";
+}
+function AMS_pendiente(i){
+  if(AMS_itemFinal(i)) return "—";
+  let e=AMS_u(i.etapaActual);
+  if(e==="LABORATORIO") e="ASISTENTE A4";
+  const s=AMS_u(i.subestadoActual||i.subestado);
+  if(e==="GUIAS" && s==="SOLICITUD CREADA") return "Coordinar";
+  if(e==="GUIAS" && s==="COORDINADO") return "Confirmar";
+  if(e==="ASISTENTE A4" && s==="PENDIENTE DE RECEPCION") return "Recepcionar";
+  if(e==="ATENCION" && s==="PENDIENTE DE RECEPCION") return "Recepcionar";
+  if(e==="ATENCION" && s==="RECEPCIONADO") return "Enviar";
+  if(e==="CHALA" && s==="PENDIENTE DE RECIBIDO") return "Confirmar recepción";
+  return "—";
+}
+function AMS_estado(i){
+  if(AMS_itemFinal(i)) return "FINALIZADO";
+  return i.subestadoActual||i.subestado||i.estadoItem||i.estado||"PENDIENTE";
+}
+function AMS_badgeEstado(i){
+  const e=AMS_estado(i), u=AMS_u(e);
+  let bg="#e2e8f0",fg="#334155";
+  if(u==="FINALIZADO"||u==="RECIBIDO"){bg="#dcfce7";fg="#15803d";}
+  else if(u==="SOLICITUD CREADA"){bg="#dbeafe";fg="#1d4ed8";}
+  else if(u==="COORDINADO"){bg="#dbeafe";fg="#1d4ed8";}
+  else if(u.includes("PENDIENTE")){bg="#ffedd5";fg="#c2410c";}
+  else if(u==="RECEPCIONADO"){bg="#dcfce7";fg="#15803d";}
+  else if(u==="ENVIADO"){bg="#ede9fe";fg="#6d28d9";}
+  return '<span style="display:inline-block;padding:5px 8px;border-radius:999px;background:'+bg+';color:'+fg+';font-size:10px;font-weight:900">'+AMS_esc(e)+'</span>';
+}
+function AMS_badgeArea(i){
+  const a=AMS_area(i);
+  let bg="#dbeafe",fg="#1d4ed8";
+  if(a==="ASISTENTE A4"){bg="#ffedd5";fg="#c2410c";}
+  if(a==="ATENCIÓN AL CLIENTE"){bg="#ede9fe";fg="#6d28d9";}
+  if(a==="CHALA"){bg="#dcfce7";fg="#15803d";}
+  if(a==="FINALIZADO"){bg="#dcfce7";fg="#15803d";}
+  return '<span style="display:inline-block;padding:5px 8px;border-radius:999px;background:'+bg+';color:'+fg+';font-size:10px;font-weight:900">'+AMS_esc(a)+'</span>';
+}
+function AMS_flujo(i){
+  const seq=[
+    ["CHALA","CHALA"],
+    ["GUIAS","GUÍAS"],
+    ["ASISTENTE A4","ASISTENTE A4"],
+    ["ATENCION","ATENCIÓN AL CLIENTE"],
+    ["RECEPCIÓN CHALA","RECEPCIÓN CHALA"]
+  ];
+  let e=AMS_u(i.etapaActual);
+  if(e==="LABORATORIO")e="ASISTENTE A4";
+  let idx=0;
+  if(e==="GUIAS")idx=1;
+  else if(e==="ASISTENTE A4")idx=2;
+  else if(e==="ATENCION")idx=3;
+  else if(e==="CHALA")idx=4;
+  else if(AMS_itemFinal(i)||e==="FINALIZADO")idx=5;
+  let out='<div class="hg-flow">';
+  seq.forEach(function(x,k){
+    const cls=k<idx?"done":(k===idx?"current":"");
+    out+='<span class="hg-step '+cls+'">'+(k<idx?"✓ ":"")+AMS_esc(x[1])+'</span>';
+    if(k<seq.length-1)out+='<span class="hg-arr">→</span>';
+  });
+  return out+'</div>';
+}
+function AMS_fechaUlt(i){
+  const f=i.fechaUltimoMovimiento||i.fechaUltimo||"";
+  const ho=i.horaUltimoMovimiento||i.horaUltimo||"";
+  return (String(f)+" "+String(ho)).trim()||"—";
+}
+function AMS_listaGlobal(){
+  const fuente=(typeof historialGlobal!=="undefined" && Array.isArray(historialGlobal))?historialGlobal:[];
+  const lista=[];
+  fuente.forEach(function(s){
+    (s.items||[]).forEach(function(i){ lista.push({s:s,i:i}); });
+  });
+  return lista;
+}
+function AMS_resumenSolicitudes(){
+  const fuente=(typeof historialGlobal!=="undefined" && Array.isArray(historialGlobal))?historialGlobal:[];
+  let total=fuente.length, finalizadas=0, proceso=0, pendientes=0;
+  fuente.forEach(function(s){
+    const its=s.items||[];
+    const allFinal=its.length>0 && its.every(AMS_itemFinal);
+    const started=its.some(function(i){
+      return !AMS_itemFinal(i) && AMS_u(i.subestadoActual||i.subestado)!=="SOLICITUD CREADA";
+    });
+    if(allFinal) finalizadas++;
+    else if(started) proceso++;
+    else pendientes++;
+  });
+  return {total:total,pendientes:pendientes,proceso:proceso,finalizadas:finalizadas};
+}
+function AMS_actualizarCuadros(){
+  const r=AMS_resumenSolicitudes();
+  const m={hgTotal:r.total,hgPend:r.pendientes,hgProc:r.proceso,hgFin:r.finalizadas};
+  Object.keys(m).forEach(function(id){const el=document.getElementById(id);if(el)el.textContent=m[id];});
+}
+/* render anterior eliminado */
+/* El filtro y el botón Actualizar deben usar exactamente el mismo render. */
+(function(){
+  const sel=document.getElementById("filtroHistorialEstado");
+  if(sel)sel.onchange=dibujarHistorialGlobal;
+})();
+
+
+function configurarPerfil(){
+  const p=(typeof perfilActual==="function"?perfilActual():AMS_u(usuarioActual&&usuarioActual.perfil));
+  const admin=p==="ADMIN";
+  document.querySelectorAll('[data-page="inicio"],#navInicio').forEach(function(el){el.remove();});
+  const n=document.getElementById("navNueva"); if(n)n.classList.toggle("hidden",p!=="CHALA");
+  const m=document.getElementById("navMis"); if(m)m.classList.toggle("hidden",p!=="CHALA");
+  const a=document.getElementById("navAdmin"); if(a)a.classList.toggle("hidden",!admin);
+  const sol=document.getElementById("nSolicitante");
+  if(sol)sol.value=(usuarioActual&& (usuarioActual.responsableSesion||usuarioActual.nombre))||"";
+  const btn=document.querySelector('[data-page="pendientes"]');
+  if(btn)ir("pendientes",btn);
+}
+
+
+/* ===== UNICO RENDER HISTORIAL/BUSCAR - OPCION 3 ===== */
+function dibujarHistorialGlobal(){
+  const tb=document.getElementById("tablaHistorialGlobal");
+  if(!tb)return;
+
+  const fuente=(typeof historialGlobal!=="undefined" && Array.isArray(historialGlobal))?historialGlobal:[];
+  const filtro=String((document.getElementById("filtroHistorialEstado")||{}).value||"TODOS").trim().toUpperCase();
+
+  const solicitudes=fuente;
+  let finalizadas=0, enProceso=0, pendientes=0;
+  solicitudes.forEach(function(s){
+    const its=s.items||[];
+    const allFinal=its.length>0 && its.every(function(i){return AMS_itemFinal(i);});
+    const started=its.some(function(i){
+      return !AMS_itemFinal(i) && AMS_u(i.subestadoActual||i.subestado)!=="SOLICITUD CREADA";
+    });
+    if(allFinal) finalizadas++;
+    else if(started) enProceso++;
+    else pendientes++;
+  });
+
+  const setVal=function(id,v){const e=document.getElementById(id);if(e)e.textContent=v;};
+  setVal("hgTotal",solicitudes.length);
+  setVal("hgPend",pendientes);
+  setVal("hgProc",enProceso);
+  setVal("hgFin",finalizadas);
+
+  const filas=[];
+  solicitudes.forEach(function(s){
+    (s.items||[]).forEach(function(i){
+      const fin=AMS_itemFinal(i);
+      const estado=AMS_estado(i);
+      if((filtro==="FINALIZADOS"||filtro==="FINALIZADO")&&!fin)return;
+      if((filtro==="PENDIENTES"||filtro==="PENDIENTE")&&fin)return;
+      if(filtro==="EN PROCESO" && (fin||AMS_u(i.subestadoActual||i.subestado)==="SOLICITUD CREADA"))return;
+      if(!["TODOS","FINALIZADOS","FINALIZADO","PENDIENTES","PENDIENTE","EN PROCESO"].includes(filtro) && AMS_u(estado)!==filtro)return;
+
+      const tipo=String(i.tipo||"");
+      const codigo=String(i.codigo||i.ppo||"");
+      filas.push(
+        "<tr>"+
+          "<td><button class='codigo-link' onclick='buscarDirecto("+JSON.stringify(tipo)+","+JSON.stringify(codigo)+")'>"+AMS_esc(tipo)+" - "+AMS_esc(codigo)+"</button></td>"+
+          "<td>"+AMS_badgeEstado(i)+"</td>"+
+          "<td>"+AMS_flujo(i)+"</td>"+
+          "<td>"+AMS_badgeArea(i)+"</td>"+
+          "<td>"+AMS_esc(AMS_pendiente(i))+"</td>"+
+          "<td>"+AMS_esc(AMS_fechaUlt(i))+"</td>"+
+          "<td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+JSON.stringify(tipo)+","+JSON.stringify(codigo)+")'>Historial</button></td>"+
+        "</tr>"
+      );
+    });
+  });
+  tb.innerHTML=filas.join("")||"<tr><td colspan='7' style='text-align:center;padding:28px;color:#64748b'>No hay registros para mostrar.</td></tr>";
+}
+
+
+/* ===== PERFIL DEFINITIVO: SIN INICIO PARA NADIE ===== */
+function configurarPerfil(){
+  const p=(typeof perfilActual==="function"?perfilActual():String(usuarioActual&&usuarioActual.perfil||"").toUpperCase());
+  document.querySelectorAll('[data-page="inicio"],#navInicio').forEach(function(el){el.remove();});
+  const n=document.getElementById("navNueva"); if(n)n.classList.toggle("hidden",p!=="CHALA");
+  const m=document.getElementById("navMis"); if(m)m.classList.toggle("hidden",p!=="CHALA");
+  const a=document.getElementById("navAdmin"); if(a)a.classList.toggle("hidden",p!=="ADMIN");
+  const sol=document.getElementById("nSolicitante");
+  if(sol)sol.value=(usuarioActual&&(usuarioActual.responsableSesion||usuarioActual.nombre))||"";
+  const btn=document.querySelector('[data-page="pendientes"]');
+  if(btn)ir("pendientes",btn);
+}
+
+
+/* ===== AMS V6 - ACTUALIZACION LOCAL RAPIDA ===== */
+function aplicarMovimientoLocal_(r){
+  if(!r||!r.idItem)return;
+  let encontrado=null, sol=null;
+  (solicitudesActuales||[]).some(function(s){
+    return (s.items||[]).some(function(i){
+      if(String(i.idItem)===String(r.idItem)){encontrado=i;sol=s;return true;}
+      return false;
+    });
+  });
+  if(!encontrado)return;
+  encontrado.etapaActual=r.etapa;
+  encontrado.subestadoActual=r.subestado;
+  encontrado.estadoItem=r.estadoItem;
+  encontrado.estado=r.estadoItem;
+  encontrado.fechaUltimoMovimiento=r.fecha;
+  encontrado.horaUltimoMovimiento=r.hora;
+  encontrado.usuarioUltimoMovimiento=r.usuario;
+  dibujarPendientes();
+  if(typeof dibujarMisSolicitudes==="function")dibujarMisSolicitudes();
+}
+function movimientoDirecto(i,a){
+  const btn=event&&event.currentTarget?event.currentTarget:null;
+  if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent="Guardando...";}
+  google.script.run
+    .withSuccessHandler(function(r){
+      aplicarMovimientoLocal_(r);
+      toast(r&&r.mensaje?r.mensaje:"Movimiento registrado.",true);
+    })
+    .withFailureHandler(function(e){
+      if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||a;}
+      errorServidor(e);
+      cargarSolicitudes();
+    })
+    .registrarMovimiento({idItem:i.idItem,accion:a,usuario:usuarioActual,observacion:""});
+}
+
+
+
+/* ==========================================================
+   AMS V011 - LEAD TIME + DISEÑO MIS SOLICITUDES / HISTORIAL
+   Esta sección debe permanecer al FINAL del <script>.
+   ========================================================== */
+
+function AMS_parseFechaHora(fecha,hora){
+  const f=String(fecha||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  const h=String(hora||"").match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(!f||!h)return null;
+  return new Date(+f[3],+f[2]-1,+f[1],+h[1],+h[2],+(h[3]||0));
+}
+function AMS_duracion(ms){
+  if(ms==null || !isFinite(ms)) return "—";
+  let total=Math.max(0,Math.floor(ms/60000));
+  const dias=Math.floor(total/1440); total%=1440;
+  const horas=Math.floor(total/60);
+  const mins=total%60;
+  let out=[];
+  if(dias)out.push(dias+" d");
+  if(horas)out.push(horas+" h");
+  out.push(mins+" min");
+  return out.join(" ");
+}
+function AMS_leadItem(s,i){
+  const ini=AMS_parseFechaHora(s.fecha,s.hora);
+  if(!ini)return "—";
+  let fin=null;
+  if(AMS_itemFinal(i)){
+    fin=AMS_parseFechaHora(
+      i.fechaUltimoMovimiento||i.fechaUltimo,
+      i.horaUltimoMovimiento||i.horaUltimo
+    );
+  }
+  return AMS_duracion((fin||new Date())-ini);
+}
+
+/* FINALIZADO = PLOMO. Cada estado conserva un color diferente. */
+function AMS_badgeEstado(i){
+  const e=AMS_estado(i),u=AMS_u(e);
+  let bg="#e2e8f0",fg="#334155";
+  if(u==="FINALIZADO"){bg="#e5e7eb";fg="#374151";}
+  else if(u==="RECIBIDO"){bg="#dcfce7";fg="#166534";}
+  else if(u==="SOLICITUD CREADA"){bg="#f1f5f9";fg="#475569";}
+  else if(u==="COORDINADO"){bg="#dbeafe";fg="#1d4ed8";}
+  else if(u==="PENDIENTE DE RECEPCION"){bg="#ffedd5";fg="#c2410c";}
+  else if(u==="PENDIENTE DE RECIBIDO"){bg="#fef3c7";fg="#a16207";}
+  else if(u==="RECEPCIONADO"){bg="#ccfbf1";fg="#0f766e";}
+  else if(u==="ENVIADO"){bg="#ede9fe";fg="#6d28d9";}
+  return '<span style="display:inline-block;padding:7px 11px;border-radius:999px;background:'+bg+
+         ';color:'+fg+';font-size:12px;font-weight:800;white-space:nowrap">'+AMS_esc(e)+'</span>';
+}
+function AMS_badgeArea(i){
+  const a=AMS_area(i);
+  let bg="#dbeafe",fg="#1d4ed8";
+  if(a==="GUIAS"||a==="GUÍAS"){bg="#e0f2fe";fg="#0369a1";}
+  else if(a==="ASISTENTE A4"){bg="#f3e8ff";fg="#7e22ce";}
+  else if(a==="ATENCIÓN AL CLIENTE"){bg="#fce7f3";fg="#be185d";}
+  else if(a==="CHALA"){bg="#dcfce7";fg="#166534";}
+  else if(a==="FINALIZADO"){bg="#e5e7eb";fg="#374151";}
+  return '<span style="display:inline-block;padding:7px 11px;border-radius:999px;background:'+bg+
+         ';color:'+fg+';font-size:12px;font-weight:800;white-space:nowrap">'+AMS_esc(a)+'</span>';
+}
+
+/* MIS SOLICITUDES: agrega Lead Time por código. */
+dibujarMisSolicitudes=function(){
+  const tbody=document.getElementById("tablaMisSolicitudes");
+  if(!tbody)return;
+
+  const rows=[];
+  (solicitudesActuales||[]).forEach(function(s){
+    (s.items||[]).forEach(function(i){
+      const tipo=String(i.tipo||"");
+      const codigo=String(i.codigo||i.ppo||"");
+      rows.push(
+        "<tr>"+
+          "<td>"+AMS_esc(s.idSolicitud||"—")+"</td>"+
+          "<td><button class='codigo-link codigo-negro' onclick='abrirHistorial("+
+            JSON.stringify(tipo)+","+JSON.stringify(codigo)+")'>"+
+            AMS_esc(tipo)+" - "+AMS_esc(codigo)+"</button></td>"+
+          "<td>"+AMS_esc(s.solicitante||s.usuarioCreacion||"—")+"</td>"+
+          "<td>"+AMS_badgeEstado(i)+"</td>"+
+          "<td>"+AMS_badgeArea(i)+"</td>"+
+          "<td>"+AMS_esc(AMS_pendiente(i))+"</td>"+
+          "<td>"+AMS_esc(AMS_fechaUlt(i))+"</td>"+
+          "<td class='lead-cell'>"+AMS_esc(AMS_leadItem(s,i))+"</td>"+
+          "<td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+
+            JSON.stringify(tipo)+","+JSON.stringify(codigo)+")'>Ver</button></td>"+
+        "</tr>"
+      );
+    });
+  });
+  tbody.innerHTML=rows.join("")||
+    "<tr><td colspan='9' style='text-align:center;padding:32px;color:#64748b'>Sin solicitudes.</td></tr>";
+};
+
+/* HISTORIAL: Lead Time de CADA movimiento + Lead Time total. */
+mostrarHistorial=function(r){
+  const i=r.item||{},s=r.solicitud||{},movs=(r.movimientos||[]).slice();
+
+  movs.sort(function(a,b){
+    const da=AMS_parseFechaHora(a.fechaEvento||a.fecha,a.horaEvento||a.hora);
+    const db=AMS_parseFechaHora(b.fechaEvento||b.fecha,b.horaEvento||b.hora);
+    return (da?da.getTime():0)-(db?db.getTime():0);
+  });
+
+  txt("histTitulo",(i.tipo||"")+" - "+(i.codigo||""));
+
+  const inicio=movs.length
+    ? AMS_parseFechaHora(movs[0].fechaEvento||movs[0].fecha,movs[0].horaEvento||movs[0].hora)
+    : AMS_parseFechaHora(s.fecha,s.hora);
+
+  let fin=null;
+  if(AMS_itemFinal(i)){
+    const recibido=[...movs].reverse().find(function(m){return AMS_u(m.accion)==="RECIBIDO";});
+    fin=recibido
+      ? AMS_parseFechaHora(recibido.fechaEvento||recibido.fecha,recibido.horaEvento||recibido.hora)
+      : AMS_parseFechaHora(i.fechaUltimoMovimiento||i.fechaUltimo,i.horaUltimoMovimiento||i.horaUltimo);
+  }
+
+  const timeline=movs.length
+    ? '<div class="timeline">'+movs.map(function(m,k){
+        const actual=AMS_parseFechaHora(m.fechaEvento||m.fecha,m.horaEvento||m.hora);
+        const siguiente=k<movs.length-1
+          ? AMS_parseFechaHora(movs[k+1].fechaEvento||movs[k+1].fecha,movs[k+1].horaEvento||movs[k+1].hora)
+          : null;
+        const etapaMs=actual ? ((siguiente||(!fin?new Date():actual))-actual) : null;
+        const etapaTxt=(k===movs.length-1 && fin) ? "—" : AMS_duracion(etapaMs);
+        const det=typeof detalleMovimiento==="function"?detalleMovimiento(m):"";
+        return '<div class="tl-step done">'+
+          '<div class="tl-dot">'+(k+1)+'</div>'+
+          '<div class="tl-area">'+AMS_esc(areaVisible(m.area))+'</div>'+
+          '<div class="tl-action">'+AMS_esc(m.accion||"—")+'</div>'+
+          '<div class="tl-resp">'+AMS_esc(m.responsable||"—")+'</div>'+
+          '<div class="tl-date">'+AMS_esc((m.fechaEvento||m.fecha||"—")+" "+(m.horaEvento||m.hora||""))+'</div>'+
+          '<div class="tl-lead"><span>Lead Time etapa</span><strong>'+AMS_esc(etapaTxt)+'</strong></div>'+
+          (det?'<div class="tl-detail">'+AMS_esc(det.replaceAll("Lab","A4"))+'</div>':"")+
+        '</div>';
+      }).join("")+'</div>'
+    : '<div class="muted">Sin movimientos registrados.</div>';
+
+  const total=inicio?AMS_duracion((fin||new Date())-inicio):"—";
+  const leadTotal=
+    '<div class="lead-card">'+
+      '<div class="muted">'+(fin?"LEAD TIME TOTAL":"LEAD TIME TOTAL · EN CURSO")+'</div>'+
+      '<strong>'+AMS_esc(total)+'</strong>'+
+      '<div class="muted">'+
+        (inicio?"Inicio: "+inicio.toLocaleString("es-PE"):"")+
+        (fin?" · Final: "+fin.toLocaleString("es-PE"):" · calculado hasta ahora")+
+      '</div>'+
+    '</div>';
+
+  document.getElementById("histContenido").innerHTML=
+    '<div class="result-top"><div>'+
+      '<div class="result-code">'+AMS_esc(i.tipo)+" - "+AMS_esc(i.codigo)+'</div>'+
+      '<div class="muted">Solicitud: '+AMS_esc(s.idSolicitud||i.idSolicitud||"—")+
+      ' · Solicitado por: '+AMS_esc(s.solicitante||s.usuarioCreacion||"—")+'</div>'+
+    '</div><div>'+AMS_badgeEstado(i)+" "+AMS_badgeArea(i)+'</div></div>'+
+    '<h3>Historial y Lead Time por etapa</h3>'+timeline+leadTotal+
+    '<div style="text-align:right;margin-top:16px"><button class="btn btn-gray" onclick="cerrarModal(\'modalHistorial\')">Cerrar</button></div>';
+
+  abrirModal("modalHistorial");
+};
+
+/* Ajuste automático del encabezado de Mis solicitudes. */
+(function(){
+  const tb=document.getElementById("tablaMisSolicitudes");
+  if(!tb)return;
+  const table=tb.closest("table");
+  if(!table)return;
+  const tr=table.querySelector("thead tr");
+  if(tr){
+    tr.innerHTML=
+      "<th>Solicitud</th><th>Tipo - Código</th><th>Solicitado por</th><th>Estado</th>"+
+      "<th>Oficina responsable</th><th>Pendiente de</th><th>Último movimiento</th>"+
+      "<th>Lead Time</th><th>Historial</th>";
+  }
+})();
+
+
+
+/* ===== AMS V013 FINAL ===== */
+window.DB_DUP=new Set(); window.DUP_TIMER=null;
+function pdt(f,h){const a=String(f||"").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/),t=String(h||"").match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);return a&&t?new Date(+a[3],+a[2]-1,+a[1],+t[1],+t[2],+(t[3]||0)):null}
+function dur2(ms){if(ms==null||isNaN(ms))return"—";let n=Math.max(0,Math.floor(ms/60000)),d=Math.floor(n/1440);n%=1440;let h=Math.floor(n/60),m=n%60;return(d?d+" d ":"")+(h?h+" h ":"")+m+" min"}
+function lead(s,i){const a=pdt(s.fecha,s.hora);if(!a)return"—";const b=AMS_itemFinal(i)?pdt(i.fechaUltimoMovimiento||i.fechaUltimo,i.horaUltimoMovimiento||i.horaUltimo):new Date();return b?dur2(b-a):"—"}
+function areaTabla(i){return AMS_itemFinal(i)?"—":AMS_badgeArea(i)}
+
+function modalCarga(){
+ if(document.getElementById("modalCargaMasiva"))return abrirModal("modalCargaMasiva");
+ const x=document.createElement("div");x.id="modalCargaMasiva";x.className="modal-bg";
+ x.innerHTML='<div class="modal" style="width:min(720px,96vw)"><div class="modal-head"><strong>Cómo cargar los datos</strong><button class="close" onclick="cerrarModal(\'modalCargaMasiva\')">×</button></div><div class="modal-body"><p>Use un Excel .xlsx o .xls, máximo 20 filas.</p><div style="padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px"><b>Encabezados obligatorios:</b><table style="min-width:0;margin-top:10px"><thead><tr><th>TIPO</th><th>CÓDIGO</th><th>MODALIDAD</th></tr></thead><tbody><tr><td>RI</td><td>101010</td><td>PRESENCIAL</td></tr><tr><td>RM</td><td>202020</td><td>NO PRESENCIAL</td></tr></tbody></table></div><p><b>Duplicados:</b> se compara TIPO + CÓDIGO. Si se repite en el Excel o ya existe en la base, se marcará en rojo y no permitirá guardar.</p><div style="text-align:right"><button class="btn btn-primary" onclick="cerrarModal(\'modalCargaMasiva\');document.getElementById(\'excelSolicitud\').click()">Seleccionar Excel</button></div></div></div>';
+ document.body.appendChild(x);abrirModal("modalCargaMasiva");
+}
+function krow(r){const t=AMS_u(r.querySelector(".itTipo")?.value),c=AMS_u(r.querySelector(".itCodigo")?.value);return t&&c?t+"||"+c:""}
+function clearDup(r){r.classList.remove("dupRow");r.querySelector(".itTipo")?.classList.remove("dup2");r.querySelector(".itCodigo")?.classList.remove("dup2");r.querySelector(".dupMsg")?.remove()}
+function markDup(r,m){r.classList.add("dupRow");r.querySelector(".itTipo")?.classList.add("dup2");r.querySelector(".itCodigo")?.classList.add("dup2");let z=r.querySelector(".dupMsg");if(!z){z=document.createElement("div");z.className="dupMsg";r.appendChild(z)}z.textContent=m}
+validarDuplicadosUI=function(){const rs=[...document.querySelectorAll("#itemsSolicitud .item-row")],mp={};rs.forEach(clearDup);rs.forEach(r=>{const k=krow(r);if(k)(mp[k]||(mp[k]=[])).push(r)});let ok=true;Object.keys(mp).forEach(k=>{if(mp[k].length>1){ok=false;mp[k].forEach(r=>markDup(r,"REPETIDO EN ESTA SOLICITUD"))}});rs.forEach(r=>{if(DB_DUP.has(krow(r))){ok=false;markDup(r,"YA FUE SOLICITADO")}});return ok}
+function validarBD(){const items=[...document.querySelectorAll("#itemsSolicitud .item-row")].map(r=>({tipo:AMS_u(r.querySelector(".itTipo")?.value),codigo:AMS_u(r.querySelector(".itCodigo")?.value)})).filter(x=>x.tipo&&x.codigo);DB_DUP=new Set();validarDuplicadosUI();if(!items.length)return Promise.resolve([]);return new Promise(res=>google.script.run.withSuccessHandler(x=>{DB_DUP=new Set(x?.existentes||[]);validarDuplicadosUI();res(x?.existentes||[])}).withFailureHandler(e=>{errorServidor(e);res([])}).validarCodigosExistentes(items))}
+function progDup(){clearTimeout(DUP_TIMER);validarDuplicadosUI();DUP_TIMER=setTimeout(validarBD,300)}
+
+agregarItem=function(data){const c=document.getElementById("itemsSolicitud");if(!c)return;if(c.children.length>=20)return toast("Máximo 20 códigos.",false);const d=document.createElement("div");d.className="item-row";const op=(tipos?.length?tipos:["RI","2RI","3RI","4RI","5RI","RM","2RM","3RM","4RM","5RM","RP","2RP","ACP","2ACP","3ACP","FACP","2FACP","3FACP"]).map(x=>"<option>"+AMS_esc(x)+"</option>").join("");d.innerHTML='<select class="itTipo">'+op+'</select><input class="itCodigo uppercase" placeholder="Código"><select class="itModalidad obs"><option value="">Seleccionar modalidad</option><option value="PRESENCIAL">PRESENCIAL</option><option value="NO PRESENCIAL">NO PRESENCIAL</option></select><button type="button" class="btn btn-red btn-sm del">×</button>';c.appendChild(d);if(data){d.querySelector(".itTipo").value=AMS_u(data.TIPO||data.tipo);d.querySelector(".itCodigo").value=AMS_u(data.CODIGO||data.codigo);d.querySelector(".itModalidad").value=AMS_u(data.MODALIDAD||data.modalidad)}d.querySelector(".itCodigo").oninput=function(){this.value=this.value.toUpperCase();progDup()};d.querySelector(".itTipo").onchange=progDup;d.querySelector(".del").onclick=()=>{d.remove();progDup()}}
+
+cargarExcelSolicitud=async function(inp){const f=inp?.files?.[0];if(!f)return;try{if(typeof XLSX==="undefined")throw Error("No se cargó el lector de Excel.");const wb=XLSX.read(await f.arrayBuffer(),{type:"array"}),raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:"",raw:false});if(!raw.length)throw Error("El archivo no contiene registros.");if(raw.length>20)throw Error("Máximo 20 códigos.");const a=raw.map(x=>{const y={};Object.keys(x).forEach(k=>y[AMS_u(k).normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim()]=x[k]);return{TIPO:AMS_u(y.TIPO),CODIGO:AMS_u(y.CODIGO),MODALIDAD:AMS_u(y.MODALIDAD)}}).filter(x=>x.TIPO||x.CODIGO||x.MODALIDAD);if(a.some(x=>!x.TIPO||!x.CODIGO||!x.MODALIDAD))throw Error("Excel debe tener TIPO | CÓDIGO | MODALIDAD completos.");document.getElementById("itemsSolicitud").innerHTML="";DB_DUP=new Set();a.forEach(agregarItem);validarDuplicadosUI();await validarBD();toast(validarDuplicadosUI()?a.length+" registros cargados correctamente.":"Revise los códigos marcados en rojo.",validarDuplicadosUI())}catch(e){toast(e.message||String(e),false)}finally{inp.value=""}}
+
+guardarNuevaSolicitud=async function(){if(perfilActual()!=="CHALA")return toast("Tu perfil no puede crear solicitudes.",false);await validarBD();if(!validarDuplicadosUI())return toast("Corrija los códigos marcados en rojo.",false);const items=[...document.querySelectorAll("#itemsSolicitud .item-row")].map(r=>({tipo:AMS_u(r.querySelector(".itTipo").value),codigo:AMS_u(r.querySelector(".itCodigo").value),modalidad:AMS_u(r.querySelector(".itModalidad").value)}));if(!items.length||items.some(x=>!x.tipo||!x.codigo||!x.modalidad))return toast("Complete TIPO, CÓDIGO y MODALIDAD.",false);google.script.run.withSuccessHandler(r=>{toast("Solicitud "+r.idSolicitud+" registrada.",true);DB_DUP=new Set();limpiarNueva();cargarSolicitudes();ir("mis",document.querySelector('[data-page="mis"]'))}).withFailureHandler(errorServidor).guardarSolicitud({usuario:usuarioActual,solicitante:usuarioActual.responsableSesion,prioridad:val("nPrioridad"),observacionGeneral:val("nObsGeneral"),items})}
+
+function prepCarga(){const i=document.getElementById("excelSolicitud");if(!i)return;i.onchange=()=>cargarExcelSolicitud(i);const p=i.parentElement;if(p){const b=[...p.querySelectorAll("button,label")].find(x=>/carga masiva|excel/i.test(x.textContent||""));if(b){b.onclick=e=>{e.preventDefault();modalCarga()};if(b.tagName==="LABEL")b.removeAttribute("for")}}}
+function headHist(){const tb=document.getElementById("tablaHistorialGlobal"),tr=tb?.closest("table")?.querySelector("thead tr");if(tr)tr.innerHTML="<th>Tipo - Código</th><th>Estado</th><th>Flujo actual</th><th>Oficina responsable</th><th>Pendiente de</th><th>Último movimiento</th><th>Lead Time</th><th>Historial</th>"}
+function cards(){[["hgTotal","hgTotalCard"],["hgPend","hgPendCard"],["hgProc","hgProcCard"],["hgFin","hgFinCard"]].forEach(x=>{const e=document.getElementById(x[0]);if(e?.parentElement)e.parentElement.id=x[1]})}
+
+dibujarHistorialGlobal=function(){const tb=document.getElementById("tablaHistorialGlobal");if(!tb)return;headHist();cards();const f=Array.isArray(historialGlobal)?historialGlobal:[],fil=AMS_u(document.getElementById("filtroHistorialEstado")?.value||"TODOS");let fn=0,pn=0,en=0;f.forEach(s=>{const a=s.items||[],all=a.length&&a.every(AMS_itemFinal),started=a.some(i=>!AMS_itemFinal(i)&&AMS_u(i.subestadoActual||i.subestado)!=="SOLICITUD CREADA");if(all)fn++;else if(started)en++;else pn++});[["hgTotal",f.length],["hgPend",pn],["hgProc",en],["hgFin",fn]].forEach(x=>{const e=document.getElementById(x[0]);if(e)e.textContent=x[1]});const rows=[];f.forEach(s=>(s.items||[]).forEach(i=>{const fin=AMS_itemFinal(i),est=AMS_estado(i);if((fil==="FINALIZADOS"||fil==="FINALIZADO")&&!fin)return;if((fil==="PENDIENTES"||fil==="PENDIENTE")&&fin)return;if(fil==="EN PROCESO"&&(fin||AMS_u(i.subestadoActual||i.subestado)==="SOLICITUD CREADA"))return;if(!["TODOS","FINALIZADOS","FINALIZADO","PENDIENTES","PENDIENTE","EN PROCESO"].includes(fil)&&AMS_u(est)!==fil)return;const t=String(i.tipo||""),c=String(i.codigo||i.ppo||"");rows.push("<tr><td><button class='codigo-link' onclick='buscarDirecto("+JSON.stringify(t)+","+JSON.stringify(c)+")'>"+AMS_esc(t)+" - "+AMS_esc(c)+"</button></td><td>"+AMS_badgeEstado(i)+"</td><td>"+AMS_flujo(i)+"</td><td>"+areaTabla(i)+"</td><td>"+AMS_esc(AMS_pendiente(i))+"</td><td>"+AMS_esc(AMS_fechaUlt(i))+"</td><td><span class='lt "+(fin?"final":"")+"'>"+AMS_esc(lead(s,i))+"</span></td><td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+JSON.stringify(t)+","+JSON.stringify(c)+")'>Historial</button></td></tr>")}));tb.innerHTML=rows.join("")||"<tr><td colspan='8' style='text-align:center;padding:28px'>No hay registros.</td></tr>"}
+
+dibujarMisSolicitudes=function(){const tb=document.getElementById("tablaMisSolicitudes");if(!tb)return;const tr=tb.closest("table")?.querySelector("thead tr");if(tr)tr.innerHTML="<th>Solicitud</th><th>Tipo - Código</th><th>Solicitado por</th><th>Estado</th><th>Oficina responsable</th><th>Pendiente de</th><th>Último movimiento</th><th>Lead Time</th><th>Historial</th>";const r=[];(solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{const fin=AMS_itemFinal(i);r.push("<tr><td>"+AMS_esc(s.idSolicitud||"—")+"</td><td>"+AMS_esc(i.tipo)+" - "+AMS_esc(i.codigo)+"</td><td>"+AMS_esc(s.solicitante||s.usuarioCreacion||"—")+"</td><td>"+AMS_badgeEstado(i)+"</td><td>"+areaTabla(i)+"</td><td>"+AMS_esc(AMS_pendiente(i))+"</td><td>"+AMS_esc(AMS_fechaUlt(i))+"</td><td><span class='lt "+(fin?"final":"")+"'>"+AMS_esc(lead(s,i))+"</span></td><td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+JSON.stringify(i.tipo)+","+JSON.stringify(i.codigo)+")'>Ver</button></td></tr>")}));tb.innerHTML=r.join("")||"<tr><td colspan='9' style='text-align:center;padding:28px'>Sin solicitudes.</td></tr>"}
+
+mostrarHistorial=function(r){const i=r.item||{},s=r.solicitud||{},m=(r.movimientos||[]).slice();txt("histTitulo",(i.tipo||"")+" - "+(i.codigo||""));m.sort((a,b)=>(pdt(a.fechaEvento||a.fecha,a.horaEvento||a.hora)||0)-(pdt(b.fechaEvento||b.fecha,b.horaEvento||b.hora)||0));const fin=AMS_itemFinal(i),ini=pdt(s.fecha,s.hora)||(m[0]?pdt(m[0].fechaEvento||m[0].fecha,m[0].horaEvento||m[0].hora):null),ft=fin?pdt(i.fechaUltimoMovimiento||i.fechaUltimo,i.horaUltimoMovimiento||i.horaUltimo):new Date();const tl=m.length?'<div class="timeline">'+m.map((x,k)=>{const a=pdt(x.fechaEvento||x.fecha,x.horaEvento||x.hora),nx=m[k+1],b=nx?pdt(nx.fechaEvento||nx.fecha,nx.horaEvento||nx.hora):ft;return'<div class="tl-step done"><div class="tl-dot">'+(k+1)+'</div><div class="tl-area">'+AMS_esc(areaVisible(x.area))+'</div><div class="tl-action">'+AMS_esc(x.accion||"—")+'</div><div class="tl-resp">'+AMS_esc(x.responsable||"—")+'</div><div class="tl-date">'+AMS_esc((x.fechaEvento||x.fecha||"—")+" "+(x.horaEvento||x.hora||""))+'</div><div class="ltEtapa">Lead etapa: '+AMS_esc(a&&b?dur2(b-a):"—")+'</div></div>'}).join("")+'</div>':'<div class="muted">Sin movimientos.</div>';const total=ini&&ft?dur2(ft-ini):"—";document.getElementById("histContenido").innerHTML='<div class="result-top"><div><div class="result-code">'+AMS_esc(i.tipo)+" - "+AMS_esc(i.codigo)+'</div><div class="muted">Solicitud: '+AMS_esc(s.idSolicitud||i.idSolicitud||"—")+'</div></div><div>'+AMS_badgeEstado(i)+'</div></div><h3>Timeline</h3>'+tl+'<div class="lead-card"><div class="muted">'+(fin?"LEAD TIME TOTAL":"LEAD TIME EN CURSO")+'</div><strong>'+AMS_esc(total)+'</strong><div class="muted">Desde la creación de la solicitud '+(fin?"hasta la finalización.":"hasta este momento.")+'</div></div>';abrirModal("modalHistorial")}
+
+setTimeout(()=>{prepCarga();headHist();cards()},0);
+if(window.LT_INT)clearInterval(window.LT_INT);window.LT_INT=setInterval(()=>{if(document.querySelector("#page-historial.active"))dibujarHistorialGlobal();if(document.querySelector("#page-mis.active"))dibujarMisSolicitudes()},60000);
+
+
+/* ===== AMS V014 - ESTADOS DEFINITIVOS / VISTAS ===== */
+configurarPerfil=function(){
+  const p=perfilActual(),admin=p==="ADMIN",puedeCrear=["CHALA","ASISTENTE A4"].includes(p);
+  const inicioBtn=document.querySelector('[data-page="inicio"]');if(inicioBtn)inicioBtn.remove();
+  document.getElementById("navNueva")?.classList.toggle("hidden",!puedeCrear);
+  document.getElementById("navMis")?.classList.toggle("hidden",!puedeCrear);
+  document.getElementById("navAdmin")?.classList.toggle("hidden",!admin);
+  if(document.getElementById("nSolicitante"))document.getElementById("nSolicitante").value=usuarioActual?.responsableSesion||usuarioActual?.nombre||"";
+  if(document.getElementById("textoNueva"))document.getElementById("textoNueva").textContent=p==="ASISTENTE A4"?"Asistente A4 puede generar solicitudes desde Laboratorio. Máximo 20 códigos.":"Puede contener de 1 a 20 códigos.";
+  ir(admin?"admin":"pendientes",document.querySelector(admin?'[data-page="admin"]':'[data-page="pendientes"]'));
+};
+
+guardarNuevaSolicitud=async function(){
+  if(!["CHALA","ASISTENTE A4"].includes(perfilActual()))return toast("Tu perfil no puede crear solicitudes.",false);
+  await validarBD();if(!validarDuplicadosUI())return toast("Corrija los códigos marcados en rojo.",false);
+  const items=[...document.querySelectorAll("#itemsSolicitud .item-row")].map(r=>({tipo:AMS_u(r.querySelector(".itTipo").value),codigo:AMS_u(r.querySelector(".itCodigo").value),modalidad:AMS_u(r.querySelector(".itModalidad").value)}));
+  if(!items.length||items.some(x=>!x.tipo||!x.codigo||!x.modalidad))return toast("Complete TIPO, CÓDIGO y MODALIDAD.",false);
+  google.script.run.withSuccessHandler(r=>{toast("Solicitud "+r.idSolicitud+" registrada.",true);DB_DUP=new Set();limpiarNueva();cargarSolicitudes();ir("mis",document.querySelector('[data-page="mis"]'))}).withFailureHandler(errorServidor).guardarSolicitud({usuario:usuarioActual,solicitante:usuarioActual.responsableSesion,prioridad:val("nPrioridad"),observacionGeneral:val("nObsGeneral"),items});
+};
+
+function estadoV014(i){
+  if(AMS_itemFinal(i))return "FINALIZADO";
+  const s=AMS_u(i.subestadoActual||i.subestado),e=AMS_u(i.etapaActual);
+  if(s==="PENDIENTE DE RECEPCION"&&e==="ASISTENTE A4")return "CONFIRMADO";
+  if(s==="PENDIENTE DE RECEPCION"&&e==="ATENCION")return "EN LABORATORIO";
+  if(s==="PENDIENTE DE RECIBIDO"&&e==="CHALA")return "ENVIADO";
+  return s||"SOLICITUD CREADA";
+}
+AMS_estado=estadoV014;
+function estadoAreaV014(i){
+  const s=estadoV014(i);if(s==="FINALIZADO")return "FINALIZADO";
+  const map={"SOLICITUD CREADA":"CHALA","COORDINADO":"GUÍAS","CONFIRMADO":"GUÍAS","EN LABORATORIO":"ASISTENTE A4","RECEPCIONADO":"ATENCIÓN AL CLIENTE","ENVIADO":"ATENCIÓN AL CLIENTE","RECIBIDO":"CHALA"};
+  return s+(map[s]?" ("+map[s]+")":"");
+}
+function ingresoLabV014(i){const f=i.fechaIngresoLab||"",h=i.horaIngresoLab||"";return (f||h)?(f+" "+h).trim():"—"}
+
+/* Las acciones conservan compatibilidad con registros antiguos, pero muestran los nuevos estados. */
+siguientesAcciones=function(i,s){
+  const p=perfilActual(),e=AMS_u(i.etapaActual)==="LABORATORIO"?"ASISTENTE A4":AMS_u(i.etapaActual),st=AMS_u(i.subestadoActual||i.subestado),or=AMS_u(s?.areaOrigen);
+  if(p==="GUIAS"&&e==="GUIAS"&&st==="SOLICITUD CREADA")return["COORDINADO"];
+  if(p==="GUIAS"&&e==="GUIAS"&&st==="COORDINADO")return["CONFIRMADO"];
+  if(p==="ASISTENTE A4"&&e==="ASISTENTE A4"&&["CONFIRMADO","PENDIENTE DE RECEPCION"].includes(st))return["RECEPCIONADO"];
+  if(p==="ASISTENTE A4"&&e==="ASISTENTE A4"&&st==="EN LABORATORIO"&&or==="ASISTENTE A4")return["PASAR A ATENCION"];
+  if(p==="ATENCION"&&e==="ATENCION"&&["EN LABORATORIO","PENDIENTE DE RECEPCION"].includes(st))return["RECEPCIONADO"];
+  if(p==="ATENCION"&&e==="ATENCION"&&st==="RECEPCIONADO")return["ENVIADO"];
+  if(p==="CHALA"&&e==="CHALA"&&["ENVIADO","PENDIENTE DE RECIBIDO"].includes(st))return["RECIBIDO"];
+  return[];
+};
+
+/* Mis solicitudes: solo códigos en proceso; sin Oficina/Pendiente/Último movimiento. */
+dibujarMisSolicitudes=function(){
+  const tb=document.getElementById("tablaMisSolicitudes");if(!tb)return;
+  const tr=tb.closest("table")?.querySelector("thead tr");if(tr)tr.innerHTML="<th>Solicitud</th><th>Tipo - Código</th><th>Solicitado por</th><th>Estado</th><th>Estado / Área</th><th>Ingreso a Laboratorio</th><th>Lead Time</th><th>Historial</th>";
+  const r=[];(solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{if(AMS_itemFinal(i))return;r.push("<tr><td>"+AMS_esc(s.idSolicitud||"—")+"</td><td>"+AMS_esc(i.tipo)+" - "+AMS_esc(i.codigo)+"</td><td>"+AMS_esc(s.solicitante||s.usuarioCreacion||"—")+"</td><td>"+AMS_badgeEstado(i)+"</td><td>"+AMS_esc(estadoAreaV014(i))+"</td><td>"+AMS_esc(ingresoLabV014(i))+"</td><td><span class='lt'>"+AMS_esc(lead(s,i))+"</span></td><td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+JSON.stringify(i.tipo)+","+JSON.stringify(i.codigo)+")'>Ver</button></td></tr>")}));
+  tb.innerHTML=r.join("")||"<tr><td colspan='8' style='text-align:center;padding:28px'>Sin solicitudes en proceso.</td></tr>";
+};
+
+function headHistV014(){const tb=document.getElementById("tablaHistorialGlobal"),tr=tb?.closest("table")?.querySelector("thead tr");if(tr)tr.innerHTML="<th>Tipo - Código</th><th>Estado</th><th>Flujo actual</th><th>Lead Time</th><th>Historial</th>"}
+function cardsV014(){
+  const box=document.querySelector("#page-buscar .hist-stats");if(!box)return;box.style.gridTemplateColumns="repeat(5,minmax(130px,1fr))";
+  box.innerHTML='<div class="stat" id="hgChalaCard"><div class="t">Códigos solicitados por Chala</div><div class="n" id="hgChala">0</div></div><div class="stat" id="hgA4Card"><div class="t">Códigos solicitados por Asistente A4</div><div class="n" id="hgA4">0</div></div><div class="stat" id="hgPendCard"><div class="t">Pendientes</div><div class="n" id="hgPend">0</div></div><div class="stat" id="hgProcCard"><div class="t">En proceso</div><div class="n" id="hgProc">0</div></div><div class="stat" id="hgFinCard"><div class="t">Finalizados</div><div class="n" id="hgFin">0</div></div>';
+  const cs={hgChalaCard:["#eff6ff","#1d4ed8"],hgA4Card:["#ecfeff","#0e7490"],hgPendCard:["#fff7ed","#c2410c"],hgProcCard:["#f5f3ff","#6d28d9"],hgFinCard:["#f3f4f6","#374151"]};Object.entries(cs).forEach(([id,v])=>{const e=document.getElementById(id);if(e){e.style.background=v[0];e.style.borderColor=v[1]}});
+}
+
+dibujarHistorialGlobal=function(){
+  const tb=document.getElementById("tablaHistorialGlobal");if(!tb)return;headHistV014();cardsV014();
+  const f=Array.isArray(historialGlobal)?historialGlobal:[],fil=AMS_u(document.getElementById("filtroHistorialEstado")?.value||"TODOS");let ch=0,a4=0,pn=0,en=0,fn=0;
+  f.forEach(s=>(s.items||[]).forEach(i=>{const or=AMS_u(s.areaOrigen)==="LABORATORIO"?"ASISTENTE A4":AMS_u(s.areaOrigen),est=estadoV014(i);if(or==="CHALA")ch++;if(or==="ASISTENTE A4")a4++;if(est==="SOLICITUD CREADA")pn++;else if(est==="FINALIZADO")fn++;else en++;}));
+  [["hgChala",ch],["hgA4",a4],["hgPend",pn],["hgProc",en],["hgFin",fn]].forEach(x=>{const e=document.getElementById(x[0]);if(e)e.textContent=x[1]});
+  const rows=[];f.forEach(s=>(s.items||[]).forEach(i=>{const est=estadoV014(i),fin=est==="FINALIZADO";if((fil==="FINALIZADOS"||fil==="FINALIZADO")&&!fin)return;if((fil==="PENDIENTES"||fil==="PENDIENTE")&&est!=="SOLICITUD CREADA")return;if(fil==="EN PROCESO"&&(est==="SOLICITUD CREADA"||fin))return;if(!["TODOS","FINALIZADOS","FINALIZADO","PENDIENTES","PENDIENTE","EN PROCESO"].includes(fil)&&est!==fil)return;const t=String(i.tipo||""),c=String(i.codigo||i.ppo||"");rows.push("<tr><td><button class='codigo-link' onclick='buscarDirecto("+JSON.stringify(t)+","+JSON.stringify(c)+")'>"+AMS_esc(t)+" - "+AMS_esc(c)+"</button></td><td>"+AMS_badgeEstado(i)+"</td><td>"+AMS_flujo(i)+"</td><td><span class='lt "+(fin?"final":"")+"'>"+AMS_esc(lead(s,i))+"</span></td><td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+JSON.stringify(t)+","+JSON.stringify(c)+")'>Historial</button></td></tr>")}));tb.innerHTML=rows.join("")||"<tr><td colspan='5' style='text-align:center;padding:28px'>No hay registros.</td></tr>";
+};
+
+/* Proveedor: confirmación explícita antes de finalizar. */
+const _guardarMovimientoV014=guardarMovimientoActual;
+guardarMovimientoActual=function(){
+  if(itemMovimiento&&AMS_u(itemMovimiento.accion)==="ENVIADO"){
+    const medio=AMS_u(document.querySelector('input[name="medioEntrega"]:checked')?.value),dest=AMS_u(val("movProveedor")||document.getElementById("movConductor")?.value);
+    if(medio==="PROVEEDOR"&&!confirm("¿Confirma que la muestra fue entregada al proveedor "+(dest||"")+"?\n\nAl confirmar, el código quedará FINALIZADO."))return;
+  }
+  return _guardarMovimientoV014();
+};
+
+setTimeout(()=>{headHistV014();cardsV014();const s=document.getElementById("filtroHistorialEstado");if(s&&![...s.options].some(o=>o.value==="EN PROCESO")){const o=document.createElement("option");o.value="EN PROCESO";o.textContent="EN PROCESO";s.insertBefore(o,s.querySelector('option[value="FINALIZADOS"]'))}},0);
+
+</script>
+
+
+<script>
+function AMS_badgeEstado(i){const e=estadoV014(i),u=AMS_u(e),m={"SOLICITUD CREADA":["#fef3c7","#92400e"],"COORDINADO":["#ffedd5","#c2410c"],"CONFIRMADO":["#dbeafe","#1d4ed8"],"EN LABORATORIO":["#ede9fe","#6d28d9"],"RECEPCIONADO":["#cffafe","#0e7490"],"ENVIADO":["#dcfce7","#166534"],"RECIBIDO":["#ccfbf1","#0f766e"],"FINALIZADO":["#e5e7eb","#374151"]},c=m[u]||["#f1f5f9","#475569"];return '<span style="display:inline-block;padding:7px 11px;border-radius:999px;background:'+c[0]+';color:'+c[1]+';font-size:12px;font-weight:800;white-space:nowrap">'+AMS_esc(e)+'</span>'}
+function oficinaEstadoV014(i,s){const e=estadoV014(i);if(e==="SOLICITUD CREADA"){const o=AMS_u(s?.areaOrigen)==="LABORATORIO"?"ASISTENTE A4":AMS_u(s?.areaOrigen||"CHALA");return o||"CHALA"}return ({"COORDINADO":"GUÍAS","CONFIRMADO":"GUÍAS","EN LABORATORIO":"ASISTENTE A4","RECEPCIONADO":"ATENCIÓN AL CLIENTE","ENVIADO":"ATENCIÓN AL CLIENTE","RECIBIDO":"CHALA","FINALIZADO":"FINALIZADO"})[e]||""}
+function estadoConOficinaV014(i,s){const o=oficinaEstadoV014(i,s);return '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:4px">'+AMS_badgeEstado(i)+(o?'<span style="font-size:10px;font-weight:700;color:#64748b;padding-left:4px">('+AMS_esc(o)+')</span>':'')+'</div>'}
+dibujarMisSolicitudes=function(){const tb=document.getElementById("tablaMisSolicitudes");if(!tb)return;const tr=tb.closest("table")?.querySelector("thead tr");if(tr)tr.innerHTML="<th>SOLICITUD</th><th>SOLICITADO POR</th><th>TIPO - CÓDIGO</th><th>INGRESO A LABORATORIO</th><th>ESTADO</th><th>FLUJO ACTUAL</th><th>LEAD TIME</th><th>HISTORIAL</th>";const r=[];(solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{if(AMS_itemFinal(i))return;r.push("<tr><td>"+AMS_esc(s.idSolicitud||"—")+"</td><td>"+AMS_esc(s.solicitante||s.usuarioCreacion||"—")+"</td><td>"+AMS_esc(i.tipo||"")+" - "+AMS_esc(i.codigo||i.ppo||"")+"</td><td>"+AMS_esc(ingresoLabV014(i))+"</td><td>"+estadoConOficinaV014(i,s)+"</td><td>"+AMS_flujo(i)+"</td><td><span class='lt'>"+AMS_esc(lead(s,i))+"</span></td><td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+JSON.stringify(String(i.tipo||""))+","+JSON.stringify(String(i.codigo||i.ppo||""))+")'>Ver</button></td></tr>")}));tb.innerHTML=r.join("")||"<tr><td colspan='8' style='text-align:center;padding:28px'>Sin solicitudes en proceso.</td></tr>"}
+function headHistV014(){const tb=document.getElementById("tablaHistorialGlobal"),tr=tb?.closest("table")?.querySelector("thead tr");if(tr)tr.innerHTML="<th>TIPO - CÓDIGO</th><th>ESTADO</th><th>LEAD TIME</th><th>HISTORIAL</th>"}
+dibujarHistorialGlobal=function(){const tb=document.getElementById("tablaHistorialGlobal");if(!tb)return;headHistV014();cardsV014();const f=Array.isArray(historialGlobal)?historialGlobal:[],fil=AMS_u(document.getElementById("filtroHistorialEstado")?.value||"TODOS");let ch=0,a4=0,pn=0,en=0,fn=0;f.forEach(s=>(s.items||[]).forEach(i=>{const o=AMS_u(s.areaOrigen)==="LABORATORIO"?"ASISTENTE A4":AMS_u(s.areaOrigen),e=estadoV014(i);if(o==="CHALA")ch++;if(o==="ASISTENTE A4")a4++;if(e==="SOLICITUD CREADA")pn++;else if(e==="FINALIZADO")fn++;else en++}));[["hgChala",ch],["hgA4",a4],["hgPend",pn],["hgProc",en],["hgFin",fn]].forEach(x=>{const e=document.getElementById(x[0]);if(e)e.textContent=x[1]});const r=[];f.forEach(s=>(s.items||[]).forEach(i=>{const e=estadoV014(i),fin=e==="FINALIZADO";if((fil==="FINALIZADOS"||fil==="FINALIZADO")&&!fin)return;if((fil==="PENDIENTES"||fil==="PENDIENTE")&&e!=="SOLICITUD CREADA")return;if(fil==="EN PROCESO"&&(e==="SOLICITUD CREADA"||fin))return;if(!["TODOS","FINALIZADOS","FINALIZADO","PENDIENTES","PENDIENTE","EN PROCESO"].includes(fil)&&e!==fil)return;const t=String(i.tipo||""),c=String(i.codigo||i.ppo||"");r.push("<tr><td><button class='codigo-link' onclick='buscarDirecto("+JSON.stringify(t)+","+JSON.stringify(c)+")'>"+AMS_esc(t)+" - "+AMS_esc(c)+"</button></td><td>"+AMS_badgeEstado(i)+"</td><td><span class='lt "+(fin?"final":"")+"'>"+AMS_esc(lead(s,i))+"</span></td><td><button class='btn btn-gray btn-sm' onclick='abrirHistorial("+JSON.stringify(t)+","+JSON.stringify(c)+")'>Historial</button></td></tr>")}));tb.innerHTML=r.join("")||"<tr><td colspan='4' style='text-align:center;padding:28px'>No hay registros.</td></tr>"}
+setTimeout(()=>{if(document.querySelector("#page-mis.active"))dibujarMisSolicitudes();if(document.querySelector("#page-buscar.active"))dibujarHistorialGlobal()},0);
+</script>
+
+
+<style>
+/* V014 ajuste visual: flujo más grande y legible */
+.ams-flujo-grande{font-size:13px;font-weight:700;white-space:nowrap;}
+.ams-flujo-grande span,.ams-flujo-grande .flow-step,.ams-flujo-grande .paso{font-size:12px!important;padding:6px 9px!important;}
+</style>
+
+
+<style>
+/* V014 DEFINITIVO */
+#page-mis .hist-stats{margin-bottom:18px}
+#page-mis .ams-flujo-final{font-size:14px;font-weight:700;white-space:nowrap;min-width:430px}
+#page-mis .ams-flujo-final span,#page-mis .ams-flujo-final .flow-step,#page-mis .ams-flujo-final .paso{font-size:13px!important;padding:7px 10px!important}
+</style>
+<script>
+/* ===== V014 DEFINITIVO: distribución aprobada ===== */
+function moverIndicadoresAMis(){
+  const stats=document.querySelector('#page-buscar .hist-stats')||document.querySelector('#page-mis .hist-stats');
+  const pageMis=document.getElementById('page-mis');
+  if(!stats||!pageMis)return;
+  const card=pageMis.querySelector('.card');
+  if(card && stats.parentElement!==pageMis){
+    stats.remove();
+    pageMis.insertBefore(stats,card);
+  }
+}
+
+/* Estado: SOLO la píldora de color. Sin oficina ni textos entre paréntesis. */
+dibujarMisSolicitudes=function(){
+  moverIndicadoresAMis();
+  const tb=document.getElementById('tablaMisSolicitudes');if(!tb)return;
+  const tr=tb.closest('table')?.querySelector('thead tr');
+  if(tr)tr.innerHTML='<th>SOLICITUD</th><th>SOLICITADO POR</th><th>TIPO - CÓDIGO</th><th>INGRESO A LABORATORIO</th><th>ESTADO</th><th>FLUJO ACTUAL</th><th>LEAD TIME</th><th>HISTORIAL</th>';
+  const r=[];
+  (solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{
+    if(AMS_itemFinal(i))return;
+    r.push('<tr><td>'+AMS_esc(s.idSolicitud||'—')+'</td><td>'+AMS_esc(s.solicitante||s.usuarioCreacion||'—')+'</td><td>'+AMS_esc(i.tipo||'')+' - '+AMS_esc(i.codigo||i.ppo||'')+'</td><td>'+AMS_esc(ingresoLabV014(i))+'</td><td>'+AMS_badgeEstado(i)+'</td><td><div class="ams-flujo-final">'+AMS_flujo(i)+'</div></td><td><span class="lt">'+AMS_esc(lead(s,i))+'</span></td><td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(String(i.tipo||''))+','+JSON.stringify(String(i.codigo||i.ppo||''))+')\'>Ver</button></td></tr>');
+  }));
+  tb.innerHTML=r.join('')||'<tr><td colspan="8" style="text-align:center;padding:28px">Sin solicitudes pendientes o en proceso.</td></tr>';
+};
+
+/* Los 5 indicadores viven en MIS SOLICITUDES. */
+function actualizarIndicadoresMis(){
+  moverIndicadoresAMis();
+  cardsV014();
+  const f=Array.isArray(historialGlobal)?historialGlobal:[];
+  let ch=0,a4=0,pn=0,en=0,fn=0;
+  f.forEach(s=>(s.items||[]).forEach(i=>{
+    const o=AMS_u(s.areaOrigen)==='LABORATORIO'?'ASISTENTE A4':AMS_u(s.areaOrigen);
+    const e=estadoV014(i);
+    if(o==='CHALA')ch++;
+    if(o==='ASISTENTE A4')a4++;
+    if(e==='SOLICITUD CREADA')pn++;
+    else if(e==='FINALIZADO')fn++;
+    else en++;
+  }));
+  [['hgChala',ch],['hgA4',a4],['hgPend',pn],['hgProc',en],['hgFin',fn]].forEach(x=>{const e=document.getElementById(x[0]);if(e)e.textContent=x[1]});
+}
+
+/* HISTORIAL = solamente todos los FINALIZADOS. Sin indicadores y sin flujo. */
+function headHistV014(){
+  const tb=document.getElementById('tablaHistorialGlobal'),tr=tb?.closest('table')?.querySelector('thead tr');
+  if(tr)tr.innerHTML='<th>TIPO - CÓDIGO</th><th>ESTADO</th><th>LEAD TIME</th><th>HISTORIAL</th>';
+}
+
+dibujarHistorialGlobal=function(){
+  actualizarIndicadoresMis();
+  const tb=document.getElementById('tablaHistorialGlobal');if(!tb)return;
+  headHistV014();
+  const page=document.getElementById('page-buscar');
+  const filtro=page?.querySelector('#filtroHistorialEstado')?.closest('div[style*="display:flex"]');
+  if(filtro)filtro.style.display='none';
+  const titulo=page?.querySelector('.card[style*="margin-top"] h3');
+  if(titulo)titulo.textContent='Códigos finalizados';
+  const subt=titulo?.parentElement?.querySelector('.muted');
+  if(subt)subt.textContent='Historial general de todos los códigos finalizados del sistema.';
+  const r=[];
+  (Array.isArray(historialGlobal)?historialGlobal:[]).forEach(s=>(s.items||[]).forEach(i=>{
+    if(estadoV014(i)!=='FINALIZADO')return;
+    const t=String(i.tipo||''),c=String(i.codigo||i.ppo||'');
+    r.push('<tr><td><button class="codigo-link" onclick=\'buscarDirecto('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>'+AMS_esc(t)+' - '+AMS_esc(c)+'</button></td><td>'+AMS_badgeEstado(i)+'</td><td><span class="lt final">'+AMS_esc(lead(s,i))+'</span></td><td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>Historial</button></td></tr>');
+  }));
+  tb.innerHTML=r.join('')||'<tr><td colspan="4" style="text-align:center;padding:28px">No hay códigos finalizados.</td></tr>';
+};
+
+/* Al entrar a Mis solicitudes también actualiza los contadores globales. */
+const AMS_ir_definitivo=ir;
+ir=function(page,btn){
+  AMS_ir_definitivo(page,btn);
+  if(page==='mis'){
+    moverIndicadoresAMis();
+    cargarHistorialGlobal();
+  }
+};
+
+setTimeout(()=>{
+  moverIndicadoresAMis();
+  if(document.querySelector('#page-mis.active'))cargarHistorialGlobal();
+  if(document.querySelector('#page-buscar.active'))dibujarHistorialGlobal();
+},0);
+
+
+/* ===== AMS V015 - CORRECCIONES CONSOLIDADAS ===== */
+(function(){
+  const css=document.createElement('style');
+  css.textContent=`
+    .ams-flow-final .flow,.ams-pend-flow .flow{min-width:520px;gap:6px}
+    .ams-flow-final .flow-step,.ams-pend-flow .flow-step{font-size:11px;padding:6px 9px}
+    .ams-code{color:#2563eb;font-weight:900}
+    .ams-batchbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
+    .ams-check{width:17px;height:17px}
+  `;document.head.appendChild(css);
+})();
+
+/* Nueva solicitud: confirmación Sí/No antes de grabar. */
+guardarNuevaSolicitud=function(){
+  if(!["CHALA","ASISTENTE A4"].includes(perfilActual())){toast("Tu perfil no puede crear solicitudes.",false);return;}
+  if(!validarDuplicadosUI()){toast("⚠ Hay códigos duplicados dentro de la solicitud.",false);return;}
+  const rows=[...document.querySelectorAll("#itemsSolicitud .item-row")],items=[];
+  for(const r of rows){const tipo=upper(r.querySelector(".itTipo").value),codigo=upper(r.querySelector(".itCodigo").value),modalidad=upper(r.querySelector(".itModalidad").value);if(!tipo||!codigo||!modalidad){toast("Complete TIPO, CÓDIGO y MODALIDAD.",false);return;}items.push({tipo,codigo,modalidad});}
+  if(!confirm("¿Está seguro de guardar esta solicitud con "+items.length+" código"+(items.length===1?"":"s")+"?"))return;
+  const btn=[...document.querySelectorAll('button')].find(x=>/guardar solicitud/i.test(x.textContent||''));if(btn){btn.disabled=true;btn.dataset.old=btn.textContent;btn.textContent='Guardando...';}
+  const d={usuario:usuarioActual,solicitante:usuarioActual.responsableSesion,prioridad:val("nPrioridad"),observacionGeneral:val("nObsGeneral"),items};
+  google.script.run.withSuccessHandler(r=>{if(btn){btn.disabled=false;btn.textContent=btn.dataset.old||'Guardar solicitud';}toast("Solicitud "+r.idSolicitud+" registrada.",true);limpiarNueva();cargarSolicitudes();ir("mis",document.querySelector('[data-page="mis"]'));}).withFailureHandler(e=>{if(btn){btn.disabled=false;btn.textContent=btn.dataset.old||'Guardar solicitud';}errorServidor(e);}).guardarSolicitud(d);
+};
+
+/* Acción vigente por perfil/estado. A4 usa EN LABORATORIO, no RECEPCIONADO. */
+siguientesAcciones=function(i,s){
+  const p=perfilActual();let e=upper(i.etapaActual);if(e==="LABORATORIO")e="ASISTENTE A4";const st=upper(i.subestadoActual||i.subestado);
+  if(p==="GUIAS"&&e==="GUIAS"&&st==="SOLICITUD CREADA")return["COORDINADO"];
+  if(p==="GUIAS"&&e==="GUIAS"&&st==="COORDINADO")return["CONFIRMADO"];
+  if(p==="ASISTENTE A4"&&e==="ASISTENTE A4"&&["CONFIRMADO","PENDIENTE DE RECEPCION"].includes(st))return["EN LABORATORIO"];
+  if(p==="ATENCION"&&e==="ATENCION"&&st==="EN LABORATORIO")return["RECEPCIONADO"];
+  if(p==="ATENCION"&&e==="ATENCION"&&st==="RECEPCIONADO")return["ENVIADO"];
+  if(p==="CHALA"&&e==="CHALA"&&st==="ENVIADO")return["RECIBIDO"];
+  return[];
+};
+
+function AMS_accionLabel(a){return ({"EN LABORATORIO":"INGRESO A LABORATORIO","COORDINADO":"COORDINAR","CONFIRMADO":"CONFIRMAR","RECEPCIONADO":"RECEPCIONAR","ENVIADO":"ENVIAR","RECIBIDO":"RECIBIR"})[a]||a;}
+function AMS_pendientes(){const a=[];(solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{if(AMS_itemFinal(i))return;const ac=siguientesAcciones(i,s);if(ac.length)a.push({item:i,solicitud:s,accion:ac[0]});}));return a;}
+
+/* PENDIENTES: Tipo-Código | Estado | Flujo | Lead Time desde creación | Acción */
+dibujarPendientes=function(){
+  const tb=document.getElementById("tablaPendientes");if(!tb)return;const table=tb.closest('table'),tr=table?.querySelector('thead tr');
+  if(tr)tr.innerHTML='<th style="width:34px"><input class="ams-check" type="checkbox" id="amsSelTodos" onchange="AMS_selTodos(this.checked)"></th><th>TIPO - CÓDIGO</th><th>ESTADO</th><th>FLUJO</th><th>LEAD TIME</th><th>ACCIÓN</th>';
+  let bar=table?.parentElement?.previousElementSibling;if(!bar||!bar.classList.contains('ams-batchbar')){bar=document.createElement('div');bar.className='ams-batchbar';bar.innerHTML='<button class="btn btn-gray btn-sm" onclick="AMS_selTodos(true)">Seleccionar todos</button><button class="btn btn-primary btn-sm" onclick="AMS_confirmarBloque()">Confirmar seleccionados</button><span class="muted" id="amsSelCount">0 seleccionados</span>';table?.parentElement?.parentElement?.insertBefore(bar,table.parentElement);}
+  const a=AMS_pendientes();tb.innerHTML=a.map((x,k)=>{const i=x.item,s=x.solicitud,t=String(i.tipo||''),c=String(i.codigo||i.ppo||'');return '<tr><td><input class="ams-check ams-row-check" type="checkbox" data-k="'+k+'" onchange="AMS_countSel()"></td><td><span class="ams-code">'+AMS_esc(t)+' - '+AMS_esc(c)+'</span></td><td>'+AMS_badgeEstado(i)+'</td><td><div class="ams-pend-flow">'+AMS_flujo(i)+'</div></td><td><span class="lt">'+AMS_esc(lead(s,i))+'</span></td><td><button class="btn btn-primary btn-sm" onclick="abrirMovimiento(AMS_pendientes()['+k+'].item,AMS_pendientes()['+k+'].solicitud)">'+AMS_esc(AMS_accionLabel(x.accion))+'</button></td></tr>';}).join('')||'<tr><td colspan="6" style="text-align:center;padding:28px;color:#64748b">No hay códigos pendientes para tu oficina.</td></tr>';AMS_countSel();
+};
+function AMS_selTodos(v){document.querySelectorAll('.ams-row-check').forEach(x=>x.checked=v);const m=document.getElementById('amsSelTodos');if(m)m.checked=v;AMS_countSel();}
+function AMS_countSel(){const n=document.querySelectorAll('.ams-row-check:checked').length,e=document.getElementById('amsSelCount');if(e)e.textContent=n+' seleccionado'+(n===1?'':'s');}
+function AMS_seleccion(){const a=AMS_pendientes();return [...document.querySelectorAll('.ams-row-check:checked')].map(x=>a[+x.dataset.k]).filter(Boolean);}
+function AMS_payload(x){const a=x.accion,d={idItem:x.item.idItem,accion:a,usuario:usuarioActual,observacion:''};if(a==='EN LABORATORIO'){const n=new Date();d.fechaEvento=fechaInput(n);d.horaEvento=horaInput(n);d.responsableRecepcionLab=usuarioActual.responsableSesion||'';}return d;}
+function AMS_confirmarBloque(){const xs=AMS_seleccion();if(!xs.length){toast('Seleccione al menos un código.',false);return;}const acts=[...new Set(xs.map(x=>x.accion))];if(acts.length!==1){toast('Seleccione códigos con la misma acción.',false);return;}const a=acts[0],lista=xs.map(AMS_payload);if(a==='EN LABORATORIO'){const r=prompt('Devuelto por Laboratorio por:','');if(!r)return;lista.forEach(d=>d.responsableEntregaLab=upper(r));}if(a==='RECEPCIONADO'){const r=prompt('Operario de sellado para los códigos seleccionados:','');if(!r)return;lista.forEach(d=>d.operarioSellado=upper(r));}if(a==='ENVIADO'){toast('El envío por bloque requiere destinatario; realice esta acción uno por uno.',false);return;}if(!confirm('¿Confirma '+AMS_accionLabel(a).toLowerCase()+' para '+lista.length+' códigos seleccionados?'))return;google.script.run.withSuccessHandler(r=>{if(r.errores?.length)toast('Procesados: '+r.procesados+'. Con error: '+r.errores.length+'.',false);else toast(r.procesados+' códigos actualizados.',true);cargarSolicitudes();}).withFailureHandler(errorServidor).registrarMovimientosBloque(lista);}
+
+/* Movimiento individual A4: EN LABORATORIO. */
+const AMS_abrirMovV015=abrirMovimiento;
+abrirMovimiento=function(i,s){
+  const op=siguientesAcciones(i,s);if(!op.length){toast('No hay acción disponible.',false);return;}const a=op[0];
+  if(a!=="EN LABORATORIO")return AMS_abrirMovV015(i,s);
+  itemMovimiento={...i,solicitud:s,accion:a};txt('movCodigo',(i.tipo||'')+' - '+(i.codigo||i.ppo||''));txt('movResponsable',usuarioActual.responsableSesion);document.getElementById('movAccion').value='EN LABORATORIO';document.getElementById('movObservacion').value='';document.getElementById('labRecepcion').value=usuarioActual.responsableSesion||'';document.getElementById('labEntrega').value='';document.getElementById('camposLab').style.display='block';document.getElementById('campoRecepcionLab').style.display='block';document.getElementById('camposAtencionRecep').style.display='none';document.getElementById('camposEnvio').style.display='none';const n=new Date();document.getElementById('labFecha').value=fechaInput(n);document.getElementById('labHora').value=horaInput(n);abrirModal('modalMovimiento');
+};
+const AMS_guardarMovV015=guardarMovimientoActual;
+guardarMovimientoActual=function(){
+  if(itemMovimiento&&perfilActual()==='ASISTENTE A4'&&upper(itemMovimiento.accion)==='EN LABORATORIO'){const d={idItem:itemMovimiento.idItem,accion:'EN LABORATORIO',usuario:usuarioActual,observacion:val('movObservacion'),fechaEvento:val('labFecha'),horaEvento:val('labHora'),responsableRecepcionLab:upper(val('labRecepcion')),responsableEntregaLab:upper(val('labEntrega'))};if(!d.fechaEvento||!d.horaEvento||!d.responsableRecepcionLab||!d.responsableEntregaLab){toast('Complete fecha, hora, responsable de recepción y responsable de entrega.',false);return;}if(!confirm('¿Confirma el ingreso a laboratorio de '+(itemMovimiento.tipo||'')+' - '+(itemMovimiento.codigo||itemMovimiento.ppo||'')+'?'))return;const btn=document.getElementById('btnGuardarMov');btn.disabled=true;btn.textContent='Guardando...';google.script.run.withSuccessHandler(r=>{btn.disabled=false;btn.textContent='Guardar';cerrarModal('modalMovimiento');itemMovimiento=null;toast(r?.mensaje||'Ingreso a laboratorio registrado.',true);cargarSolicitudes();}).withFailureHandler(e=>{btn.disabled=false;btn.textContent='Guardar';errorServidor(e);}).registrarMovimiento(d);return;}return AMS_guardarMovV015();
+};
+
+/* Mis solicitudes: código azul, indicadores aquí, sin finalizados. */
+dibujarMisSolicitudes=function(){const tb=document.getElementById('tablaMisSolicitudes');if(!tb)return;moverIndicadoresAMis();const tr=tb.closest('table')?.querySelector('thead tr');if(tr)tr.innerHTML='<th>SOLICITUD</th><th>SOLICITADO POR</th><th>TIPO - CÓDIGO</th><th>INGRESO A LABORATORIO</th><th>ESTADO</th><th>FLUJO ACTUAL</th><th>LEAD TIME</th><th>HISTORIAL</th>';const r=[];(solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{if(AMS_itemFinal(i))return;const t=String(i.tipo||''),c=String(i.codigo||i.ppo||'');r.push('<tr><td>'+AMS_esc(s.idSolicitud||'—')+'</td><td>'+AMS_esc(s.solicitante||s.usuarioCreacion||'—')+'</td><td><span class="ams-code">'+AMS_esc(t)+' - '+AMS_esc(c)+'</span></td><td>'+AMS_esc(ingresoLabV014(i))+'</td><td>'+AMS_badgeEstado(i)+'</td><td><div class="ams-flujo-final">'+AMS_flujo(i)+'</div></td><td><span class="lt">'+AMS_esc(lead(s,i))+'</span></td><td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>Ver</button></td></tr>')}));tb.innerHTML=r.join('')||'<tr><td colspan="8" style="text-align:center;padding:28px">Sin solicitudes en proceso.</td></tr>';};
+
+setTimeout(()=>{if(document.querySelector('#page-pendientes.active'))dibujarPendientes();if(document.querySelector('#page-mis.active'))dibujarMisSolicitudes();},0);
+
+
+
+/* ===== AMS V016 - AJUSTES FINALES 29/09/2026 ===== */
+(function(){
+  const css=document.createElement('style');
+  css.textContent=`
+    .ams-act{color:#fff!important;border:0!important}
+    .ams-act-coord{background:#f97316!important}.ams-act-conf{background:#2563eb!important}
+    .ams-act-lab{background:#7c3aed!important}.ams-act-recep{background:#0891b2!important}
+    .ams-act-env{background:#16a34a!important}.ams-act-rec{background:#0f766e!important}
+    .ams-act-fin{background:#64748b!important}
+    .ams-pend-flow .hg-flow{min-width:520px}.ams-pend-flow .hg-step{font-size:11px;padding:6px 9px}
+  `;document.head.appendChild(css);
+})();
+function AMS_claseAccion(a){a=upper(a);return ({'COORDINADO':'ams-act-coord','CONFIRMADO':'ams-act-conf','EN LABORATORIO':'ams-act-lab','RECEPCIONADO':'ams-act-recep','ENVIADO':'ams-act-env','RECIBIDO':'ams-act-rec','FINALIZADO':'ams-act-fin'})[a]||'ams-act-conf';}
+
+/* Pendientes por perfil:
+   CHALA / A4: sin flujo porque lo consultan en Mis solicitudes.
+   ATENCION: conserva flujo y agrega HISTORIAL después de ACCION.
+   GUIAS: conserva flujo.
+*/
+dibujarPendientes=function(){
+  const tb=document.getElementById('tablaPendientes');if(!tb)return;
+  const table=tb.closest('table'),tr=table?.querySelector('thead tr'),p=perfilActual();
+  const sinFlujo=['CHALA','ASISTENTE A4'].includes(p),conHist=p==='ATENCION';
+  let h='<th style="width:34px"><input class="ams-check" type="checkbox" id="amsSelTodos" onchange="AMS_selTodos(this.checked)"></th><th>TIPO - CÓDIGO</th><th>ESTADO</th>';
+  if(!sinFlujo)h+='<th>FLUJO</th>';
+  h+='<th>LEAD TIME</th><th>ACCIÓN</th>';
+  if(conHist)h+='<th>HISTORIAL</th>';
+  if(tr)tr.innerHTML=h;
+  let bar=table?.parentElement?.previousElementSibling;
+  if(!bar||!bar.classList.contains('ams-batchbar')){bar=document.createElement('div');bar.className='ams-batchbar';table?.parentElement?.parentElement?.insertBefore(bar,table.parentElement);}
+  bar.innerHTML='<button class="btn btn-gray btn-sm" onclick="AMS_selTodos(true)">Seleccionar todos</button><button class="btn btn-primary btn-sm" onclick="AMS_confirmarBloque()">Confirmar seleccionados</button><span class="muted" id="amsSelCount">0 seleccionados</span>';
+  const a=AMS_pendientes();
+  tb.innerHTML=a.map((x,k)=>{const i=x.item,s=x.solicitud,t=String(i.tipo||''),c=String(i.codigo||i.ppo||''),cl=AMS_claseAccion(x.accion);let z='<tr><td><input class="ams-check ams-row-check" type="checkbox" data-k="'+k+'" onchange="AMS_countSel()"></td><td><span class="ams-code">'+AMS_esc(t)+' - '+AMS_esc(c)+'</span></td><td>'+AMS_badgeEstado(i)+'</td>';if(!sinFlujo)z+='<td><div class="ams-pend-flow">'+AMS_flujo(i)+'</div></td>';z+='<td><span class="lt">'+AMS_esc(lead(s,i))+'</span></td><td><button class="btn btn-sm ams-act '+cl+'" onclick="abrirMovimiento(AMS_pendientes()['+k+'].item,AMS_pendientes()['+k+'].solicitud)">'+AMS_esc(AMS_accionLabel(x.accion))+'</button></td>';if(conHist)z+='<td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>Historial</button></td>';return z+'</tr>';}).join('')||'<tr><td colspan="'+(3+(sinFlujo?0:1)+2+(conHist?1:0))+'" style="text-align:center;padding:28px;color:#64748b">No hay códigos pendientes para tu oficina.</td></tr>';
+  AMS_countSel();
+};
+
+/* Historial / Buscar: SOLO códigos FINALIZADOS para todos los perfiles.
+   Los códigos activos permanecen en MIS SOLICITUDES.
+*/
+dibujarHistorialGlobal=function(){
+  actualizarIndicadoresMis();
+  const tb=document.getElementById('tablaHistorialGlobal');
+  if(!tb)return;
+
+  headHistV014();
+
+  const page=document.getElementById('page-buscar');
+  const titulo=page?.querySelector('.card[style*="margin-top"] h3');
+  const subt=titulo?.parentElement?.querySelector('.muted');
+  if(titulo)titulo.textContent='Códigos finalizados';
+  if(subt)subt.textContent='Historial general de todos los códigos finalizados del sistema.';
+
+  /* Ocultar controles de Estado/Actualizar del listado histórico. */
+  const filtro=document.getElementById('filtroHistorialEstado');
+  const controles=filtro?.closest('div[style*="display:flex"]');
+  if(controles)controles.style.display='none';
+
+  const r=[];
+  (Array.isArray(historialGlobal)?historialGlobal:[]).forEach(s=>
+    (s.items||[]).forEach(i=>{
+      if(!AMS_itemFinal(i) && estadoV014(i)!=='FINALIZADO')return;
+      const t=String(i.tipo||'');
+      const c=String(i.codigo||i.ppo||'');
+      r.push(
+        '<tr>'+
+        '<td><button class="codigo-link" onclick=\'buscarDirecto('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>'+AMS_esc(t)+' - '+AMS_esc(c)+'</button></td>'+
+        '<td>'+AMS_badgeEstado(i)+'</td>'+
+        '<td><span class="lt final">'+AMS_esc(lead(s,i))+'</span></td>'+
+        '<td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>Historial</button></td>'+
+        '</tr>'
+      );
+    })
+  );
+
+  tb.innerHTML=r.join('')||'<tr><td colspan="4" style="text-align:center;padding:28px">No hay códigos finalizados.</td></tr>';
+};
+
+/* Historial de detalle: finaliza Lead Time tanto por RECIBIDO EN CHALA como por entrega directa a PROVEEDOR. */
+mostrarHistorial=function(r){
+  const i=r.item||{},s=r.solicitud||{},m=(r.movimientos||[]).slice();txt('histTitulo',(i.tipo||'')+' - '+(i.codigo||''));
+  m.sort((a,b)=>(pdt(a.fechaEvento||a.fecha,a.horaEvento||a.hora)||0)-(pdt(b.fechaEvento||b.fecha,b.horaEvento||b.hora)||0));
+  const fin=AMS_itemFinal(i),ini=pdt(s.fecha,s.hora)||(m[0]?pdt(m[0].fechaEvento||m[0].fecha,m[0].horaEvento||m[0].hora):null);
+  let finMov=[...m].reverse().find(x=>upper(x.accion)==='RECIBIDO'||upper(x.estadoResultante)==='FINALIZADO'||(upper(x.accion)==='ENVIADO'&&upper(x.medioEntrega)==='PROVEEDOR'));
+  const ft=fin?(finMov?pdt(finMov.fechaEvento||finMov.fecha,finMov.horaEvento||finMov.hora):pdt(i.fechaUltimoMovimiento||i.fechaUltimo,i.horaUltimoMovimiento||i.horaUltimo)):new Date();
+  const tl=m.length?'<div class="timeline">'+m.map((x,k)=>{const a=pdt(x.fechaEvento||x.fecha,x.horaEvento||x.hora),nx=m[k+1],b=nx?pdt(nx.fechaEvento||nx.fecha,nx.horaEvento||nx.hora):ft;let det='';if(upper(x.medioEntrega)==='PROVEEDOR')det='<div class="tl-detail">Entregado a PROVEEDOR: '+AMS_esc(x.destinatario||'—')+'</div>';else if(upper(x.medioEntrega)==='CONDUCTOR')det='<div class="tl-detail">Conductor: '+AMS_esc(x.destinatario||'—')+'</div>';return '<div class="tl-step done"><div class="tl-dot">'+(k+1)+'</div><div class="tl-area">'+AMS_esc(areaVisible(x.area))+'</div><div class="tl-action">'+AMS_esc(x.accion||'—')+'</div><div class="tl-resp">'+AMS_esc(x.responsable||'—')+'</div><div class="tl-date">'+AMS_esc((x.fechaEvento||x.fecha||'—')+' '+(x.horaEvento||x.hora||''))+'</div>'+det+'<div class="ltEtapa">Lead etapa: '+AMS_esc(a&&b?dur2(b-a):'—')+'</div></div>';}).join('')+'</div>':'<div class="muted">Sin movimientos.</div>';
+  const total=ini&&ft?dur2(ft-ini):'—';
+  document.getElementById('histContenido').innerHTML='<div class="result-top"><div><div class="result-code">'+AMS_esc(i.tipo)+' - '+AMS_esc(i.codigo)+'</div><div class="muted">Solicitud: '+AMS_esc(s.idSolicitud||i.idSolicitud||'—')+' · Solicitado por: '+AMS_esc(s.solicitante||s.usuarioCreacion||'—')+'</div></div><div>'+AMS_badgeEstado(i)+'</div></div><h3>Timeline</h3>'+tl+'<div class="lead-card"><div class="muted">'+(fin?'LEAD TIME TOTAL':'LEAD TIME EN CURSO')+'</div><strong>'+AMS_esc(total)+'</strong><div class="muted">Desde la creación de la solicitud '+(fin?'hasta la finalización.':'hasta este momento.')+'</div></div>';
+  abrirModal('modalHistorial');
+};
+
+setTimeout(()=>{if(document.querySelector('#page-pendientes.active'))dibujarPendientes();if(document.querySelector('#page-buscar.active'))dibujarHistorialGlobal();},0);
+
+</script>
+
+
+
+<!-- ===== AMS V018 - MIS SOLICITUDES: FILTROS + ORIGEN ===== -->
+<style id="ams-v018-mis">
+  .ams-mis-filtros{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px}
+  .ams-mis-filtros .ams-label{font-size:12px;font-weight:900;color:#475569;margin-right:2px}
+  .ams-filter-btn{border:1px solid #cbd5e1;background:#fff;color:#475569;border-radius:9px;padding:8px 13px;font-weight:900;font-size:12px}
+  .ams-filter-btn:hover{background:#f8fafc}
+  .ams-filter-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+  .ams-origen{display:inline-block;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;white-space:nowrap}
+  .ams-origen-chala{background:#dbeafe;color:#1d4ed8}
+  .ams-origen-a4{background:#ede9fe;color:#6d28d9}
+  #page-mis table{min-width:1450px}
+</style>
+<script>
+/* TODO = todos los códigos NO FINALIZADOS. Los finalizados permanecen en Historial / Buscar. */
+window.AMS_FILTRO_MIS='TODO';
+
+function AMS_origenSolicitud(s){
+  let o=upper(s?.areaOrigen||s?.origen||'');
+  if(o==='LABORATORIO')o='ASISTENTE A4';
+  if(o==='A4')o='ASISTENTE A4';
+  return o||'—';
+}
+function AMS_origenBadge(s){
+  const o=AMS_origenSolicitud(s);
+  const cl=o==='ASISTENTE A4'?'ams-origen-a4':'ams-origen-chala';
+  return '<span class="ams-origen '+cl+'">'+AMS_esc(o)+'</span>';
+}
+function AMS_estadoMis(i){return estadoV014(i);}
+function AMS_pasaFiltroMis(i){
+  if(AMS_itemFinal(i)||AMS_estadoMis(i)==='FINALIZADO')return false;
+  const e=AMS_estadoMis(i),f=window.AMS_FILTRO_MIS||'TODO';
+  if(f==='PENDIENTES')return e==='SOLICITUD CREADA';
+  if(f==='EN PROCESO')return e!=='SOLICITUD CREADA'&&e!=='FINALIZADO';
+  return true;
+}
+function AMS_crearFiltrosMis(){
+  const page=document.getElementById('page-mis'),tb=document.getElementById('tablaMisSolicitudes');
+  if(!page||!tb)return;
+  moverIndicadoresAMis();
+  const wrap=tb.closest('.table-wrap');
+  if(!wrap)return;
+  let bar=document.getElementById('amsMisFiltros');
+  if(!bar){
+    bar=document.createElement('div');bar.id='amsMisFiltros';bar.className='ams-mis-filtros';
+    wrap.parentElement.insertBefore(bar,wrap);
+  }
+  bar.innerHTML='<span class="ams-label">CONSULTAR:</span>'+['TODO','PENDIENTES','EN PROCESO'].map(f=>'<button type="button" class="ams-filter-btn '+((window.AMS_FILTRO_MIS||'TODO')===f?'active':'')+'" onclick="AMS_cambiarFiltroMis('+JSON.stringify(f)+')">'+f+'</button>').join('');
+}
+function AMS_cambiarFiltroMis(f){window.AMS_FILTRO_MIS=f||'TODO';dibujarMisSolicitudes();}
+
+dibujarMisSolicitudes=function(){
+  const tb=document.getElementById('tablaMisSolicitudes');if(!tb)return;
+  moverIndicadoresAMis();actualizarIndicadoresMis();AMS_crearFiltrosMis();
+  const tr=tb.closest('table')?.querySelector('thead tr');
+  if(tr)tr.innerHTML='<th>SOLICITUD</th><th>SOLICITADO POR</th><th>ORIGEN</th><th>TIPO - CÓDIGO</th><th>INGRESO A LABORATORIO</th><th>ESTADO</th><th>FLUJO ACTUAL</th><th>LEAD TIME</th><th>HISTORIAL</th>';
+  const r=[];
+  (solicitudesActuales||[]).forEach(s=>(s.items||[]).forEach(i=>{
+    if(!AMS_pasaFiltroMis(i))return;
+    const t=String(i.tipo||''),c=String(i.codigo||i.ppo||'');
+    r.push('<tr>'+ 
+      '<td>'+AMS_esc(s.idSolicitud||'—')+'</td>'+ 
+      '<td>'+AMS_esc(s.solicitante||s.usuarioCreacion||'—')+'</td>'+ 
+      '<td>'+AMS_origenBadge(s)+'</td>'+ 
+      '<td><span class="ams-code">'+AMS_esc(t)+' - '+AMS_esc(c)+'</span></td>'+ 
+      '<td>'+AMS_esc(ingresoLabV014(i))+'</td>'+ 
+      '<td>'+AMS_badgeEstado(i)+'</td>'+ 
+      '<td><div class="ams-flujo-final">'+AMS_flujo(i)+'</div></td>'+ 
+      '<td><span class="lt">'+AMS_esc(lead(s,i))+'</span></td>'+ 
+      '<td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>Ver</button></td>'+ 
+      '</tr>');
+  }));
+  const msg=(window.AMS_FILTRO_MIS==='PENDIENTES')?'No hay solicitudes pendientes.':(window.AMS_FILTRO_MIS==='EN PROCESO'?'No hay solicitudes en proceso.':'No hay solicitudes activas.');
+  tb.innerHTML=r.join('')||'<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">'+msg+'</td></tr>';
+  AMS_crearFiltrosMis();
+};
+
+setTimeout(()=>{if(document.querySelector('#page-mis.active'))dibujarMisSolicitudes();},0);
+</script>
+
+
+
+<!-- ===== AMS V019 - MIS SOLICITUDES USA BASE GLOBAL ===== -->
+<script>
+/*
+  CORRECCION V019:
+  Las tarjetas de Mis solicitudes se calculan con historialGlobal (base global),
+  por lo tanto la tabla debe usar la misma fuente. solicitudesActuales contiene
+  solo la lista operativa devuelta para el perfil y puede omitir códigos activos
+  que actualmente están en otra oficina.
+*/
+function AMS_fuenteMisSolicitudes(){
+  if(Array.isArray(historialGlobal) && historialGlobal.length) return historialGlobal;
+  return Array.isArray(solicitudesActuales) ? solicitudesActuales : [];
+}
+
+/* Al terminar de cargar la base global, refrescar Mis solicitudes si está visible. */
+const AMS_cargarHistorialGlobal_V019 = cargarHistorialGlobal;
+cargarHistorialGlobal=function(){
+  google.script.run
+    .withSuccessHandler(function(lista){
+      historialGlobal=lista||[];
+      dibujarHistorialGlobal();
+      if(document.querySelector('#page-mis.active')) dibujarMisSolicitudes();
+    })
+    .withFailureHandler(errorServidor)
+    .obtenerHistorialGlobal();
+};
+
+dibujarMisSolicitudes=function(){
+  const tb=document.getElementById('tablaMisSolicitudes');if(!tb)return;
+  moverIndicadoresAMis();actualizarIndicadoresMis();AMS_crearFiltrosMis();
+
+  const tr=tb.closest('table')?.querySelector('thead tr');
+  if(tr)tr.innerHTML='<th>SOLICITUD</th><th>SOLICITADO POR</th><th>ORIGEN</th><th>TIPO - CÓDIGO</th><th>INGRESO A LABORATORIO</th><th>ESTADO</th><th>FLUJO ACTUAL</th><th>LEAD TIME</th><th>HISTORIAL</th>';
+
+  const fuente=AMS_fuenteMisSolicitudes();
+  const r=[];
+  fuente.forEach(s=>(s.items||[]).forEach(i=>{
+    if(!AMS_pasaFiltroMis(i))return;
+    const t=String(i.tipo||''),c=String(i.codigo||i.ppo||'');
+    r.push('<tr>'+ 
+      '<td>'+AMS_esc(s.idSolicitud||i.idSolicitud||'—')+'</td>'+ 
+      '<td>'+AMS_esc(s.solicitante||s.usuarioCreacion||'—')+'</td>'+ 
+      '<td>'+AMS_origenBadge(s)+'</td>'+ 
+      '<td><span class="ams-code">'+AMS_esc(t)+' - '+AMS_esc(c)+'</span></td>'+ 
+      '<td>'+AMS_esc(ingresoLabV014(i))+'</td>'+ 
+      '<td>'+AMS_badgeEstado(i)+'</td>'+ 
+      '<td><div class="ams-flujo-final">'+AMS_flujo(i)+'</div></td>'+ 
+      '<td><span class="lt">'+AMS_esc(lead(s,i))+'</span></td>'+ 
+      '<td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>Ver</button></td>'+ 
+      '</tr>');
+  }));
+
+  const f=window.AMS_FILTRO_MIS||'TODO';
+  const msg=f==='PENDIENTES'?'No hay solicitudes pendientes.':(f==='EN PROCESO'?'No hay solicitudes en proceso.':'No hay solicitudes activas.');
+  tb.innerHTML=r.join('')||'<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">'+msg+'</td></tr>';
+  AMS_crearFiltrosMis();
+};
+
+/* Si se entra a Mis solicitudes antes de que termine la carga global, solicitarla. */
+const AMS_ir_V019=ir;
+ir=function(page,btn){
+  AMS_ir_V019(page,btn);
+  if(page==='mis' && (!Array.isArray(historialGlobal)||!historialGlobal.length)) cargarHistorialGlobal();
+};
+</script>
+
+
+
+<!-- ===== AMS V020 - MIS SOLICITUDES: CARGA GLOBAL DIRECTA ===== -->
+<script>
+/*
+ V020: Mis solicitudes NO depende de solicitudesActuales ni de la carga de Historial/Buscar.
+ Al entrar/actualizar, consulta obtenerHistorialGlobal() directamente y usa esa respuesta
+ para tarjetas + tabla + filtros. Así A4 ve también códigos que están en Guías, Atención o Chala.
+*/
+window.AMS_MIS_GLOBAL=[];
+window.AMS_MIS_CARGANDO=false;
+
+function AMS_setIndicador(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+
+function AMS_actualizarIndicadoresDesdeFuente(fuente){
+  let ch=0,a4=0,pn=0,en=0,fn=0;
+  (fuente||[]).forEach(s=>(s.items||[]).forEach(i=>{
+    const o=AMS_origenSolicitud(s), e=estadoV014(i);
+    if(o==='CHALA')ch++;
+    if(o==='ASISTENTE A4')a4++;
+    if(e==='SOLICITUD CREADA')pn++;
+    else if(e==='FINALIZADO')fn++;
+    else en++;
+  }));
+  AMS_setIndicador('hgChala',ch); AMS_setIndicador('hgA4',a4);
+  AMS_setIndicador('hgPend',pn); AMS_setIndicador('hgProc',en); AMS_setIndicador('hgFin',fn);
+}
+
+function AMS_renderMisV020(){
+  const tb=document.getElementById('tablaMisSolicitudes'); if(!tb)return;
+  moverIndicadoresAMis(); AMS_crearFiltrosMis();
+  const fuente=Array.isArray(window.AMS_MIS_GLOBAL)?window.AMS_MIS_GLOBAL:[];
+  AMS_actualizarIndicadoresDesdeFuente(fuente);
+  const tr=tb.closest('table')?.querySelector('thead tr');
+  if(tr)tr.innerHTML='<th>SOLICITUD</th><th>SOLICITADO POR</th><th>ORIGEN</th><th>TIPO - CÓDIGO</th><th>INGRESO A LABORATORIO</th><th>ESTADO</th><th>FLUJO ACTUAL</th><th>LEAD TIME</th><th>HISTORIAL</th>';
+  const f=window.AMS_FILTRO_MIS||'TODO', rows=[];
+  fuente.forEach(s=>(s.items||[]).forEach(i=>{
+    const e=estadoV014(i);
+    if(e==='FINALIZADO'||AMS_itemFinal(i))return;
+    if(f==='PENDIENTES'&&e!=='SOLICITUD CREADA')return;
+    if(f==='EN PROCESO'&&(e==='SOLICITUD CREADA'||e==='FINALIZADO'))return;
+    const t=String(i.tipo||''),c=String(i.codigo||i.ppo||'');
+    rows.push('<tr>'+ 
+      '<td>'+AMS_esc(s.idSolicitud||i.idSolicitud||'—')+'</td>'+ 
+      '<td>'+AMS_esc(s.solicitante||s.usuarioCreacion||'—')+'</td>'+ 
+      '<td>'+AMS_origenBadge(s)+'</td>'+ 
+      '<td><span class="ams-code">'+AMS_esc(t)+' - '+AMS_esc(c)+'</span></td>'+ 
+      '<td>'+AMS_esc(ingresoLabV014(i))+'</td>'+ 
+      '<td>'+AMS_badgeEstado(i)+'</td>'+ 
+      '<td><div class="ams-flujo-final">'+AMS_flujo(i)+'</div></td>'+ 
+      '<td><span class="lt">'+AMS_esc(lead(s,i))+'</span></td>'+ 
+      '<td><button class="btn btn-gray btn-sm" onclick=\'abrirHistorial('+JSON.stringify(t)+','+JSON.stringify(c)+')\'>Ver</button></td>'+ 
+      '</tr>');
+  }));
+  const msg=f==='PENDIENTES'?'No hay solicitudes pendientes.':(f==='EN PROCESO'?'No hay solicitudes en proceso.':'No hay solicitudes activas.');
+  tb.innerHTML=rows.join('')||'<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">'+msg+'</td></tr>';
+  AMS_crearFiltrosMis();
+}
+
+function AMS_cargarMisGlobalV020(){
+  if(!usuarioActual||window.AMS_MIS_CARGANDO)return;
+  window.AMS_MIS_CARGANDO=true;
+  const tb=document.getElementById('tablaMisSolicitudes');
+  if(tb&&!window.AMS_MIS_GLOBAL.length)tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:28px;color:#64748b">Cargando solicitudes...</td></tr>';
+  google.script.run
+    .withSuccessHandler(function(lista){
+      window.AMS_MIS_CARGANDO=false;
+      window.AMS_MIS_GLOBAL=Array.isArray(lista)?lista:[];
+      historialGlobal=window.AMS_MIS_GLOBAL;
+      AMS_renderMisV020();
+    })
+    .withFailureHandler(function(e){window.AMS_MIS_CARGANDO=false;errorServidor(e);})
+    .obtenerHistorialGlobal();
+}
+
+/* Filtros: filtran la base global ya cargada, no la lista operativa de A4. */
+AMS_cambiarFiltroMis=function(f){window.AMS_FILTRO_MIS=f||'TODO';AMS_renderMisV020();};
+dibujarMisSolicitudes=function(){
+  if(Array.isArray(window.AMS_MIS_GLOBAL)&&window.AMS_MIS_GLOBAL.length) AMS_renderMisV020();
+  else AMS_cargarMisGlobalV020();
+};
+
+/* Al abrir Mis solicitudes, siempre refresca la fuente global. */
+const AMS_ir_V020=ir;
+ir=function(page,btn){
+  AMS_ir_V020(page,btn);
+  if(page==='mis') AMS_cargarMisGlobalV020();
+};
+
+/* El botón Actualizar de Mis solicitudes también actualiza la fuente global. */
+document.addEventListener('DOMContentLoaded',function(){
+  const page=document.getElementById('page-mis');
+  const b=page?.querySelector('.page-head .btn');
+  if(b)b.onclick=AMS_cargarMisGlobalV020;
+});
+</script>
+
+<!-- ===== AMS V021 - CORRECCION CLICK FILTROS MIS SOLICITUDES ===== -->
+<script>
+/*
+ V021: corrige el HTML de los botones. La versión anterior insertaba JSON.stringify
+ dentro de un atributo onclick entre comillas dobles, generando comillas anidadas
+ inválidas. Por eso el botón cambiaba visualmente al hacer clic pero no ejecutaba
+ correctamente el filtro.
+*/
+AMS_crearFiltrosMis=function(){
+  const page=document.getElementById('page-mis');
+  const tb=document.getElementById('tablaMisSolicitudes');
+  if(!page||!tb)return;
+  moverIndicadoresAMis();
+  const wrap=tb.closest('.table-wrap');
+  if(!wrap)return;
+  let bar=document.getElementById('amsMisFiltros');
+  if(!bar){
+    bar=document.createElement('div');
+    bar.id='amsMisFiltros';
+    bar.className='ams-mis-filtros';
+    wrap.parentElement.insertBefore(bar,wrap);
+  }
+  const actual=window.AMS_FILTRO_MIS||'TODO';
+  bar.innerHTML='<span class="ams-label">CONSULTAR:</span>'+[
+    ['TODO','TODO'],
+    ['PENDIENTES','PENDIENTES'],
+    ['EN PROCESO','EN PROCESO']
+  ].map(function(x){
+    return '<button type="button" data-filtro-mis="'+x[0]+'" class="ams-filter-btn '+(actual===x[0]?'active':'')+'">'+x[1]+'</button>';
+  }).join('');
+
+  bar.querySelectorAll('[data-filtro-mis]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      window.AMS_FILTRO_MIS=this.getAttribute('data-filtro-mis')||'TODO';
+      AMS_renderMisV020();
+    });
+  });
+};
+
+/* Recrear la barra con eventos válidos si la pantalla ya está abierta. */
+setTimeout(function(){
+  if(document.querySelector('#page-mis.active')){
+    AMS_crearFiltrosMis();
+    AMS_renderMisV020();
+  }
+},0);
+</script>
+
+
+
+<!-- ===== AMS V023 - CONFIRMACIONES MODERNAS CENTRADAS ===== -->
+<style>
+#amsConfirmBg{position:fixed;inset:0;background:rgba(15,23,42,.58);display:none;align-items:center;justify-content:center;padding:20px;z-index:9999;backdrop-filter:blur(2px)}
+#amsConfirmBg.open{display:flex}
+.ams-confirm-card{width:min(440px,94vw);background:#fff;border-radius:18px;box-shadow:0 28px 80px rgba(15,23,42,.35);overflow:hidden;animation:amsPop .16s ease-out}
+@keyframes amsPop{from{transform:scale(.96);opacity:.4}to{transform:scale(1);opacity:1}}
+.ams-confirm-top{padding:22px 24px 12px;display:flex;gap:14px;align-items:flex-start}
+.ams-confirm-icon{width:44px;height:44px;flex:0 0 44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#eff6ff;color:#2563eb;font-size:23px;font-weight:900}
+.ams-confirm-title{margin:2px 0 7px;font-size:19px;font-weight:900;color:#0f172a}
+.ams-confirm-msg{font-size:14px;line-height:1.5;color:#475569;white-space:pre-line}
+.ams-confirm-code{font-weight:900;color:#1d4ed8}
+.ams-confirm-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px 22px}
+.ams-confirm-actions button{min-width:105px;border:0;border-radius:10px;padding:11px 16px;font-weight:900}
+.ams-confirm-no{background:#e2e8f0;color:#334155}.ams-confirm-yes{background:#2563eb;color:white}
+</style>
+<script>
+(function(){
+  const bg=document.createElement('div');
+  bg.id='amsConfirmBg';
+  bg.innerHTML='<div class="ams-confirm-card" role="dialog" aria-modal="true">'+
+    '<div class="ams-confirm-top"><div class="ams-confirm-icon">✓</div><div><div id="amsConfirmTitle" class="ams-confirm-title">Confirmar acción</div><div id="amsConfirmMsg" class="ams-confirm-msg"></div></div></div>'+
+    '<div class="ams-confirm-actions"><button type="button" id="amsConfirmNo" class="ams-confirm-no">Cancelar</button><button type="button" id="amsConfirmYes" class="ams-confirm-yes">Confirmar</button></div></div>';
+  document.body.appendChild(bg);
+  let resolver=null;
+  window.AMS_confirmarBonito=function(titulo,mensaje,boton){
+    document.getElementById('amsConfirmTitle').textContent=titulo||'Confirmar acción';
+    document.getElementById('amsConfirmMsg').textContent=mensaje||'¿Desea continuar?';
+    document.getElementById('amsConfirmYes').textContent=boton||'Confirmar';
+    bg.classList.add('open');
+    return new Promise(r=>{resolver=r;setTimeout(()=>document.getElementById('amsConfirmYes').focus(),30);});
+  };
+  function cerrar(v){bg.classList.remove('open');if(resolver){const r=resolver;resolver=null;r(v);}}
+  document.getElementById('amsConfirmNo').onclick=()=>cerrar(false);
+  document.getElementById('amsConfirmYes').onclick=()=>cerrar(true);
+  bg.addEventListener('click',e=>{if(e.target===bg)cerrar(false)});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&bg.classList.contains('open'))cerrar(false)});
+})();
+
+async function AMS_sinConfirmNativo(fn){
+  const old=window.confirm;
+  window.confirm=function(){return true;};
+  try{return await Promise.resolve(fn());}finally{window.confirm=old;}
+}
+
+/* Nueva solicitud */
+const AMS_guardarNuevaAntesV023=guardarNuevaSolicitud;
+guardarNuevaSolicitud=async function(){
+  const n=[...document.querySelectorAll('#itemsSolicitud .item-row')].filter(r=>{
+    return String(r.querySelector('.itCodigo')?.value||'').trim();
+  }).length;
+  if(!n)return AMS_guardarNuevaAntesV023();
+  const ok=await AMS_confirmarBonito('Confirmar solicitud','¿Está seguro de guardar esta solicitud con '+n+' código'+(n===1?'':'s')+'?','Sí, guardar');
+  if(!ok)return;
+  return AMS_sinConfirmNativo(()=>AMS_guardarNuevaAntesV023());
+};
+
+/* Confirmar / Recibir desde Pendientes */
+const AMS_abrirMovimientoAntesV023=abrirMovimiento;
+abrirMovimiento=async function(i,s){
+  const a=(siguientesAcciones(i,s)||[])[0]||'';
+  if(a==='CONFIRMADO'||a==='RECIBIDO'){
+    const cod=(i.tipo||'')+' - '+(i.codigo||i.ppo||'');
+    const titulo=a==='RECIBIDO'?'Confirmar recepción':'Confirmar código';
+    const msg=a==='RECIBIDO'?'¿Confirma la recepción de '+cod+'?\nAl confirmar, el código quedará FINALIZADO.':'¿Confirma el código '+cod+'?';
+    const ok=await AMS_confirmarBonito(titulo,msg,a==='RECIBIDO'?'Sí, recibir':'Sí, confirmar');
+    if(!ok)return;
+    return AMS_sinConfirmNativo(()=>AMS_abrirMovimientoAntesV023(i,s));
+  }
+  return AMS_abrirMovimientoAntesV023(i,s);
+};
+
+/* Guardar movimiento: A4 y entrega directa a proveedor */
+const AMS_guardarMovimientoAntesV023=guardarMovimientoActual;
+guardarMovimientoActual=async function(){
+  if(itemMovimiento){
+    const a=upper(itemMovimiento.accion||'');
+    const cod=(itemMovimiento.tipo||'')+' - '+(itemMovimiento.codigo||itemMovimiento.ppo||'');
+    if(perfilActual()==='ASISTENTE A4'&&a==='EN LABORATORIO'){
+      const ok=await AMS_confirmarBonito('Ingreso a laboratorio','¿Confirma el ingreso a laboratorio de '+cod+'?','Sí, confirmar');
+      if(!ok)return;
+      return AMS_sinConfirmNativo(()=>AMS_guardarMovimientoAntesV023());
+    }
+    if(a==='ENVIADO'){
+      const medio=upper(document.querySelector('input[name="medioEntrega"]:checked')?.value||'');
+      if(medio==='PROVEEDOR'){
+        const dest=upper(val('movProveedor')||'');
+        const ok=await AMS_confirmarBonito('Finalizar entrega','¿Confirma la entrega de '+cod+' al proveedor '+(dest||'indicado')+'?\nAl confirmar, el código quedará FINALIZADO.','Sí, finalizar');
+        if(!ok)return;
+        return AMS_sinConfirmNativo(()=>AMS_guardarMovimientoAntesV023());
+      }
+    }
+  }
+  return AMS_guardarMovimientoAntesV023();
+};
+
+/* Confirmación de acciones por bloque */
+const AMS_confirmarBloqueAntesV023=AMS_confirmarBloque;
+AMS_confirmarBloque=async function(){
+  const xs=typeof AMS_seleccion==='function'?AMS_seleccion():[];
+  if(!xs.length)return AMS_confirmarBloqueAntesV023();
+  const acts=[...new Set(xs.map(x=>x.accion))];
+  if(acts.length!==1)return AMS_confirmarBloqueAntesV023();
+  const a=acts[0];
+  // Los datos adicionales (A4 / Atención) siguen siendo solicitados por la función original.
+  const ok=await AMS_confirmarBonito('Confirmar acción por bloque','¿Confirma '+String(AMS_accionLabel(a)||a).toLowerCase()+' para '+xs.length+' códigos seleccionados?','Sí, confirmar');
+  if(!ok)return;
+  return AMS_sinConfirmNativo(()=>AMS_confirmarBloqueAntesV023());
+};
+</script>
+
+
+<script>
+/* AMS V024 - RUTA ESPECIAL A4 */
+function AMS_esTipoEspecialA4(t){return /^(?:\d+)?(?:ACP|RP|FACP)$/.test(upper(t));}
+function AMS_esRutaEspecialA4(i,s){return upper(s&&s.areaOrigen)==='ASISTENTE A4'&&AMS_esTipoEspecialA4(i&&i.tipo);}
+siguientesAcciones=function(i,s){const p=perfilActual();let e=upper(i.etapaActual);if(e==='LABORATORIO')e='ASISTENTE A4';const st=upper(i.subestadoActual||i.subestado);if(p==='ASISTENTE A4'&&AMS_esRutaEspecialA4(i,s)&&e==='ASISTENTE A4'){if(st==='SOLICITUD CREADA')return['RECEPCIONADO'];if(st==='RECEPCIONADO')return['FINALIZADO'];return[];}if(p==='GUIAS'&&e==='GUIAS'&&st==='SOLICITUD CREADA')return['COORDINADO'];if(p==='GUIAS'&&e==='GUIAS'&&st==='COORDINADO')return['CONFIRMADO'];if(p==='ASISTENTE A4'&&e==='ASISTENTE A4'&&['CONFIRMADO','PENDIENTE DE RECEPCION'].includes(st))return['EN LABORATORIO'];if(p==='ATENCION'&&e==='ATENCION'&&st==='EN LABORATORIO')return['RECEPCIONADO'];if(p==='ATENCION'&&e==='ATENCION'&&st==='RECEPCIONADO')return['ENVIADO'];if(p==='CHALA'&&e==='CHALA'&&st==='ENVIADO')return['RECIBIDO'];return[];};
+const AMS_labelV024=AMS_accionLabel;AMS_accionLabel=function(a){return upper(a)==='FINALIZADO'?'FINALIZAR':AMS_labelV024(a);};
+const AMS_openV024=abrirMovimiento;abrirMovimiento=async function(i,s){const a=(siguientesAcciones(i,s)||[])[0]||'';if(perfilActual()==='ASISTENTE A4'&&AMS_esRutaEspecialA4(i,s)&&(a==='RECEPCIONADO'||a==='FINALIZADO')){const cod=(i.tipo||'')+' - '+(i.codigo||i.ppo||'');const fin=a==='FINALIZADO';const ok=await AMS_confirmarBonito(fin?'Finalizar solicitud':'Recepcionar muestra',fin?'¿Confirma finalizar '+cod+'? El código quedará FINALIZADO.':'¿Confirma la recepción de '+cod+'? Permanecerá en Asistente A4 para su finalización.',fin?'Sí, finalizar':'Sí, recepcionar');if(!ok)return;google.script.run.withSuccessHandler(r=>{toast(r?.mensaje||'Movimiento registrado.',true);cargarSolicitudes();}).withFailureHandler(errorServidor).registrarMovimiento({idItem:i.idItem,accion:a,usuario:usuarioActual,observacion:''});return;}return AMS_openV024(i,s);};
+</script>
+
+
+<script>
+/* ===== AMS V025 - RUTA ESPECIAL A4: RECEPCIONAR Y FINALIZAR EN UN SOLO PASO ===== */
+(function(){
+  function AMS_esEspecialA4V025(i,s){
+    const origen=upper(s?.areaOrigen)==='LABORATORIO'?'ASISTENTE A4':upper(s?.areaOrigen);
+    return origen==='ASISTENTE A4' && /^(?:\d+)?(?:ACP|RP|FACP)$/.test(upper(i?.tipo));
+  }
+
+  const anteriorSiguientesV025=siguientesAcciones;
+  siguientesAcciones=function(i,s){
+    const p=perfilActual();
+    let e=upper(i?.etapaActual); if(e==='LABORATORIO')e='ASISTENTE A4';
+    const st=upper(i?.subestadoActual||i?.subestado);
+    if(p==='ASISTENTE A4' && AMS_esEspecialA4V025(i,s) && e==='ASISTENTE A4' && st==='SOLICITUD CREADA') return ['FINALIZADO'];
+    return anteriorSiguientesV025(i,s);
+  };
+
+  const anteriorLabelV025=AMS_accionLabel;
+  AMS_accionLabel=function(a){ return upper(a)==='FINALIZADO'?'RECEPCIONAR':anteriorLabelV025(a); };
+
+  const anteriorAbrirV025=abrirMovimiento;
+  abrirMovimiento=function(i,s){
+    const a=(siguientesAcciones(i,s)||[])[0]||'';
+    if(perfilActual()==='ASISTENTE A4' && AMS_esEspecialA4V025(i,s) && a==='FINALIZADO'){
+      itemMovimiento={...i,solicitud:s,accion:'FINALIZADO',rutaEspecialA4V025:true};
+      txt('movCodigo',(i.tipo||'')+' - '+(i.codigo||i.ppo||''));
+      txt('movResponsable',usuarioActual.responsableSesion||usuarioActual.nombre||'');
+      document.getElementById('movAccion').value='RECEPCIONAR Y FINALIZAR';
+      document.getElementById('movObservacion').value='';
+      document.getElementById('labRecepcion').value=usuarioActual.responsableSesion||usuarioActual.nombre||'';
+      document.getElementById('labEntrega').value='';
+      document.getElementById('camposLab').style.display='block';
+      document.getElementById('campoRecepcionLab').style.display='block';
+      document.getElementById('camposAtencionRecep').style.display='none';
+      document.getElementById('camposEnvio').style.display='none';
+      const n=new Date();
+      document.getElementById('labFecha').value=fechaInput(n);
+      document.getElementById('labHora').value=horaInput(n);
+      const btn=document.getElementById('btnGuardarMov');
+      if(btn){btn.textContent='Guardar y finalizar';btn.disabled=false;}
+      abrirModal('modalMovimiento');
+      return;
+    }
+    const btn=document.getElementById('btnGuardarMov'); if(btn)btn.textContent='Guardar';
+    return anteriorAbrirV025(i,s);
+  };
+
+  const anteriorGuardarV025=guardarMovimientoActual;
+  guardarMovimientoActual=async function(){
+    if(itemMovimiento?.rutaEspecialA4V025){
+      const d={
+        idItem:itemMovimiento.idItem,accion:'FINALIZADO',usuario:usuarioActual,
+        observacion:val('movObservacion'),fechaEvento:val('labFecha'),horaEvento:val('labHora'),
+        responsableRecepcionLab:upper(val('labRecepcion')),responsableEntregaLab:upper(val('labEntrega'))
+      };
+      if(!d.fechaEvento||!d.horaEvento||!d.responsableRecepcionLab||!d.responsableEntregaLab){
+        toast('Complete fecha, hora, Entregado a Laboratorio por y Devuelto por Laboratorio por.',false);return;
+      }
+      const cod=(itemMovimiento.tipo||'')+' - '+(itemMovimiento.codigo||itemMovimiento.ppo||'');
+      const ok=await AMS_confirmarBonito('Guardar y finalizar','¿Confirma la recepción de '+cod+'? Al guardar, el código quedará FINALIZADO.','Sí, guardar y finalizar');
+      if(!ok)return;
+      const btn=document.getElementById('btnGuardarMov');btn.disabled=true;btn.textContent='Guardando...';
+      google.script.run.withSuccessHandler(r=>{
+        btn.disabled=false;btn.textContent='Guardar';cerrarModal('modalMovimiento');itemMovimiento=null;
+        toast(r?.mensaje||'Recepción registrada y solicitud finalizada.',true);cargarSolicitudes();
+      }).withFailureHandler(e=>{btn.disabled=false;btn.textContent='Guardar y finalizar';errorServidor(e);}).registrarMovimiento(d);
+      return;
+    }
+    return anteriorGuardarV025();
+  };
+})();
+</script>
+</body>
+</html>
