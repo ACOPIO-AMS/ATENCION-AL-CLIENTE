@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import SidebarMenu from "./components/layout/Sidebar";
+import RiRmFrame, { type RirmSection } from "./components/registro-ri-rm/RiRmFrame";
+import AdminPanel, { type AdminSection } from "./components/admin/AdminPanel";
 import { GUIAS_HTML_INTEGRADO } from "./lib/guias-html";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
-type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos" | "buscarSalidas" | "guias";
+type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos" | "buscarSalidas" | "guias" | "rirm" | "admin";
 type CargoExitResult = {
   correlative: string; type: string; code: string; dateTime: string;
   responsible: string; guard: string; shift: string; conductor?: string; observations?: string;
@@ -303,8 +305,10 @@ export default function Home() {
   const [exitDateFilter, setExitDateFilter] = useState("");
   const [exitResults, setExitResults] = useState<CargoExitResult[]>([]);
   const [exitSearching, setExitSearching] = useState(false);
-  const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | null>("atencion");
+  const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | "admin" | null>("atencion");
   const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos">("registrar");
+  const [rirmSection, setRirmSection] = useState<RirmSection>("pendientes");
+  const [adminSection, setAdminSection] = useState<AdminSection>("panel");
   const guiasFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   function openGuiasSection(section: "registrar" | "historial" | "indicadores" | "sacos") {
@@ -314,6 +318,20 @@ export default function Home() {
       const frameWindow = guiasFrameRef.current?.contentWindow as (Window & { mostrarPagina?: (pagina: string) => void }) | null;
       frameWindow?.mostrarPagina?.(section);
     }, 0);
+  }
+
+  function openRirmSection(section: RirmSection) {
+    setRirmSection(section);
+    setActiveView("rirm");
+    setOpenModule("rirm");
+  }
+
+  function openAdminSection(section: AdminSection) {
+    const role = String(currentUser?.role || "").toUpperCase();
+    if (!["ADMIN", "ADMINISTRADOR"].includes(role)) return;
+    setAdminSection(section);
+    setActiveView("admin");
+    setOpenModule("admin");
   }
 
   useEffect(() => {
@@ -1358,6 +1376,9 @@ ${documentBody}
         activeView={activeView}
         openModule={openModule}
         guiasSection={guiasSection}
+        rirmSection={rirmSection}
+        adminSection={adminSection}
+        isAdmin={["ADMIN", "ADMINISTRADOR"].includes(String(currentUser.role || "").toUpperCase())}
         pendingCount={pendingEvents.length}
         setOpenModule={setOpenModule}
         nuevo={startNewEntry}
@@ -1368,6 +1389,8 @@ ${documentBody}
         registrarSalida={() => setActiveView("cargos")}
         buscarSalidas={() => setActiveView("buscarSalidas")}
         abrirGuias={openGuiasSection}
+        abrirRirm={openRirmSection}
+        abrirAdmin={openAdminSection}
       />
       <div className={`sidebar-card connection-${connection}`}><span className="status-dot" /><div><strong>{connectionTitle}</strong><small>{queue.length ? `${queue.length} registro(s) por sincronizar` : connection === "online" ? "Lectura y escritura habilitadas" : connection === "outdated" ? "Actualiza la implementación de Apps Script" : connection === "unconfigured" ? "Falta configurar Apps Script" : "Los registros quedarán en este equipo"}</small>{queue.length > 0 && <button className="sidebar-sync" type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button>}</div></div>
       <div className="user-card"><span>{currentUser.name.split(" ").map(part => part[0]).slice(0,2).join("")}</span><div><strong>{currentUser.name}</strong><small>{currentUser.role}</small><button type="button" onClick={logout} style={{ marginTop: 5, border: 0, background: "transparent", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 800, textDecoration: "underline" }}>Cerrar sesión</button></div></div>
@@ -1385,8 +1408,8 @@ ${documentBody}
       </header>
       <section className="module-page-heading">
         <div>
-          <h1>{activeView === "registro" || activeView === "hoy" || activeView === "pendientes" || activeView === "buscar" || activeView === "personas" ? "1. ATENCIÓN AL CLIENTE" : activeView === "cargos" || activeView === "buscarSalidas" ? "2. CARGOS Y SALIDAS" : activeView === "guias" ? "3. REGISTRO DE GUÍAS" : "4. REGISTRO RI-RM"}</h1>
-          <p>{activeView === "registro" ? "REGISTRO DE PROVEEDORES Y VEHÍCULOS" : activeView === "hoy" ? "REPORTE DIARIO" : activeView === "pendientes" ? "REGISTROS POR REGULARIZAR" : activeView === "buscar" ? "BÚSQUEDA DE REGISTROS" : activeView === "personas" ? "BASE DE DATOS DE CLIENTES" : activeView === "cargos" ? "REGISTRO DE SALIDAS DE MATERIALES" : activeView === "buscarSalidas" ? "CONSULTA DE SALIDAS" : activeView === "guias" ? "GESTIÓN Y SEGUIMIENTO DE GUÍAS" : "MUESTREO Y REGISTRO DE RI / RM"}</p>
+          <h1>{activeView === "registro" || activeView === "hoy" || activeView === "pendientes" || activeView === "buscar" || activeView === "personas" ? "1. ATENCIÓN AL CLIENTE" : activeView === "cargos" || activeView === "buscarSalidas" ? "2. CARGOS Y SALIDAS" : activeView === "guias" ? "3. REGISTRO DE GUÍAS" : activeView === "rirm" ? "4. REGISTRO RI-RM" : "5. ADMINISTRACIÓN GENERAL"}</h1>
+          <p>{activeView === "registro" ? "REGISTRO DE PROVEEDORES Y VEHÍCULOS" : activeView === "hoy" ? "REPORTE DIARIO" : activeView === "pendientes" ? "REGISTROS POR REGULARIZAR" : activeView === "buscar" ? "BÚSQUEDA DE REGISTROS" : activeView === "personas" ? "BASE DE DATOS DE CLIENTES" : activeView === "cargos" ? "REGISTRO DE SALIDAS DE MATERIALES" : activeView === "buscarSalidas" ? "CONSULTA DE SALIDAS" : activeView === "guias" ? "GESTIÓN Y SEGUIMIENTO DE GUÍAS" : activeView === "rirm" ? "GESTIÓN Y TRAZABILIDAD DE RI / RM" : "CONFIGURACIÓN Y CONTROL DEL SISTEMA"}</p>
         </div>
       </section>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
@@ -1597,6 +1620,9 @@ ${documentBody}
           allow="clipboard-read; clipboard-write"
         />
       </section>}
+
+      {activeView === "rirm" && <RiRmFrame section={rirmSection} user={currentUser} />}
+      {activeView === "admin" && ["ADMIN", "ADMINISTRADOR"].includes(String(currentUser.role || "").toUpperCase()) && <AdminPanel section={adminSection} />}
 
       {activeView === "personas" && <section className="empty-view data-view"><div className="people-toolbar"><div><h2>BD CLIENTES</h2><p>Fuente maestra para autocompletar por DNI.</p></div><button onClick={loadClients} disabled={busy}>Actualizar</button></div><div className="people-table"><div className="table-head"><span>DNI</span><span>Nombres y apellidos</span><span>Celular</span><span>Licencia</span><span>Estado</span></div>{clients.map(person => <div className="table-row" key={person.dni}><span>{person.dni}</span><strong>{person.name}</strong><span>{person.phone}</span><span>{person.license ? `${person.license} · ${person.category}` : "—"}</span><em>{person.role || "ACTIVO"}</em></div>)}</div>{!clients.length && <p className="empty-message">Pulsa Actualizar para consultar BD CLIENTES.</p>}</section>}
     </section>
