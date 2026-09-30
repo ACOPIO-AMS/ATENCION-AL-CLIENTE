@@ -760,9 +760,9 @@ html,body{background:#F4F7F9!important}
 /* Subtítulos desplegables de cada módulo */
 .sidebar .module-children .nav-item,
 .sidebar .module-children .nav-item:not(.active){
-  font-size:12px!important;
-  line-height:1.2!important;
-  min-height:34px!important;
+  font-size:13.5px!important;
+  line-height:1.25!important;
+  min-height:346px!important;
 }
 
 /* En celular se mantienen legibles sin agrandar el resto de la aplicación */
