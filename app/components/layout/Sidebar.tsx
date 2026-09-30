@@ -38,17 +38,20 @@ export default function SidebarMenu(p: Props) {
   const aRegularizar=can("ATENCION_REGULARIZAR");
   const aBuscar=can("ATENCION_BUSCAR");
   const aClientes=can("ATENCION_CLIENTES");
-  const showAtencion=aNuevo||aReporte||aRegularizar||aBuscar||aClientes;
+  const mAtencion=can("ATENCIÓN AL CLIENTE","ATENCION AL CLIENTE");
+  const showAtencion=mAtencion&&(aNuevo||aReporte||aRegularizar||aBuscar||aClientes);
 
   const sRegistrar=can("SALIDA_REGISTRAR");
   const sBuscar=can("SALIDA_BUSCAR");
-  const showCargos=sRegistrar||sBuscar;
+  const mCargos=can("CARGOS Y SALIDAS");
+  const showCargos=mCargos&&(sRegistrar||sBuscar);
 
   const gRegistrar=can("GUIA_REGISTRAR");
   const gHistorial=can("GUIA_HISTORIAL");
   const gIndicadores=can("GUIA_INDICADORES");
   const gSacos=can("GUIA_SACOS");
-  const showGuias=gRegistrar||gHistorial||gIndicadores||gSacos;
+  const mGuias=can("REGISTRO DE GUÍAS","REGISTRO DE GUIAS");
+  const showGuias=mGuias&&(gRegistrar||gHistorial||gIndicadores||gSacos);
 
   const rModulo=can("RI_RM","RI RM","RIRM");
   const rPendientes=can("PENDIENTES","RI_RM_PENDIENTES");
