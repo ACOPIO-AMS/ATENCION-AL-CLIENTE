@@ -290,7 +290,18 @@ export default function Home() {
   const [draftReady, setDraftReady] = useState(false);
   const [cargoType, setCargoType] = useState<CargoType>("CHALA");
   const [generalExitType, setGeneralExitType] = useState(GENERAL_EXIT_TYPES[0]);
-  const [cargoRows, setCargoRows] = useState<CargoRow[]>([blankCargoRow(1)]);
+  const [cargoRowsByType, setCargoRowsByType] = useState<Record<CargoType, CargoRow[]>>({
+    CHALA: [blankCargoRow(1)],
+    PROVEEDORES: [blankCargoRow(1)],
+    GENERALES: [blankCargoRow(1)],
+  });
+  const cargoRows = cargoRowsByType[cargoType];
+  function setCargoRows(value: CargoRow[] | ((current: CargoRow[]) => CargoRow[])) {
+    setCargoRowsByType(current => ({
+      ...current,
+      [cargoType]: typeof value === "function" ? value(current[cargoType]) : value,
+    }));
+  }
   const [cargoProvider, setCargoProvider] = useState("");
   const [cargoConductor, setCargoConductor] = useState("");
   const [cargoSaved, setCargoSaved] = useState(false);
