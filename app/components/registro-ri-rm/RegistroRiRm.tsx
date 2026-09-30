@@ -63,7 +63,21 @@ export default function RegistroRiRm(){
     {section==="pendientes"&&<Table data={pending} user={user} onMove={move}/>}
     {section==="mis-solicitudes"&&<Table data={active} user={user} onMove={move} showAll/>}
     {section==="nueva-solicitud"&&["CHALA","ASISTENTE A4","ADMINISTRADOR"].includes(role(user))&&<div style={{background:"white",padding:20,borderRadius:12}}>
-      <div style={{display:"flex",gap:10,marginBottom:14}}><select value={priority} onChange={e=>setPriority(e.target.value)}><option>NORMAL</option><option>URGENTE</option></select><input placeholder="Observación general" value={obs} onChange={e=>setObs(e.target.value)} style={{flex:1}}/></div>
+     <div style={{marginBottom:14}}>
+  <label style={{display:"block",fontWeight:700,marginBottom:6}}>
+    Solicitado por
+  </label>
+
+  <input
+    value={user?.name || ""}
+    readOnly
+    style={{
+      width:"100%",
+      boxSizing:"border-box",
+      background:"#f5f7f7"
+    }}
+  />
+</div> <div style={{display:"flex",gap:10,marginBottom:14}}><select value={priority} onChange={e=>setPriority(e.target.value)}><option>NORMAL</option><option>URGENTE</option></select><input placeholder="Observación general" value={obs} onChange={e=>setObs(e.target.value)} style={{flex:1}}/></div>
       {rows.map((x,k)=><div key={k} style={{display:"grid",gridTemplateColumns:"160px 1fr 180px 40px",gap:8,marginBottom:8}}>
        <select value={x.tipo} onChange={e=>setRows(rows.map((r,j)=>j===k?{...r,tipo:e.target.value}:r))}>{TYPES.map(t=><option key={t}>{t}</option>)}</select>
        <input placeholder="Código" value={x.codigo} onChange={e=>setRows(rows.map((r,j)=>j===k?{...r,codigo:e.target.value}:r))}/>
