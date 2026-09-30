@@ -1,0 +1,441 @@
+/* =========================================================
+   AMS ACOPIO - LOGIN
+   ========================================================= */
+
+.ams-login-page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+
+  background-image: url("/images/login-acopio.webp");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* Oscurece el fondo para mejorar contraste */
+.ams-login-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(3, 35, 58, 0.38),
+      rgba(3, 30, 52, 0.58)
+    );
+  z-index: 0;
+}
+
+/* =========================================================
+   TARJETA
+   ========================================================= */
+
+.ams-login-card {
+  position: relative;
+  z-index: 1;
+
+  width: min(470px, 100%);
+  padding: 42px 46px 32px;
+
+  border-radius: 24px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(4, 46, 75, 0.92),
+      rgba(2, 35, 60, 0.94)
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.22);
+
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.32);
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  color: white;
+}
+
+/* =========================================================
+   MARCA
+   ========================================================= */
+
+.ams-login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.ams-login-logo {
+  width: 78px;
+  height: 78px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #ffc436,
+      #f2a900
+    );
+
+  color: #07395d;
+
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -1px;
+
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+.ams-login-brand-text h1 {
+  margin: 0;
+
+  color: #ffffff;
+
+  font-size: 32px;
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: -0.8px;
+}
+
+.ams-login-brand-text p {
+  margin: 5px 0 0;
+
+  color: rgba(255, 255, 255, 0.82);
+
+  font-size: 16px;
+  font-weight: 400;
+}
+
+/* Línea amarilla */
+.ams-login-line {
+  width: 94px;
+  height: 4px;
+
+  margin: 22px auto 24px;
+
+  border-radius: 10px;
+
+  background: #f9b719;
+}
+
+/* =========================================================
+   TÍTULO
+   ========================================================= */
+
+.ams-login-card h2 {
+  margin: 0 0 28px;
+
+  text-align: center;
+
+  color: #ffffff;
+
+  font-size: 22px;
+  font-weight: 500;
+}
+
+/* =========================================================
+   FORMULARIO
+   ========================================================= */
+
+.ams-login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.ams-login-form label {
+  margin: 0 0 8px;
+
+  color: #ffffff;
+
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+.ams-login-input-wrap {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  margin-bottom: 20px;
+}
+
+.ams-login-input-icon {
+  position: absolute;
+  left: 17px;
+  z-index: 2;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #07395d;
+
+  font-size: 18px;
+
+  pointer-events: none;
+}
+
+.ams-login-input-wrap input {
+  width: 100%;
+  height: 58px;
+
+  padding: 0 18px 0 50px;
+
+  border: 1px solid rgba(9, 54, 87, 0.16);
+  border-radius: 11px;
+
+  outline: none;
+
+  background: rgba(255, 255, 255, 0.97);
+
+  color: #111827;
+
+  font-size: 16px;
+  font-weight: 500;
+
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.08);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.ams-login-input-wrap input:focus {
+  border-color: #f5b51b;
+
+  box-shadow:
+    0 0 0 3px rgba(245, 181, 27, 0.20),
+    0 6px 18px rgba(0, 0, 0, 0.10);
+}
+
+.ams-login-input-wrap input:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
+.ams-login-error {
+  margin: -5px 0 16px;
+  padding: 10px 12px;
+
+  border: 1px solid rgba(255, 130, 130, 0.35);
+  border-radius: 9px;
+
+  background: rgba(130, 20, 20, 0.30);
+
+  color: #ffffff;
+
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   BOTÓN
+   ========================================================= */
+
+.ams-login-button {
+  width: 100%;
+  min-height: 58px;
+
+  margin-top: 2px;
+
+  border: 0;
+  border-radius: 11px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffc329,
+      #f4a900
+    );
+
+  color: #07395d;
+
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.20);
+
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
+}
+
+.ams-login-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 11px 26px rgba(0, 0, 0, 0.25);
+
+  filter: brightness(1.03);
+}
+
+.ams-login-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.ams-login-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+/* =========================================================
+   PIE
+   ========================================================= */
+
+.ams-login-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+
+  margin-top: 30px;
+
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.ams-login-footer > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.ams-login-footer > div > span {
+  font-size: 21px;
+}
+
+.ams-login-footer strong {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ams-login-divider {
+  width: 1px;
+  height: 28px;
+
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* =========================================================
+   TABLET / CELULAR
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+  .ams-login-page {
+    padding: 18px;
+    min-height: 100dvh;
+  }
+
+  .ams-login-card {
+    width: 100%;
+    max-width: 410px;
+
+    padding: 32px 24px 26px;
+
+    border-radius: 20px;
+  }
+
+  .ams-login-logo {
+    width: 64px;
+    height: 64px;
+
+    border-radius: 14px;
+
+    font-size: 21px;
+  }
+
+  .ams-login-brand {
+    gap: 13px;
+  }
+
+  .ams-login-brand-text h1 {
+    font-size: 26px;
+  }
+
+  .ams-login-brand-text p {
+    font-size: 13px;
+  }
+
+  .ams-login-line {
+    margin-top: 18px;
+    margin-bottom: 20px;
+  }
+
+  .ams-login-card h2 {
+    margin-bottom: 24px;
+    font-size: 20px;
+  }
+
+  .ams-login-input-wrap input {
+    height: 55px;
+  }
+
+  .ams-login-button {
+    min-height: 55px;
+  }
+
+  .ams-login-footer {
+    gap: 15px;
+    margin-top: 25px;
+  }
+}
+
+/* =========================================================
+   CELULARES PEQUEÑOS
+   ========================================================= */
+
+@media (max-width: 380px) {
+
+  .ams-login-card {
+    padding-left: 19px;
+    padding-right: 19px;
+  }
+
+  .ams-login-brand-text h1 {
+    font-size: 23px;
+  }
+
+  .ams-login-brand-text p {
+    font-size: 12px;
+  }
+
+  .ams-login-footer {
+    gap: 10px;
+  }
+
+  .ams-login-footer strong {
+    font-size: 10px;
+  }
+}
