@@ -257,6 +257,21 @@ function cachePerson(dni: string, person: PersonRecord) {
   }
 }
 
+function permissionKey(value: string) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function hasUserPermission(user: AppUser | null, ...keys: string[]) {
+  if (!user) return false;
+  const role = String(user.role || "").toUpperCase();
+  if (["ADMIN", "ADMINISTRADOR"].includes(role)) return true;
+  const normalized: Record<string, boolean> = {};
+  Object.entries(user.permissions || {}).forEach(([key, value]) => {
+    normalized[permissionKey(key)] = Boolean(value);
+  });
+  return keys.some(key => normalized[permissionKey(key)] === true);
+}
+
 export default function Home() {
   const [activeCase, setActiveCase] = useState(1);
   const [activeView, setActiveView] = useState<View>("registro");
@@ -326,6 +341,58 @@ export default function Home() {
   const [adminSection, setAdminSection] = useState<AdminSection>("panel");
   const guiasFrameRef = useRef<HTMLIFrameElement | null>(null);
 
+  function openFirstAuthorized(user: AppUser) {
+    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Nuevo ingreso")) {
+      setActiveView("registro"); setOpenModule("atencion"); return;
+    }
+    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Reporte diario")) {
+      setActiveView("hoy"); setOpenModule("atencion"); void loadToday(); return;
+    }
+    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Por regularizar")) {
+      setActiveView("pendientes"); setOpenModule("atencion"); void loadPending(); return;
+    }
+    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Buscar")) {
+      setActiveView("buscar"); setOpenModule("atencion"); return;
+    }
+    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "BD Clientes")) {
+      setActiveView("personas"); setOpenModule("atencion"); void loadClients(); return;
+    }
+    if (hasUserPermission(user, "CARGOS Y SALIDAS") && hasUserPermission(user, "Registrar salida")) {
+      setActiveView("cargos"); setOpenModule("cargos"); return;
+    }
+    if (hasUserPermission(user, "CARGOS Y SALIDAS") && hasUserPermission(user, "Buscar salidas")) {
+      setActiveView("buscarSalidas"); setOpenModule("cargos"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Registrar")) {
+      setGuiasSection("registrar"); setActiveView("guias"); setOpenModule("guias"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Historial de registros")) {
+      setGuiasSection("historial"); setActiveView("guias"); setOpenModule("guias"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Indicadores")) {
+      setGuiasSection("indicadores"); setActiveView("guias"); setOpenModule("guias"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Registro de Sacos Mineros")) {
+      setGuiasSection("sacos"); setActiveView("guias"); setOpenModule("guias"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO RI-RM") && hasUserPermission(user, "Pendientes")) {
+      setRirmSection("pendientes"); setActiveView("rirm"); setOpenModule("rirm"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO RI-RM") && hasUserPermission(user, "Nueva solicitud")) {
+      setRirmSection("nueva-solicitud"); setActiveView("rirm"); setOpenModule("rirm"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO RI-RM") && hasUserPermission(user, "Mis solicitudes")) {
+      setRirmSection("mis-solicitudes"); setActiveView("rirm"); setOpenModule("rirm"); return;
+    }
+    if (hasUserPermission(user, "REGISTRO RI-RM") && hasUserPermission(user, "Historial / Buscar")) {
+      setRirmSection("historial-buscar"); setActiveView("rirm"); setOpenModule("rirm"); return;
+    }
+    if (["ADMIN", "ADMINISTRADOR"].includes(String(user.role || "").toUpperCase())) {
+      setAdminSection("panel"); setActiveView("admin"); setOpenModule("admin"); return;
+    }
+    setOpenModule(null);
+  }
+
   function openGuiasSection(section: "registrar" | "historial" | "indicadores" | "sacos") {
     setGuiasSection(section);
     setActiveView("guias");
@@ -352,9 +419,12 @@ export default function Home() {
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
-      if (saved?.user && saved?.name && saved?.role) {
+      if (saved?.user && saved?.name && saved?.role && saved.permissions) {
         setCurrentUser(saved);
         setEvent(current => ({ ...current, responsible: saved.name }));
+        openFirstAuthorized(saved);
+      } else if (saved) {
+        window.localStorage.removeItem(SESSION_KEY);
       }
     } catch {
       window.localStorage.removeItem(SESSION_KEY);
@@ -389,6 +459,7 @@ export default function Home() {
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       setCurrentUser(session);
       setEvent(current => ({ ...current, responsible: session.name }));
+      openFirstAuthorized(session);
       setLoginPin("");
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "No se pudo iniciar sesión.");
