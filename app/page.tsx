@@ -24,7 +24,12 @@ type QueueItem = { queueId: string; localId: string; action: "saveEvent" | "regu
 type AlertType = "success" | "error" | "warning";
 type ModalAlertType = Exclude<AlertType, "warning">;
 type CargoType = "CHALA" | "PROVEEDORES" | "GENERALES";
-type AppUser = { user: string; name: string; role: string };
+type AppUser = {
+  user: string;
+  name: string;
+  role: string;
+  permissions?: Record<string, boolean>;
+};
 type CargoRow = { id: number; type: string; code: string; weight: string; destination: string; description: string; reason: string; quantity: string; unit: string; observations: string };
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
@@ -367,8 +372,20 @@ export default function Home() {
     setLoginBusy(true);
     setLoginError("");
     try {
-      const data = await sheetsApi<{ authenticated: boolean; user: string; name: string; role: string }>("login", { user, pin });
-      const session: AppUser = { user: data.user, name: data.name, role: data.role };
+      const data = await sheetsApi<{
+        authenticated: boolean;
+        user: string;
+        name: string;
+        role: string;
+        permissions?: Record<string, boolean>;
+        permisos?: Record<string, boolean>;
+      }>("login", { user, pin });
+      const session: AppUser = {
+        user: data.user,
+        name: data.name,
+        role: data.role,
+        permissions: data.permissions || data.permisos || {},
+      };
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       setCurrentUser(session);
       setEvent(current => ({ ...current, responsible: session.name }));
