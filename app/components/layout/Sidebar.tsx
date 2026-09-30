@@ -1,115 +1,814 @@
 "use client";
 
-export type AppView = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos" | "buscarSalidas" | "guias" | "rirm" | "admin";
-export type GuiasSection = "registrar" | "historial" | "indicadores" | "sacos";
-export type RirmSection = "pendientes" | "nueva-solicitud" | "mis-solicitudes" | "historial-buscar";
-export type AdminSection = "panel" | "usuarios" | "registros" | "catalogos" | "auditoria";
-export type ModuleName = "atencion" | "cargos" | "guias" | "rirm" | "admin";
+export type AppView =
+  | "registro"
+  | "hoy"
+  | "pendientes"
+  | "buscar"
+  | "personas"
+  | "cargos"
+  | "buscarSalidas"
+  | "guias"
+  | "rirm"
+  | "admin";
+
+export type GuiasSection =
+  | "registrar"
+  | "historial"
+  | "indicadores"
+  | "sacos";
+
+export type RirmSection =
+  | "pendientes"
+  | "nueva-solicitud"
+  | "mis-solicitudes"
+  | "historial-buscar";
+
+export type AdminSection =
+  | "panel"
+  | "usuarios"
+  | "registros"
+  | "catalogos"
+  | "auditoria";
+
+export type ModuleName =
+  | "atencion"
+  | "cargos"
+  | "guias"
+  | "rirm"
+  | "admin";
 
 type Props = {
-  activeView: AppView; openModule: ModuleName | null; guiasSection: GuiasSection;
-  rirmSection: RirmSection; adminSection: AdminSection; pendingCount: number; isAdmin: boolean;
-  permissions?: Record<string, boolean>;
+  activeView: AppView;
+  openModule: ModuleName | null;
+  guiasSection: GuiasSection;
+  rirmSection: RirmSection;
+  adminSection: AdminSection;
+  pendingCount: number;
+  isAdmin: boolean;
+
+  // Acepta booleanos y también SI/NO enviados por el backend
+  permissions?: Record<string, boolean | string | number>;
+
   setOpenModule: (v: ModuleName | null) => void;
-  nuevo: () => void; hoy: () => void; pendientes: () => void; buscar: () => void; clientes: () => void;
-  registrarSalida: () => void; buscarSalidas: () => void; abrirGuias: (s: GuiasSection) => void;
-  abrirRirm: (s: RirmSection) => void; abrirAdmin: (s: AdminSection) => void;
+
+  nuevo: () => void;
+  hoy: () => void;
+  pendientes: () => void;
+  buscar: () => void;
+  clientes: () => void;
+
+  registrarSalida: () => void;
+  buscarSalidas: () => void;
+
+  abrirGuias: (s: GuiasSection) => void;
+  abrirRirm: (s: RirmSection) => void;
+  abrirAdmin: (s: AdminSection) => void;
 };
 
-const Icon=({children,tone="blue"}:{children:string;tone?:string}) =>
-  <span className={`nav-graphic tone-${tone}`} aria-hidden="true">{children}</span>;
+const Icon = ({
+  children,
+  tone = "blue",
+}: {
+  children: string;
+  tone?: string;
+}) => (
+  <span
+    className={`nav-graphic tone-${tone}`}
+    aria-hidden="true"
+  >
+    {children}
+  </span>
+);
 
-function norm(v:string){
-  return String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+// ======================================================
+// NORMALIZAR NOMBRE DEL PERMISO
+// ======================================================
+
+function norm(v: string) {
+  return String(v || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
+// ======================================================
+// INTERPRETAR VALOR DEL PERMISO
+// ======================================================
+
+function permissionValue(value: unknown): boolean {
+  if (value === true) return true;
+
+  if (
+    value === false ||
+    value === null ||
+    value === undefined
+  ) {
+    return false;
+  }
+
+  const text = String(value)
+    .trim()
+    .toUpperCase();
+
+  return (
+    text === "SI" ||
+    text === "SÍ" ||
+    text === "TRUE" ||
+    text === "1" ||
+    text === "X"
+  );
+}
+
+// ======================================================
+// SIDEBAR
+// ======================================================
+
 export default function SidebarMenu(p: Props) {
-  const toggle=(m:ModuleName)=>p.setOpenModule(p.openModule===m?null:m);
-  const perms=p.permissions||{};
-  const can=(...keys:string[])=>{
-    if(p.isAdmin) return true;
-    const normalized:Record<string,boolean>={};
-    Object.entries(perms).forEach(([k,v])=>{ normalized[norm(k)]=Boolean(v); });
-    return keys.some(k=>normalized[norm(k)]===true);
+
+  const toggle = (m: ModuleName) =>
+    p.setOpenModule(
+      p.openModule === m ? null : m
+    );
+
+  // ====================================================
+  // NORMALIZAR TODOS LOS PERMISOS UNA SOLA VEZ
+  // ====================================================
+
+  const perms = p.permissions || {};
+
+  const normalized: Record<string, boolean> = {};
+
+  Object.entries(perms).forEach(([key, value]) => {
+    normalized[norm(key)] = permissionValue(value);
+  });
+
+  const can = (...keys: string[]) => {
+
+    // Administrador ve todo
+    if (p.isAdmin) return true;
+
+    return keys.some(
+      (key) =>
+        normalized[norm(key)] === true
+    );
   };
 
-  // Encabezados reales de la hoja USUARIOS
-  const aNuevo=can("Nuevo ingreso");
-  const aReporte=can("Reporte diario");
-  const aRegularizar=can("Por regularizar");
-  const aBuscar=can("Buscar");
-  const aClientes=can("B CLIENTES","BD Clientes");
-  const mAtencion=can("ATENCION AL CLIENTE","ATENCIÓN AL CLIENTE");
-  const showAtencion=mAtencion&&(aNuevo||aReporte||aRegularizar||aBuscar||aClientes);
+  // ====================================================
+  // 1. ATENCIÓN AL CLIENTE
+  // ====================================================
 
-  const sRegistrar=can("Registrar salida");
-  const sBuscar=can("Buscar salidas");
-  const mCargos=can("CARGOS Y SALIDAS");
-  const showCargos=mCargos&&(sRegistrar||sBuscar);
+  const aNuevo = can(
+    "Nuevo ingreso"
+  );
 
-  const gRegistrar=can("Registrar");
-  const gHistorial=can("Historial de registros");
-  const gIndicadores=can("Indicadores");
-  const gSacos=can("Registro de Sacos Mineros");
-  const mGuias=can("REGISTRO DE GUIAS","REGISTRO DE GUÍAS");
-  const showGuias=mGuias&&(gRegistrar||gHistorial||gIndicadores||gSacos);
+  const aReporte = can(
+    "Reporte diario"
+  );
 
-  const rModulo=can("REGISTRO RI-RM");
-  const rPendientes=can("Pendientes");
-  const rNueva=can("Nueva solicitud");
-  const rMis=can("Mis solicitudes");
-  const rHistorial=can("Historial / Buscar");
-  const showRirm=rModulo&&(rPendientes||rNueva||rMis||rHistorial);
+  const aRegularizar = can(
+    "Por regularizar"
+  );
 
-  return <nav className="ams-nav" aria-label="Navegación principal">
-    {showAtencion && <div className={`module-block${p.openModule==="atencion"?" expanded":""}`}>
-      <button className="module-trigger" onClick={()=>toggle("atencion")}><Icon tone="cyan">👥</Icon><span>1. ATENCIÓN AL CLIENTE</span><b>{p.openModule==="atencion"?"⌃":"⌄"}</b></button>
-      {p.openModule==="atencion" && <div className="module-children">
-        {aNuevo && <button className={p.activeView==="registro"?"nav-item active":"nav-item"} onClick={p.nuevo}><Icon>➕</Icon><span>Nuevo ingreso</span></button>}
-        {aReporte && <button className={p.activeView==="hoy"?"nav-item active":"nav-item"} onClick={p.hoy}><Icon tone="cyan">📊</Icon><span>Reporte diario</span></button>}
-        {aRegularizar && <button className={p.activeView==="pendientes"?"nav-item active":"nav-item"} onClick={p.pendientes}><Icon tone="orange">🕘</Icon><span>Por regularizar</span>{p.pendingCount>0&&<b className="nav-count">{p.pendingCount}</b>}</button>}
-        {aBuscar && <button className={p.activeView==="buscar"?"nav-item active":"nav-item"} onClick={p.buscar}><Icon>🔎</Icon><span>Buscar</span></button>}
-        {aClientes && <button className={p.activeView==="personas"?"nav-item active":"nav-item"} onClick={p.clientes}><Icon tone="cyan">👥</Icon><span>BD Clientes</span></button>}
-      </div>}
-    </div>}
+  const aBuscar = can(
+    "Buscar"
+  );
 
-    {showCargos && <div className={`module-block${p.openModule==="cargos"?" expanded":""}`}>
-      <button className="module-trigger" onClick={()=>toggle("cargos")}><Icon>📤</Icon><span>2. CARGOS Y SALIDAS</span><b>{p.openModule==="cargos"?"⌃":"⌄"}</b></button>
-      {p.openModule==="cargos" && <div className="module-children">
-        {sRegistrar && <button className={p.activeView==="cargos"?"nav-item active":"nav-item"} onClick={p.registrarSalida}><Icon>📤</Icon><span>Registrar salida</span></button>}
-        {sBuscar && <button className={p.activeView==="buscarSalidas"?"nav-item active":"nav-item"} onClick={p.buscarSalidas}><Icon tone="cyan">🔎</Icon><span>Buscar salidas</span></button>}
-      </div>}
-    </div>}
+  const aClientes = can(
+    "B CLIENTES",
+    "BD CLIENTES",
+    "BD Clientes"
+  );
 
-    {showGuias && <div className={`module-block${p.openModule==="guias"?" expanded":""}`}>
-      <button className="module-trigger" onClick={()=>toggle("guias")}><Icon tone="cyan">📋</Icon><span>3. REGISTRO DE GUÍAS</span><b>{p.openModule==="guias"?"⌃":"⌄"}</b></button>
-      {p.openModule==="guias" && <div className="module-children">
-        {gRegistrar && <button className={p.activeView==="guias"&&p.guiasSection==="registrar"?"nav-item active":"nav-item"} onClick={()=>p.abrirGuias("registrar")}><Icon>📝</Icon><span>Registrar</span></button>}
-        {gHistorial && <button className={p.activeView==="guias"&&p.guiasSection==="historial"?"nav-item active":"nav-item"} onClick={()=>p.abrirGuias("historial")}><Icon tone="cyan">📋</Icon><span>Historial de registros</span></button>}
-        {gIndicadores && <button className={p.activeView==="guias"&&p.guiasSection==="indicadores"?"nav-item active":"nav-item"} onClick={()=>p.abrirGuias("indicadores")}><Icon tone="orange">📊</Icon><span>Indicadores</span></button>}
-        {gSacos && <button className={p.activeView==="guias"&&p.guiasSection==="sacos"?"nav-item active":"nav-item"} onClick={()=>p.abrirGuias("sacos")}><Icon tone="gold">📦</Icon><span>Registro de Sacos Mineros</span></button>}
-      </div>}
-    </div>}
+  const mAtencion = can(
+    "ATENCION AL CLIENTE",
+    "ATENCIÓN AL CLIENTE"
+  );
 
-    {showRirm && <div className={`module-block${p.openModule==="rirm"?" expanded":""}`}>
-      <button className="module-trigger" onClick={()=>toggle("rirm")}><Icon tone="orange">⚗</Icon><span>4. REGISTRO RI-RM</span><b>{p.openModule==="rirm"?"⌃":"⌄"}</b></button>
-      {p.openModule==="rirm" && <div className="module-children">
-        {rPendientes && <button className={p.activeView==="rirm"&&p.rirmSection==="pendientes"?"nav-item active":"nav-item"} onClick={()=>p.abrirRirm("pendientes")}><Icon tone="orange">🕘</Icon><span>Pendientes</span></button>}
-        {rNueva && <button className={p.activeView==="rirm"&&p.rirmSection==="nueva-solicitud"?"nav-item active":"nav-item"} onClick={()=>p.abrirRirm("nueva-solicitud")}><Icon>➕</Icon><span>Nueva solicitud</span></button>}
-        {rMis && <button className={p.activeView==="rirm"&&p.rirmSection==="mis-solicitudes"?"nav-item active":"nav-item"} onClick={()=>p.abrirRirm("mis-solicitudes")}><Icon tone="cyan">📋</Icon><span>Mis solicitudes</span></button>}
-        {rHistorial && <button className={p.activeView==="rirm"&&p.rirmSection==="historial-buscar"?"nav-item active":"nav-item"} onClick={()=>p.abrirRirm("historial-buscar")}><Icon>🔎</Icon><span>Historial / Buscar</span></button>}
-      </div>}
-    </div>}
+  /*
+   * IMPORTANTE:
+   * Ya no exigimos:
+   *
+   * permiso módulo Y permiso hijo
+   *
+   * El módulo aparece si tiene permiso
+   * padre O por lo menos un permiso hijo.
+   */
 
-    {p.isAdmin && <div className={`module-block${p.openModule==="admin"?" expanded":""}`}>
-      <button className="module-trigger" onClick={()=>toggle("admin")}><Icon tone="gold">⚙</Icon><span>5. ADMINISTRADOR</span><b>{p.openModule==="admin"?"⌃":"⌄"}</b></button>
-      {p.openModule==="admin" && <div className="module-children">
-        <button className={p.activeView==="admin"&&p.adminSection==="panel"?"nav-item active":"nav-item"} onClick={()=>p.abrirAdmin("panel")}><Icon tone="cyan">📊</Icon><span>Panel general</span></button>
-        <button className={p.activeView==="admin"&&p.adminSection==="usuarios"?"nav-item active":"nav-item"} onClick={()=>p.abrirAdmin("usuarios")}><Icon>👤</Icon><span>Usuarios y accesos</span></button>
-        <button className={p.activeView==="admin"&&p.adminSection==="registros"?"nav-item active":"nav-item"} onClick={()=>p.abrirAdmin("registros")}><Icon tone="orange">✎</Icon><span>Modificar / Anular</span></button>
-        <button className={p.activeView==="admin"&&p.adminSection==="catalogos"?"nav-item active":"nav-item"} onClick={()=>p.abrirAdmin("catalogos")}><Icon>⚙</Icon><span>Catálogos / Config.</span></button>
-        <button className={p.activeView==="admin"&&p.adminSection==="auditoria"?"nav-item active":"nav-item"} onClick={()=>p.abrirAdmin("auditoria")}><Icon tone="cyan">🔎</Icon><span>Auditoría</span></button>
-      </div>}
-    </div>}
-  </nav>;
+  const showAtencion =
+    mAtencion ||
+    aNuevo ||
+    aReporte ||
+    aRegularizar ||
+    aBuscar ||
+    aClientes;
+
+  // ====================================================
+  // 2. CARGOS Y SALIDAS
+  // ====================================================
+
+  const sRegistrar = can(
+    "Registrar salida"
+  );
+
+  const sBuscar = can(
+    "Buscar salidas"
+  );
+
+  const mCargos = can(
+    "CARGOS Y SALIDAS"
+  );
+
+  const showCargos =
+    mCargos ||
+    sRegistrar ||
+    sBuscar;
+
+  // ====================================================
+  // 3. REGISTRO DE GUÍAS
+  // ====================================================
+
+  const gRegistrar = can(
+    "Registrar"
+  );
+
+  const gHistorial = can(
+    "Historial de registros"
+  );
+
+  const gIndicadores = can(
+    "Indicadores"
+  );
+
+  const gSacos = can(
+    "Registro de Sacos Mineros"
+  );
+
+  const mGuias = can(
+    "REGISTRO DE GUIAS",
+    "REGISTRO DE GUÍAS"
+  );
+
+  const showGuias =
+    mGuias ||
+    gRegistrar ||
+    gHistorial ||
+    gIndicadores ||
+    gSacos;
+
+  // ====================================================
+  // 4. REGISTRO RI-RM
+  // ====================================================
+
+  const rPendientes = can(
+    "Pendientes"
+  );
+
+  const rNueva = can(
+    "Nueva solicitud"
+  );
+
+  const rMis = can(
+    "Mis solicitudes"
+  );
+
+  const rHistorial = can(
+    "Historial / Buscar",
+    "Historial/Buscar"
+  );
+
+  const rModulo = can(
+    "REGISTRO RI-RM"
+  );
+
+  const showRirm =
+    rModulo ||
+    rPendientes ||
+    rNueva ||
+    rMis ||
+    rHistorial;
+
+  // ====================================================
+  // RENDER
+  // ====================================================
+
+  return (
+    <nav
+      className="ams-nav"
+      aria-label="Navegación principal"
+    >
+
+      {/* =================================================
+          1. ATENCIÓN AL CLIENTE
+      ================================================= */}
+
+      {showAtencion && (
+        <div
+          className={`module-block${
+            p.openModule === "atencion"
+              ? " expanded"
+              : ""
+          }`}
+        >
+          <button
+            className="module-trigger"
+            onClick={() => toggle("atencion")}
+          >
+            <Icon tone="cyan">👥</Icon>
+
+            <span>
+              1. ATENCIÓN AL CLIENTE
+            </span>
+
+            <b>
+              {p.openModule === "atencion"
+                ? "⌃"
+                : "⌄"}
+            </b>
+          </button>
+
+          {p.openModule === "atencion" && (
+            <div className="module-children">
+
+              {aNuevo && (
+                <button
+                  className={
+                    p.activeView === "registro"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.nuevo}
+                >
+                  <Icon>➕</Icon>
+                  <span>Nuevo ingreso</span>
+                </button>
+              )}
+
+              {aReporte && (
+                <button
+                  className={
+                    p.activeView === "hoy"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.hoy}
+                >
+                  <Icon tone="cyan">📊</Icon>
+                  <span>Reporte diario</span>
+                </button>
+              )}
+
+              {aRegularizar && (
+                <button
+                  className={
+                    p.activeView === "pendientes"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.pendientes}
+                >
+                  <Icon tone="orange">🕘</Icon>
+
+                  <span>
+                    Por regularizar
+                  </span>
+
+                  {p.pendingCount > 0 && (
+                    <b className="nav-count">
+                      {p.pendingCount}
+                    </b>
+                  )}
+                </button>
+              )}
+
+              {aBuscar && (
+                <button
+                  className={
+                    p.activeView === "buscar"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.buscar}
+                >
+                  <Icon>🔎</Icon>
+                  <span>Buscar</span>
+                </button>
+              )}
+
+              {aClientes && (
+                <button
+                  className={
+                    p.activeView === "personas"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.clientes}
+                >
+                  <Icon tone="cyan">👥</Icon>
+                  <span>BD Clientes</span>
+                </button>
+              )}
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =================================================
+          2. CARGOS Y SALIDAS
+      ================================================= */}
+
+      {showCargos && (
+        <div
+          className={`module-block${
+            p.openModule === "cargos"
+              ? " expanded"
+              : ""
+          }`}
+        >
+          <button
+            className="module-trigger"
+            onClick={() => toggle("cargos")}
+          >
+            <Icon>📤</Icon>
+
+            <span>
+              2. CARGOS Y SALIDAS
+            </span>
+
+            <b>
+              {p.openModule === "cargos"
+                ? "⌃"
+                : "⌄"}
+            </b>
+          </button>
+
+          {p.openModule === "cargos" && (
+            <div className="module-children">
+
+              {sRegistrar && (
+                <button
+                  className={
+                    p.activeView === "cargos"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.registrarSalida}
+                >
+                  <Icon>📤</Icon>
+                  <span>Registrar salida</span>
+                </button>
+              )}
+
+              {sBuscar && (
+                <button
+                  className={
+                    p.activeView === "buscarSalidas"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.buscarSalidas}
+                >
+                  <Icon tone="cyan">🔎</Icon>
+                  <span>Buscar salidas</span>
+                </button>
+              )}
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =================================================
+          3. REGISTRO DE GUÍAS
+      ================================================= */}
+
+      {showGuias && (
+        <div
+          className={`module-block${
+            p.openModule === "guias"
+              ? " expanded"
+              : ""
+          }`}
+        >
+          <button
+            className="module-trigger"
+            onClick={() => toggle("guias")}
+          >
+            <Icon tone="cyan">📋</Icon>
+
+            <span>
+              3. REGISTRO DE GUÍAS
+            </span>
+
+            <b>
+              {p.openModule === "guias"
+                ? "⌃"
+                : "⌄"}
+            </b>
+          </button>
+
+          {p.openModule === "guias" && (
+            <div className="module-children">
+
+              {gRegistrar && (
+                <button
+                  className={
+                    p.activeView === "guias" &&
+                    p.guiasSection === "registrar"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirGuias("registrar")
+                  }
+                >
+                  <Icon>📝</Icon>
+                  <span>Registrar</span>
+                </button>
+              )}
+
+              {gHistorial && (
+                <button
+                  className={
+                    p.activeView === "guias" &&
+                    p.guiasSection === "historial"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirGuias("historial")
+                  }
+                >
+                  <Icon tone="cyan">📋</Icon>
+                  <span>
+                    Historial de registros
+                  </span>
+                </button>
+              )}
+
+              {gIndicadores && (
+                <button
+                  className={
+                    p.activeView === "guias" &&
+                    p.guiasSection === "indicadores"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirGuias("indicadores")
+                  }
+                >
+                  <Icon tone="orange">📊</Icon>
+                  <span>Indicadores</span>
+                </button>
+              )}
+
+              {gSacos && (
+                <button
+                  className={
+                    p.activeView === "guias" &&
+                    p.guiasSection === "sacos"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirGuias("sacos")
+                  }
+                >
+                  <Icon tone="gold">📦</Icon>
+                  <span>
+                    Registro de Sacos Mineros
+                  </span>
+                </button>
+              )}
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =================================================
+          4. REGISTRO RI-RM
+      ================================================= */}
+
+      {showRirm && (
+        <div
+          className={`module-block${
+            p.openModule === "rirm"
+              ? " expanded"
+              : ""
+          }`}
+        >
+          <button
+            className="module-trigger"
+            onClick={() => toggle("rirm")}
+          >
+            <Icon tone="orange">⚗</Icon>
+
+            <span>
+              4. REGISTRO RI-RM
+            </span>
+
+            <b>
+              {p.openModule === "rirm"
+                ? "⌃"
+                : "⌄"}
+            </b>
+          </button>
+
+          {p.openModule === "rirm" && (
+            <div className="module-children">
+
+              {rPendientes && (
+                <button
+                  className={
+                    p.activeView === "rirm" &&
+                    p.rirmSection === "pendientes"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirRirm("pendientes")
+                  }
+                >
+                  <Icon tone="orange">🕘</Icon>
+                  <span>Pendientes</span>
+                </button>
+              )}
+
+              {rNueva && (
+                <button
+                  className={
+                    p.activeView === "rirm" &&
+                    p.rirmSection === "nueva-solicitud"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirRirm("nueva-solicitud")
+                  }
+                >
+                  <Icon>➕</Icon>
+                  <span>Nueva solicitud</span>
+                </button>
+              )}
+
+              {rMis && (
+                <button
+                  className={
+                    p.activeView === "rirm" &&
+                    p.rirmSection === "mis-solicitudes"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirRirm("mis-solicitudes")
+                  }
+                >
+                  <Icon tone="cyan">📋</Icon>
+                  <span>Mis solicitudes</span>
+                </button>
+              )}
+
+              {rHistorial && (
+                <button
+                  className={
+                    p.activeView === "rirm" &&
+                    p.rirmSection === "historial-buscar"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirRirm("historial-buscar")
+                  }
+                >
+                  <Icon>🔎</Icon>
+                  <span>
+                    Historial / Buscar
+                  </span>
+                </button>
+              )}
+
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =================================================
+          5. ADMINISTRADOR
+      ================================================= */}
+
+      {p.isAdmin && (
+        <div
+          className={`module-block${
+            p.openModule === "admin"
+              ? " expanded"
+              : ""
+          }`}
+        >
+          <button
+            className="module-trigger"
+            onClick={() => toggle("admin")}
+          >
+            <Icon tone="gold">⚙</Icon>
+
+            <span>
+              5. ADMINISTRADOR
+            </span>
+
+            <b>
+              {p.openModule === "admin"
+                ? "⌃"
+                : "⌄"}
+            </b>
+          </button>
+
+          {p.openModule === "admin" && (
+            <div className="module-children">
+
+              <button
+                className={
+                  p.activeView === "admin" &&
+                  p.adminSection === "panel"
+                    ? "nav-item active"
+                    : "nav-item"
+                }
+                onClick={() =>
+                  p.abrirAdmin("panel")
+                }
+              >
+                <Icon tone="cyan">📊</Icon>
+                <span>Panel general</span>
+              </button>
+
+              <button
+                className={
+                  p.activeView === "admin" &&
+                  p.adminSection === "usuarios"
+                    ? "nav-item active"
+                    : "nav-item"
+                }
+                onClick={() =>
+                  p.abrirAdmin("usuarios")
+                }
+              >
+                <Icon>👤</Icon>
+                <span>Usuarios y accesos</span>
+              </button>
+
+              <button
+                className={
+                  p.activeView === "admin" &&
+                  p.adminSection === "registros"
+                    ? "nav-item active"
+                    : "nav-item"
+                }
+                onClick={() =>
+                  p.abrirAdmin("registros")
+                }
+              >
+                <Icon tone="orange">✎</Icon>
+                <span>Modificar / Anular</span>
+              </button>
+
+              <button
+                className={
+                  p.activeView === "admin" &&
+                  p.adminSection === "catalogos"
+                    ? "nav-item active"
+                    : "nav-item"
+                }
+                onClick={() =>
+                  p.abrirAdmin("catalogos")
+                }
+              >
+                <Icon>⚙</Icon>
+                <span>Catálogos / Config.</span>
+              </button>
+
+              <button
+                className={
+                  p.activeView === "admin" &&
+                  p.adminSection === "auditoria"
+                    ? "nav-item active"
+                    : "nav-item"
+                }
+                onClick={() =>
+                  p.abrirAdmin("auditoria")
+                }
+              >
+                <Icon tone="cyan">🔎</Icon>
+                <span>Auditoría</span>
+              </button>
+
+            </div>
+          )}
+        </div>
+      )}
+
+    </nav>
+  );
 }
