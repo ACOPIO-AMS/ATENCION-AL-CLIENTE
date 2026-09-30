@@ -1477,6 +1477,7 @@ ${documentBody}
         rirmSection={rirmSection}
         adminSection={adminSection}
         isAdmin={["ADMIN", "ADMINISTRADOR"].includes(String(currentUser.role || "").toUpperCase())}
+        permissions={currentUser.permissions}
         pendingCount={pendingEvents.length}
         setOpenModule={setOpenModule}
         nuevo={startNewEntry}
