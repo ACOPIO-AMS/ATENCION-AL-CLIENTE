@@ -471,11 +471,23 @@ export default function Home() {
         };
       }>("login", { user, pin });
       const nested = data?.data || {};
-      const rawPermissions = data?.permissions ?? data?.permisos ?? nested.permissions ?? nested.permisos ?? {};
+
+      // V16: después de validar usuario + PIN, refrescar los permisos directamente
+      // desde la hoja USUARIOS mediante bootstrap_. Así la sesión no depende de una
+      // respuesta de login incompleta ni de permisos antiguos guardados en el navegador.
+      const loggedUser = String(data?.user || nested.user || user).trim().toUpperCase();
+      const bootstrap = await sheetsApi<{
+        usuario?: { user?: string; name?: string; role?: string; active?: boolean };
+        permisos?: Record<string, boolean | string | number>;
+        permissions?: Record<string, boolean | string | number>;
+      }>("bootstrap", { user: loggedUser, usuario: loggedUser });
+
+      const bootstrapUser = bootstrap?.usuario || {};
+      const rawPermissions = bootstrap?.permissions ?? bootstrap?.permisos ?? data?.permissions ?? data?.permisos ?? nested.permissions ?? nested.permisos ?? {};
       const session: AppUser = {
-        user: String(data?.user || nested.user || user),
-        name: String(data?.name || nested.name || nested.nombre || ""),
-        role: String(data?.role || nested.role || nested.rol || ""),
+        user: String(bootstrapUser.user || loggedUser),
+        name: String(bootstrapUser.name || data?.name || nested.name || nested.nombre || ""),
+        role: String(bootstrapUser.role || data?.role || nested.role || nested.rol || ""),
         permissions: normalizePermissions(rawPermissions),
       };
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
