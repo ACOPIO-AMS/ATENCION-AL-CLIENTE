@@ -28,7 +28,7 @@ type AppUser = {
   user: string;
   name: string;
   role: string;
-  permissions?: Record<string, boolean>;
+  permissions?: Record<string, boolean | string | number>;
 };
 type CargoRow = { id: number; type: string; code: string; weight: string; destination: string; description: string; reason: string; quantity: string; unit: string; observations: string };
 
@@ -261,13 +261,26 @@ function permissionKey(value: string) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+function permissionAllowed(value: unknown) {
+  if (value === true || value === 1) return true;
+  const normalized = String(value ?? "").trim().toUpperCase();
+  return normalized === "SI" || normalized === "SÍ" || normalized === "TRUE" || normalized === "1";
+}
+
+function normalizePermissions(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, raw]) => [key.trim(), permissionAllowed(raw)])
+  );
+}
+
 function hasUserPermission(user: AppUser | null, ...keys: string[]) {
   if (!user) return false;
   const role = String(user.role || "").toUpperCase();
   if (["ADMIN", "ADMINISTRADOR"].includes(role)) return true;
   const normalized: Record<string, boolean> = {};
   Object.entries(user.permissions || {}).forEach(([key, value]) => {
-    normalized[permissionKey(key)] = Boolean(value);
+    normalized[permissionKey(key)] = permissionAllowed(value);
   });
   return keys.some(key => normalized[permissionKey(key)] === true);
 }
@@ -420,9 +433,11 @@ export default function Home() {
     try {
       const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
       if (saved?.user && saved?.name && saved?.role && saved.permissions) {
-        setCurrentUser(saved);
-        setEvent(current => ({ ...current, responsible: saved.name }));
-        openFirstAuthorized(saved);
+        const restored: AppUser = { ...saved, permissions: normalizePermissions(saved.permissions) };
+        window.localStorage.setItem(SESSION_KEY, JSON.stringify(restored));
+        setCurrentUser(restored);
+        setEvent(current => ({ ...current, responsible: restored.name }));
+        openFirstAuthorized(restored);
       } else if (saved) {
         window.localStorage.removeItem(SESSION_KEY);
       }
@@ -447,14 +462,21 @@ export default function Home() {
         user: string;
         name: string;
         role: string;
-        permissions?: Record<string, boolean>;
-        permisos?: Record<string, boolean>;
+        permissions?: Record<string, boolean | string | number>;
+        permisos?: Record<string, boolean | string | number>;
+        data?: {
+          user?: string; nombre?: string; name?: string; role?: string; rol?: string;
+          permissions?: Record<string, boolean | string | number>;
+          permisos?: Record<string, boolean | string | number>;
+        };
       }>("login", { user, pin });
+      const nested = data?.data || {};
+      const rawPermissions = data?.permissions ?? data?.permisos ?? nested.permissions ?? nested.permisos ?? {};
       const session: AppUser = {
-        user: data.user,
-        name: data.name,
-        role: data.role,
-        permissions: data.permissions || data.permisos || {},
+        user: String(data?.user || nested.user || user),
+        name: String(data?.name || nested.name || nested.nombre || ""),
+        role: String(data?.role || nested.role || nested.rol || ""),
+        permissions: normalizePermissions(rawPermissions),
       };
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       setCurrentUser(session);
