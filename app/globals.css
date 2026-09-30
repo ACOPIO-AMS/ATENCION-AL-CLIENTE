@@ -743,3 +743,39 @@ html,body{background:#F4F7F9!important}
   .sidebar .module-trigger{grid-template-columns:24px minmax(0,1fr) 12px!important;font-size:8px!important;white-space:normal!important}
   .sidebar .module-children .nav-item{grid-template-columns:24px minmax(0,1fr)!important;font-size:8px!important;white-space:normal!important}
 }
+
+/* =========================================================
+   AJUSTE FINAL · TAMAÑO DE TEXTO DEL MENÚ LATERAL
+   Solo módulos 1–5 y sus respectivos subtítulos.
+   No modifica iconos, colores, ancho ni contenido general.
+   ========================================================= */
+
+/* Títulos principales: 1 al 5 */
+.sidebar .module-trigger{
+  font-size:14px!important;
+  line-height:1.2!important;
+  min-height:39px!important;
+}
+
+/* Subtítulos desplegables de cada módulo */
+.sidebar .module-children .nav-item,
+.sidebar .module-children .nav-item:not(.active){
+  font-size:12px!important;
+  line-height:1.2!important;
+  min-height:34px!important;
+}
+
+/* En celular se mantienen legibles sin agrandar el resto de la aplicación */
+@media(max-width:760px){
+  .sidebar .module-trigger{
+    font-size:10px!important;
+    line-height:1.15!important;
+  }
+
+  .sidebar .module-children .nav-item,
+  .sidebar .module-children .nav-item:not(.active){
+    font-size:9px!important;
+    line-height:1.15!important;
+  }
+}
+
