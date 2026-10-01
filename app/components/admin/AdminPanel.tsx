@@ -29,8 +29,8 @@ const esSi=(v:any)=>v===true||["SI","SÍ","TRUE","1","ACTIVO"].includes(texto(v)
 function etiquetaPermiso(key:string){
   const m:Record<string,string>={
     ATENCION_NUEVO:"Nuevo ingreso",ATENCION_REPORTE:"Reporte diario",ATENCION_REGULARIZAR:"Por regularizar",
-    ATENCION_BUSCAR:"Buscar",ATENCION_CLIENTES:"BD Clientes",CARGOS_REGISTRAR:"Registrar salida",
-    CARGOS_BUSCAR:"Buscar salidas",GUIAS_REGISTRAR:"Registrar",GUIAS_HISTORIAL:"Historial de registros",
+    ATENCION_BUSCAR:"Buscar",ATENCION_CLIENTES:"BD Clientes",ATENCION_ESTADIA:"Estadía, Servicios y Consumos",ATENCION_SALIDA_PROVEEDORES:"Salida de Proveedores",ATENCION_HABITACIONES:"Control de Habitaciones",ATENCION_RESUMEN_GUARDIA:"Resumen diario / guardia",CARGOS_REGISTRAR:"Registrar salida",
+    CARGOS_BUSCAR:"Buscar salidas",CARGOS_RECEPCION:"Pendientes de recepción",GUIAS_REGISTRAR:"Registrar",GUIAS_HISTORIAL:"Historial de registros",
     GUIAS_INDICADORES:"Indicadores",GUIAS_SACOS:"Registro de Sacos Mineros",RI_RM:"Acceso Registro RI-RM",
     PENDIENTES:"Pendientes","NUEVA SOLICITUD":"Nueva solicitud","MIS SOLICITUDES":"Mis solicitudes",
     "HISTORIAL / BUSCAR":"Historial / Buscar"
@@ -63,6 +63,8 @@ export default function AdminPanel({section}:{section:AdminSection}) {
   const [editPermisos,setEditPermisos]=useState<Record<string,boolean>>({});
   const [motivo,setMotivo]=useState("");
   const [mensajeModal,setMensajeModal]=useState("");
+  const [nuevoAbierto,setNuevoAbierto]=useState(false);
+  const [nuevoUsuario,setNuevoUsuario]=useState("");const [nuevoNombre,setNuevoNombre]=useState("");const [nuevoRol,setNuevoRol]=useState("");const [nuevoPin,setNuevoPin]=useState("");const [nuevoPermisos,setNuevoPermisos]=useState<Record<string,boolean>>({});
 
   // MODIFICAR / ANULAR REGISTROS
   const [moduloRegistro,setModuloRegistro]=useState<"atencion"|"cargos"|"guias"|"rirm">("atencion");
@@ -116,6 +118,9 @@ export default function AdminPanel({section}:{section:AdminSection}) {
   const cerrarEditor=()=>{if(!guardando){setUsuarioEditando(null);setMensajeModal("");setMotivo("");}};
   const cambiarPermiso=(k:string)=>setEditPermisos(p=>({...p,[k]:!p[k]}));
   function cambiarGrupo(lista:PermisoConfig[],v:boolean){setEditPermisos(p=>{const c={...p};lista.forEach(x=>c[x.key]=v);return c;});}
+
+  function abrirNuevo(){const x:Record<string,boolean>={};permisosConfig.forEach(p=>x[p.key]=false);setNuevoPermisos(x);setNuevoUsuario("");setNuevoNombre("");setNuevoRol(roles[0]||"");setNuevoPin("");setMotivo("");setMensajeModal("");setNuevoAbierto(true)}
+  async function crearUsuario(){if(!nuevoUsuario.trim()||!nuevoNombre.trim()||!nuevoRol.trim()||!nuevoPin.trim())return setMensajeModal("Completa usuario, nombre, rol y PIN.");if(!/^\d{4,8}$/.test(nuevoPin.trim()))return setMensajeModal("El PIN debe tener entre 4 y 8 números.");if(!motivo.trim())return setMensajeModal("Indique el motivo de creación.");const adminUsuario=obtenerAdminActual();if(!adminUsuario)return setMensajeModal("No se pudo identificar la sesión del administrador.");const permisos:Record<string,string>={};permisosConfig.forEach(p=>permisos[p.key]=nuevoPermisos[p.key]?"SI":"NO");setGuardando(true);try{const r=await adminApi("adminGuardarUsuario",{accion:"CREAR",adminUsuario,datos:{usuario:nuevoUsuario.trim(),nombre:nuevoNombre.trim(),rol:nuevoRol.trim(),pin:nuevoPin.trim(),activo:"SI",permisos,motivo:motivo.trim()}});setMensajeModal(texto(r?.message)||"Usuario creado correctamente.");await cargarUsuarios();setTimeout(()=>setNuevoAbierto(false),700)}catch(e:any){setMensajeModal(e?.message||"No se pudo crear el usuario.")}finally{setGuardando(false)}}
 
   async function guardarAccesos(){
     if(!usuarioEditando)return;
@@ -251,7 +256,7 @@ export default function AdminPanel({section}:{section:AdminSection}) {
   </div></section>;
 
   if(section==="usuarios") return <><section style={{padding:"0 24px 28px"}}><div className="form-card">
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><div><h2 style={{margin:"0 0 5px"}}>Usuarios y accesos</h2><p style={{margin:0}}>Administra usuarios, perfiles y permisos por módulo.</p></div><button style={btn} onClick={cargarUsuarios}>{cargando?"Cargando...":"Actualizar"}</button></div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><div><h2 style={{margin:"0 0 5px"}}>Usuarios y accesos</h2><p style={{margin:0}}>Administra usuarios, perfiles y permisos por módulo.</p></div><div style={{display:"flex",gap:8}}><button style={btn} onClick={abrirNuevo}>+ Agregar usuario</button><button style={btn} onClick={cargarUsuarios}>{cargando?"Cargando...":"Actualizar"}</button></div></div>
     <div style={{display:"flex",gap:10,margin:"18px 0 12px"}}><input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="Buscar usuario, nombre o rol" style={{minHeight:42,flex:1,border:"1px solid #cbd9d6",borderRadius:8,padding:"8px 11px"}}/><b style={{padding:10,background:"#eef7f5",borderRadius:8}}>{filtrados.length} usuario(s)</b></div>
     {error&&<div style={{padding:12,background:"#fff3f3",borderRadius:9}}>{error}</div>}
     <div style={{overflowX:"auto",border:"1px solid #d9e4e1",borderRadius:12}}><table style={{width:"100%",minWidth:1050,borderCollapse:"collapse"}}>
@@ -263,6 +268,7 @@ export default function AdminPanel({section}:{section:AdminSection}) {
         <td style={{padding:10,borderTop:"1px solid #edf2f0"}}><button style={btn} onClick={()=>abrirEditor(u)}>Editar accesos</button></td></tr>})}</tbody>
     </table></div>
   </div></section>
+  {nuevoAbierto&&<div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(12,30,27,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:18}}><div style={{width:"min(760px,96vw)",maxHeight:"90vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:20}}><div style={{display:"flex",justifyContent:"space-between"}}><h2 style={{margin:0}}>Agregar usuario</h2><button style={btn} onClick={()=>setNuevoAbierto(false)}>×</button></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:16}}><label><b>Usuario</b><input value={nuevoUsuario} onChange={e=>setNuevoUsuario(e.target.value.toUpperCase())} style={{width:"100%",minHeight:42}}/></label><label><b>Nombre completo</b><input value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} style={{width:"100%",minHeight:42}}/></label><label><b>Rol</b><select value={nuevoRol} onChange={e=>setNuevoRol(e.target.value)} style={{width:"100%",minHeight:42}}>{roles.map(r=><option key={r}>{r}</option>)}</select></label><label><b>PIN (4 a 8 números)</b><input type="password" inputMode="numeric" value={nuevoPin} onChange={e=>setNuevoPin(e.target.value.replace(/\D/g,"").slice(0,8))} style={{width:"100%",minHeight:42}}/></label></div><h3>Accesos permitidos</h3>{Object.entries(grupos).map(([g,l])=><div key={g} style={{...card,marginBottom:10}}><b>{g}</b>{l.map(pp=><label key={pp.key} style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}><span>{etiquetaPermiso(pp.key)}</span><input type="checkbox" checked={!!nuevoPermisos[pp.key]} onChange={()=>setNuevoPermisos(v=>({...v,[pp.key]:!v[pp.key]}))}/></label>)}</div>)}<label><b>Motivo</b><textarea value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{width:"100%"}}/></label>{mensajeModal&&<div style={{padding:10,marginTop:10,background:"#f4f8f7"}}>{mensajeModal}</div>}<button style={{...btn,marginTop:12}} disabled={guardando} onClick={()=>void crearUsuario()}>{guardando?"Guardando...":"Crear usuario"}</button></div></div>}
   {usuarioEditando&&<div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(12,30,27,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:18}}>
     <div style={{width:"min(760px,96vw)",maxHeight:"90vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:20}}>
       <div style={{display:"flex",justifyContent:"space-between"}}><div><h2 style={{margin:0}}>Editar accesos</h2><small>Usuario: <b>{texto(usuarioEditando.usuario)}</b></small></div><button style={btn} onClick={cerrarEditor}>×</button></div>
