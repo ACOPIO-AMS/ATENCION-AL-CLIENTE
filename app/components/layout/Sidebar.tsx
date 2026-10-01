@@ -12,6 +12,7 @@ export type AppView =
   | "resumenGuardia"
   | "cargos"
   | "buscarSalidas"
+  | "pendientesRecepcion"
   | "guias"
   | "rirm"
   | "admin";
@@ -68,6 +69,7 @@ type Props = {
 
   registrarSalida: () => void;
   buscarSalidas: () => void;
+  pendientesRecepcion: () => void;
 
   abrirGuias: (s: GuiasSection) => void;
   abrirRirm: (s: RirmSection) => void;
@@ -243,9 +245,8 @@ export default function SidebarMenu(p: Props) {
     "Registrar salida"
   );
 
-  const sBuscar = can(
-    "Buscar salidas"
-  );
+  const sBuscar = can("Buscar salidas");
+  const sRecepcion = can("Pendientes de recepción");
 
   const mCargos = can(
     "CARGOS Y SALIDAS"
@@ -254,7 +255,8 @@ export default function SidebarMenu(p: Props) {
   const showCargos =
     mCargos ||
     sRegistrar ||
-    sBuscar;
+    sBuscar ||
+    sRecepcion;
 
   // ====================================================
   // 3. REGISTRO DE GUÍAS
@@ -559,6 +561,12 @@ export default function SidebarMenu(p: Props) {
                 >
                   <Icon tone="cyan">🔎</Icon>
                   <span>Buscar salidas</span>
+                </button>
+              )}
+
+              {sRecepcion && (
+                <button className={p.activeView === "pendientesRecepcion" ? "nav-item active" : "nav-item"} onClick={p.pendientesRecepcion}>
+                  <Icon tone="orange">📥</Icon><span>Pendientes de recepción</span>
                 </button>
               )}
 
