@@ -6,9 +6,13 @@ import LoginScreen from "./components/login/LoginScreen";
 import RiRmFrame, { type RirmSection } from "./components/registro-ri-rm/RiRmFrame";
 import AdminPanel, { type AdminSection } from "./components/admin/AdminPanel";
 import { GUIAS_HTML_INTEGRADO } from "./lib/guias-html";
+import EstadiaServicios from "./components/atencion/EstadiaServicios";
+import SalidaProveedores from "./components/atencion/SalidaProveedores";
+import ControlHabitaciones from "./components/atencion/ControlHabitaciones";
+import ResumenGuardia from "./components/atencion/ResumenGuardia";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
-type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "cargos" | "buscarSalidas" | "guias" | "rirm" | "admin";
+type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "estadia" | "salidaProveedores" | "habitaciones" | "resumenGuardia" | "cargos" | "buscarSalidas" | "guias" | "rirm" | "admin";
 type CargoExitResult = {
   correlative: string; type: string; code: string; dateTime: string;
   responsible: string; guard: string; shift: string; conductor?: string; observations?: string;
@@ -1533,6 +1537,10 @@ ${documentBody}
         pendientes={() => { setActiveView("pendientes"); void loadPending(); }}
         buscar={() => setActiveView("buscar")}
         clientes={() => { setActiveView("personas"); void loadClients(); }}
+        estadia={() => setActiveView("estadia")}
+        salidaProveedores={() => setActiveView("salidaProveedores")}
+        habitaciones={() => setActiveView("habitaciones")}
+        resumenGuardia={() => setActiveView("resumenGuardia")}
         registrarSalida={() => setActiveView("cargos")}
         buscarSalidas={() => setActiveView("buscarSalidas")}
         abrirGuias={openGuiasSection}
@@ -1555,8 +1563,8 @@ ${documentBody}
       </header>
       <section className="module-page-heading">
         <div>
-          <h1>{activeView === "registro" || activeView === "hoy" || activeView === "pendientes" || activeView === "buscar" || activeView === "personas" ? "1. ATENCIÓN AL CLIENTE" : activeView === "cargos" || activeView === "buscarSalidas" ? "2. CARGOS Y SALIDAS" : activeView === "guias" ? "3. REGISTRO DE GUÍAS" : activeView === "rirm" ? "4. REGISTRO RI-RM" : "5. ADMINISTRACIÓN GENERAL"}</h1>
-          <p>{activeView === "registro" ? "REGISTRO DE PROVEEDORES Y VEHÍCULOS" : activeView === "hoy" ? "REPORTE DIARIO" : activeView === "pendientes" ? "REGISTROS POR REGULARIZAR" : activeView === "buscar" ? "BÚSQUEDA DE REGISTROS" : activeView === "personas" ? "BASE DE DATOS DE CLIENTES" : activeView === "cargos" ? "REGISTRO DE SALIDAS DE MATERIALES" : activeView === "buscarSalidas" ? "CONSULTA DE SALIDAS" : activeView === "guias" ? "GESTIÓN Y SEGUIMIENTO DE GUÍAS" : activeView === "rirm" ? "GESTIÓN Y TRAZABILIDAD DE RI / RM" : "CONFIGURACIÓN Y CONTROL DEL SISTEMA"}</p>
+          <h1>{activeView === "registro" || activeView === "hoy" || activeView === "pendientes" || activeView === "buscar" || activeView === "personas" || activeView === "estadia" || activeView === "salidaProveedores" || activeView === "habitaciones" || activeView === "resumenGuardia" ? "1. ATENCIÓN AL CLIENTE" : activeView === "cargos" || activeView === "buscarSalidas" ? "2. CARGOS Y SALIDAS" : activeView === "guias" ? "3. REGISTRO DE GUÍAS" : activeView === "rirm" ? "4. REGISTRO RI-RM" : "5. ADMINISTRACIÓN GENERAL"}</h1>
+          <p>{activeView === "registro" ? "REGISTRO DE PROVEEDORES Y VEHÍCULOS" : activeView === "hoy" ? "REPORTE DIARIO" : activeView === "pendientes" ? "REGISTROS POR REGULARIZAR" : activeView === "buscar" ? "BÚSQUEDA DE REGISTROS" : activeView === "personas" ? "BASE DE DATOS DE CLIENTES" : activeView === "estadia" ? "ESTADÍA, SERVICIOS Y CONSUMOS" : activeView === "salidaProveedores" ? "SALIDA DE PROVEEDORES" : activeView === "habitaciones" ? "CONTROL DE HABITACIONES" : activeView === "resumenGuardia" ? "RESUMEN DIARIO / GUARDIA" : activeView === "cargos" ? "REGISTRO DE SALIDAS DE MATERIALES" : activeView === "buscarSalidas" ? "CONSULTA DE SALIDAS" : activeView === "guias" ? "GESTIÓN Y SEGUIMIENTO DE GUÍAS" : activeView === "rirm" ? "GESTIÓN Y TRAZABILIDAD DE RI / RM" : "CONFIGURACIÓN Y CONTROL DEL SISTEMA"}</p>
         </div>
       </section>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
@@ -1754,6 +1762,11 @@ ${documentBody}
           </table>
         </div>
       </section>}
+      {activeView === "estadia" && <EstadiaServicios responsable={currentUser.name} />}
+      {activeView === "salidaProveedores" && <SalidaProveedores responsable={currentUser.name} />}
+      {activeView === "habitaciones" && <ControlHabitaciones responsable={currentUser.name} />}
+      {activeView === "resumenGuardia" && <ResumenGuardia responsable={currentUser.name} />}
+
       {activeView === "guias" && <section style={{ padding: 0, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
         <iframe
           ref={guiasFrameRef}
