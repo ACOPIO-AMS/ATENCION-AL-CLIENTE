@@ -65,6 +65,7 @@ export default function AdminPanel({section}:{section:AdminSection}) {
   const [mensajeModal,setMensajeModal]=useState("");
 
   // MODIFICAR / ANULAR REGISTROS
+  const [moduloRegistro,setModuloRegistro]=useState<"atencion"|"cargos"|"guias"|"rirm">("atencion");
   const [busquedaRegistro,setBusquedaRegistro]=useState("");
   const [resultadosRegistro,setResultadosRegistro]=useState<AnyRow[]>([]);
   const [registroEditando,setRegistroEditando]=useState<AnyRow|null>(null);
@@ -134,11 +135,48 @@ export default function AdminPanel({section}:{section:AdminSection}) {
   }
 
 
-  async function buscarRegistroGuias(){
-    if(!busquedaRegistro.trim()){setMensajeRegistro("Ingrese un código para buscar.");return;}
+  const cfgRegistro:Record<string,AnyRow>={
+    atencion:{
+      titulo:"1. Atención al Cliente",buscar:"adminBuscarRegistroAtencion",modificar:"adminModificarRegistroAtencion",anular:"adminAnularRegistroAtencion",
+      placeholder:"ID, DNI, placa, nombre o código",
+      columnas:[["id","ID"],["placa","PLACA"],["nombre","PERSONA"],["codigo","CÓDIGO"],["fechaHora","FECHA / HORA"],["zona","ZONA"]],
+      campos:[["fechaHora","Fecha / hora"],["motivo","Motivo de ingreso"],["placa","Placa"],["zona","Zona"],["guardia","Guardia"],["turno","Turno"],["responsable","Responsable"]]
+    },
+    cargos:{
+      titulo:"2. Cargos y Salidas",buscar:"adminBuscarRegistroCargos",modificar:"adminModificarRegistroCargos",anular:"adminAnularRegistroCargos",
+      placeholder:"Correlativo, código, conductor o descripción",
+      columnas:[["correlativo","N°"],["tipo","TIPO"],["codigo","CÓDIGO"],["conductor","CONDUCTOR"],["fechaHora","FECHA / HORA"],["estadoAdmin","ESTADO"]],
+      campos:[] as any[]
+    },
+    guias:{
+      titulo:"3. Registro de Guías",buscar:"adminBuscarRegistroGuias",modificar:"adminModificarRegistroGuias",anular:"adminAnularRegistroGuias",
+      placeholder:"Código o número de lote, ej. 69128",
+      columnas:[["codigo","CÓDIGO"],["id","ID"],["placa","PLACA"],["proveedor","PROVEEDOR"],["numeroLotes","N° LOTES"],["condicionLote","CONDICIÓN"]],
+      campos:[["id","ID"],["placa","Placa"],["dniProveedor","DNI proveedor"],["proveedor","Proveedor"],["numeroLotes","N° lotes"],["codigo","Código de lote"],["recepcion","Recepción"],["inicioRevision","Inicio revisión"],["serieGRR","Serie GRR"],["numeroGRR","Número GRR"],["serieGRT","Serie GRT"],["numeroGRT","Número GRT"],["finalRevision","Final revisión"],["condicionLote","Condición del lote"]]
+    },
+    rirm:{
+      titulo:"4. Registro RI-RM",buscar:"adminBuscarRegistroRirm",modificar:"adminModificarRegistroRirm",anular:"adminAnularRegistroRirm",
+      placeholder:"Código, tipo, ID de ítem o solicitud",
+      columnas:[["codigo","CÓDIGO"],["tipo","TIPO"],["idItem","ID ÍTEM"],["idSolicitud","SOLICITUD"],["etapaActual","ETAPA"],["estado","ESTADO"]],
+      campos:[["tipo","Tipo"],["codigo","Código"],["modalidad","Modalidad"],["observacion","Observación"],["etapaActual","Etapa actual"],["subestadoActual","Subestado"],["estado","Estado"],["usuarioUltimo","Último responsable"],["pendienteRegularizacion","Pendiente regularización"]]
+    }
+  };
+
+  function camposCargo(r:AnyRow){
+    return r.hoja==="BD SALIDAS CARGO"
+      ? [["correlativo","N°"],["tipoSalida","Tipo salida"],["descripcion","Descripción"],["motivoSalida","Motivo"],["cantidad","Cantidad"],["unidad","Unidad"],["observaciones","Observaciones"],["fechaHora","Fecha / hora"],["responsable","Atención al cliente"],["conductor","Conductor"]]
+      : [["correlativo","N°"],["tipo","Tipo"],["codigo","Código"],["fechaHora","Fecha / hora"],["responsable","Atención al cliente"],["conductor","Conductor"],["observaciones","Observaciones"]];
+  }
+
+  function cambiarModuloRegistro(v:"atencion"|"cargos"|"guias"|"rirm"){
+    setModuloRegistro(v);setBusquedaRegistro("");setResultadosRegistro([]);setRegistroEditando(null);setRegistroForm({});setMotivoRegistro("");setMensajeRegistro("");
+  }
+
+  async function buscarRegistro(){
+    if(!busquedaRegistro.trim()){setMensajeRegistro("Ingrese un dato para buscar.");return;}
     setBuscandoRegistro(true);setMensajeRegistro("");setResultadosRegistro([]);setRegistroEditando(null);
     try{
-      const d=await adminApi("adminBuscarRegistroGuias",{busqueda:busquedaRegistro.trim()});
+      const d=await adminApi(cfgRegistro[moduloRegistro].buscar,{busqueda:busquedaRegistro.trim()});
       const lista=Array.isArray(d?.registros)?d.registros:[];
       setResultadosRegistro(lista);
       if(!lista.length)setMensajeRegistro("No se encontraron registros.");
@@ -146,15 +184,12 @@ export default function AdminPanel({section}:{section:AdminSection}) {
     finally{setBuscandoRegistro(false);}
   }
 
-  function abrirRegistro(r:AnyRow){
-    setRegistroEditando(r);
-    setRegistroForm({...r});
-    setMotivoRegistro("");
-    setMensajeRegistro("");
-  }
+  function abrirRegistro(r:AnyRow){setRegistroEditando(r);setRegistroForm({...r});setMotivoRegistro("");setMensajeRegistro("");}
+  function cambiarRegistro(campo:string,valor:string){setRegistroForm((p:AnyRow)=>({...p,[campo]:valor}));}
 
-  function cambiarRegistro(campo:string,valor:string){
-    setRegistroForm((p:AnyRow)=>({...p,[campo]:valor}));
+  function camposActuales(){
+    if(!registroEditando)return [];
+    return moduloRegistro==="cargos"?camposCargo(registroEditando):cfgRegistro[moduloRegistro].campos;
   }
 
   async function guardarRegistro(){
@@ -162,24 +197,21 @@ export default function AdminPanel({section}:{section:AdminSection}) {
     if(!motivoRegistro.trim()){setMensajeRegistro("Indique el motivo de la modificación.");return;}
     const adminUsuario=obtenerAdminActual();
     if(!adminUsuario){setMensajeRegistro("No se pudo identificar la sesión del administrador.");return;}
-
-    const claves=["id","placa","dniProveedor","proveedor","numeroLotes","codigo","recepcion","inicioRevision","serieGRR","numeroGRR","serieGRT","numeroGRT","finalRevision","condicionLote"];
     const cambios:AnyRow={};
-    claves.forEach(k=>{
-      if(texto(registroForm[k])!==texto(registroEditando[k])) cambios[k]=registroForm[k]??"";
-    });
+    camposActuales().forEach(([k]:string[])=>{if(texto(registroForm[k])!==texto(registroEditando[k]))cambios[k]=registroForm[k]??"";});
     if(!Object.keys(cambios).length){setMensajeRegistro("No hay cambios para guardar.");return;}
-
+    const payload:AnyRow={adminUsuario,motivo:motivoRegistro.trim(),cambios};
+    if(moduloRegistro==="atencion")payload.id=registroEditando.id;
+    if(moduloRegistro==="cargos"){payload.fila=registroEditando.fila;payload.hoja=registroEditando.hoja;}
+    if(moduloRegistro==="guias")payload.fila=registroEditando.fila;
+    if(moduloRegistro==="rirm")payload.idItem=registroEditando.idItem;
     setGuardando(true);setMensajeRegistro("");
     try{
-      const d=await adminApi("adminModificarRegistroGuias",{fila:registroEditando.fila,adminUsuario,motivo:motivoRegistro.trim(),cambios});
+      const d=await adminApi(cfgRegistro[moduloRegistro].modificar,payload);
       setMensajeRegistro(texto(d?.message)||"Registro actualizado correctamente.");
-      const b=await adminApi("adminBuscarRegistroGuias",{busqueda:texto(registroForm.codigo)||busquedaRegistro.trim()});
-      const lista=Array.isArray(b?.registros)?b.registros:[];
-      setResultadosRegistro(lista);
-      setRegistroEditando(null);
-      setRegistroForm({});
-      setMotivoRegistro("");
+      setRegistroEditando(null);setRegistroForm({});setMotivoRegistro("");
+      const b=await adminApi(cfgRegistro[moduloRegistro].buscar,{busqueda:busquedaRegistro.trim()});
+      setResultadosRegistro(Array.isArray(b?.registros)?b.registros:[]);
     }catch(e:any){setMensajeRegistro(e?.message||"No se pudo modificar el registro.");}
     finally{setGuardando(false);}
   }
@@ -189,17 +221,20 @@ export default function AdminPanel({section}:{section:AdminSection}) {
     if(!motivoRegistro.trim()){setMensajeRegistro("Indique el motivo de la anulación.");return;}
     const adminUsuario=obtenerAdminActual();
     if(!adminUsuario){setMensajeRegistro("No se pudo identificar la sesión del administrador.");return;}
-    if(typeof window!=="undefined"&&!window.confirm(`¿Confirmas anular el registro ${texto(registroEditando.codigo)||"seleccionado"}?\\n\\nNo se eliminará la fila y el movimiento quedará en Auditoría.`))return;
-
+    const ref=texto(registroEditando.codigo||registroEditando.correlativo||registroEditando.idItem||registroEditando.id)||"seleccionado";
+    if(typeof window!=="undefined"&&!window.confirm(`¿Confirmas anular el registro ${ref}?\n\nEl registro NO se eliminará físicamente y quedará en Auditoría.`))return;
+    const payload:AnyRow={adminUsuario,motivo:motivoRegistro.trim()};
+    if(moduloRegistro==="atencion")payload.id=registroEditando.id;
+    if(moduloRegistro==="cargos"){payload.fila=registroEditando.fila;payload.hoja=registroEditando.hoja;}
+    if(moduloRegistro==="guias")payload.fila=registroEditando.fila;
+    if(moduloRegistro==="rirm")payload.idItem=registroEditando.idItem;
     setGuardando(true);setMensajeRegistro("");
     try{
-      const d=await adminApi("adminAnularRegistroGuias",{fila:registroEditando.fila,adminUsuario,motivo:motivoRegistro.trim()});
+      const d=await adminApi(cfgRegistro[moduloRegistro].anular,payload);
       setMensajeRegistro(texto(d?.message)||"Registro anulado correctamente.");
-      const b=await adminApi("adminBuscarRegistroGuias",{busqueda:busquedaRegistro.trim()});
+      setRegistroEditando(null);setRegistroForm({});setMotivoRegistro("");
+      const b=await adminApi(cfgRegistro[moduloRegistro].buscar,{busqueda:busquedaRegistro.trim()});
       setResultadosRegistro(Array.isArray(b?.registros)?b.registros:[]);
-      setRegistroEditando(null);
-      setRegistroForm({});
-      setMotivoRegistro("");
     }catch(e:any){setMensajeRegistro(e?.message||"No se pudo anular el registro.");}
     finally{setGuardando(false);}
   }
@@ -248,46 +283,53 @@ export default function AdminPanel({section}:{section:AdminSection}) {
   </div>}</>;
 
 
-  if(section==="registros") return <section style={{padding:"0 24px 28px"}}><div className="form-card">
-    <div><h2 style={{margin:"0 0 5px"}}>Modificar / Anular registros</h2><p style={{margin:0}}>Busca un lote de Registro de Guías, revisa sus datos y realiza cambios administrativos con auditoría.</p></div>
+  if(section==="registros") {
+    const cfg=cfgRegistro[moduloRegistro];
+    return <section style={{padding:"0 24px 28px"}}><div className="form-card">
+      <div><h2 style={{margin:"0 0 5px"}}>Modificar / Anular registros</h2><p style={{margin:0}}>Control administrativo de los módulos 1 al 4. Toda modificación o anulación requiere motivo y queda en Auditoría.</p></div>
 
-    <div style={{display:"flex",gap:10,margin:"18px 0 14px",flexWrap:"wrap"}}>
-      <input value={busquedaRegistro} onChange={e=>setBusquedaRegistro(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void buscarRegistroGuias();}} placeholder="Código o número de lote, ej. 68254" style={{minHeight:42,flex:"1 1 300px",border:"1px solid #cbd9d6",borderRadius:8,padding:"8px 11px"}}/>
-      <button className="primary-action" onClick={()=>void buscarRegistroGuias()} disabled={buscandoRegistro}>{buscandoRegistro?"Buscando...":"Buscar registro"}</button>
-    </div>
-
-    {mensajeRegistro&&<div style={{padding:12,marginBottom:12,background:"#f4f8f7",borderRadius:8}}>{mensajeRegistro}</div>}
-
-    {!!resultadosRegistro.length&&<div style={{overflowX:"auto",border:"1px solid #d9e4e1",borderRadius:12}}>
-      <table style={{width:"100%",minWidth:950,borderCollapse:"collapse"}}>
-        <thead><tr style={{background:"#eef7f5",textAlign:"left"}}>{["CÓDIGO","ID","PLACA","PROVEEDOR","N° LOTES","RECEPCIÓN","CONDICIÓN","ACCIÓN"].map(h=><th key={h} style={{padding:11,fontSize:12}}>{h}</th>)}</tr></thead>
-        <tbody>{resultadosRegistro.map((r,i)=><tr key={`${r.fila}-${i}`}>
-          {[r.codigo,r.id,r.placa,r.proveedor,r.numeroLotes,r.recepcion,r.condicionLote].map((v,j)=><td key={j} style={{padding:10,borderTop:"1px solid #edf2f0"}}>{texto(v)||"—"}</td>)}
-          <td style={{padding:10,borderTop:"1px solid #edf2f0"}}><button style={btn} onClick={()=>abrirRegistro(r)}>Ver / Editar</button></td>
-        </tr>)}</tbody>
-      </table>
-    </div>}
-
-    {registroEditando&&<div style={{marginTop:18,...card}}>
-      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><div><h3 style={{margin:"0 0 4px"}}>Registro: {texto(registroEditando.codigo)||"—"}</h3><small>Fila {registroEditando.fila} · PROCESOS - GUIAS</small></div><button style={btn} onClick={()=>{setRegistroEditando(null);setRegistroForm({});setMotivoRegistro("");}}>Cerrar</button></div>
-
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12,marginTop:16}}>
-        {[
-          ["id","ID"],["placa","Placa"],["dniProveedor","DNI proveedor"],["proveedor","Proveedor"],
-          ["numeroLotes","N° lotes"],["codigo","Código de lote"],["recepcion","Recepción"],["inicioRevision","Inicio revisión"],
-          ["serieGRR","Serie GRR"],["numeroGRR","Número GRR"],["serieGRT","Serie GRT"],["numeroGRT","Número GRT"],
-          ["finalRevision","Final revisión"],["condicionLote","Condición del lote"]
-        ].map(([k,l])=><label key={k}><b style={{fontSize:12}}>{l}</b><input value={texto(registroForm[k])} onChange={e=>cambiarRegistro(k,e.target.value)} style={{width:"100%",minHeight:40,marginTop:5,border:"1px solid #cbd9d6",borderRadius:7,padding:"7px 9px"}}/></label>)}
+      <div style={{display:"grid",gridTemplateColumns:"minmax(230px,320px) 1fr auto",gap:10,margin:"18px 0 14px"}}>
+        <select value={moduloRegistro} onChange={e=>cambiarModuloRegistro(e.target.value as any)} style={{minHeight:42,border:"1px solid #cbd9d6",borderRadius:8,padding:"8px 11px",fontWeight:800}}>
+          <option value="atencion">1. Atención al Cliente</option>
+          <option value="cargos">2. Cargos y Salidas</option>
+          <option value="guias">3. Registro de Guías</option>
+          <option value="rirm">4. Registro RI-RM</option>
+        </select>
+        <input value={busquedaRegistro} onChange={e=>setBusquedaRegistro(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")void buscarRegistro();}} placeholder={cfg.placeholder} style={{minHeight:42,border:"1px solid #cbd9d6",borderRadius:8,padding:"8px 11px"}}/>
+        <button className="primary-action" onClick={()=>void buscarRegistro()} disabled={buscandoRegistro}>{buscandoRegistro?"Buscando...":"Buscar registro"}</button>
       </div>
 
-      <label style={{display:"block",marginTop:15}}><b>Motivo obligatorio</b><textarea value={motivoRegistro} onChange={e=>setMotivoRegistro(e.target.value)} rows={3} placeholder="Indique por qué se modifica o anula el registro" style={{width:"100%",marginTop:6}}/></label>
+      <div style={{padding:"10px 12px",marginBottom:12,background:"#eef7f5",borderRadius:8,fontWeight:800}}>Módulo seleccionado: {cfg.titulo}</div>
+      {mensajeRegistro&&<div style={{padding:12,marginBottom:12,background:"#f4f8f7",borderRadius:8}}>{mensajeRegistro}</div>}
 
-      <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:16,flexWrap:"wrap"}}>
-        <button style={{...btn,border:"1px solid #b42318"}} onClick={()=>void anularRegistro()} disabled={guardando}>{guardando?"Procesando...":"Anular registro"}</button>
-        <button className="primary-action" onClick={()=>void guardarRegistro()} disabled={guardando}>{guardando?"Guardando...":"Guardar cambios"}</button>
-      </div>
-    </div>}
-  </div></section>;
+      {!!resultadosRegistro.length&&<div style={{overflowX:"auto",border:"1px solid #d9e4e1",borderRadius:12}}>
+        <table style={{width:"100%",minWidth:950,borderCollapse:"collapse"}}>
+          <thead><tr style={{background:"#eef7f5",textAlign:"left"}}>{cfg.columnas.map((x:any)=><th key={x[0]} style={{padding:11,fontSize:12}}>{x[1]}</th>)}<th style={{padding:11,fontSize:12}}>ACCIÓN</th></tr></thead>
+          <tbody>{resultadosRegistro.map((r,i)=><tr key={`${r.hoja||moduloRegistro}-${r.fila||r.idItem||r.id||i}-${i}`}>
+            {cfg.columnas.map((x:any)=><td key={x[0]} style={{padding:10,borderTop:"1px solid #edf2f0"}}>{texto(r[x[0]])||"—"}</td>)}
+            <td style={{padding:10,borderTop:"1px solid #edf2f0"}}><button style={btn} onClick={()=>abrirRegistro(r)}>Ver / Editar</button></td>
+          </tr>)}</tbody>
+        </table>
+      </div>}
+
+      {registroEditando&&<div style={{marginTop:18,...card}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}>
+          <div><h3 style={{margin:"0 0 4px"}}>{cfg.titulo}</h3><small>{texto(registroEditando.hoja)||"Base operativa"} · {texto(registroEditando.codigo||registroEditando.correlativo||registroEditando.idItem||registroEditando.id)||"Registro"}</small></div>
+          <button style={btn} onClick={()=>{setRegistroEditando(null);setRegistroForm({});setMotivoRegistro("");}}>Cerrar</button>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:12,marginTop:16}}>
+          {camposActuales().map(([k,l]:string[])=><label key={k}><b style={{fontSize:12}}>{l}</b><input value={texto(registroForm[k])} onChange={e=>cambiarRegistro(k,e.target.value)} style={{width:"100%",minHeight:40,marginTop:5,border:"1px solid #cbd9d6",borderRadius:7,padding:"7px 9px"}}/></label>)}
+        </div>
+
+        <label style={{display:"block",marginTop:15}}><b>Motivo obligatorio</b><textarea value={motivoRegistro} onChange={e=>setMotivoRegistro(e.target.value)} rows={3} placeholder="Indique por qué se modifica o anula el registro" style={{width:"100%",marginTop:6}}/></label>
+        <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:16,flexWrap:"wrap"}}>
+          <button style={{...btn,border:"1px solid #b42318"}} onClick={()=>void anularRegistro()} disabled={guardando}>{guardando?"Procesando...":"Anular registro"}</button>
+          <button className="primary-action" onClick={()=>void guardarRegistro()} disabled={guardando}>{guardando?"Guardando...":"Guardar cambios"}</button>
+        </div>
+      </div>}
+    </div></section>;
+  }
 
   if(section==="auditoria") return <section style={{padding:"0 24px 28px"}}><div className="form-card"><div style={{display:"flex",justifyContent:"space-between"}}><div><h2 style={{margin:0}}>Auditoría</h2><p>Historial de modificaciones administrativas.</p></div><button style={btn} onClick={cargarAuditoria}>Actualizar</button></div>
     <div style={{overflowX:"auto"}}><table style={{width:"100%",minWidth:1100,borderCollapse:"collapse"}}><thead><tr>{["FECHA / HORA","USUARIO ADMIN","MÓDULO","REGISTRO","ACCIÓN","CAMPO","VALOR ANTERIOR","VALOR NUEVO","MOTIVO"].map(h=><th key={h} style={{padding:10,textAlign:"left"}}>{h}</th>)}</tr></thead><tbody>{auditoria.map((r,i)=><tr key={i}>{[r.fechaHora,r.usuarioAdmin,r.modulo,r.registro,r.accion,r.campo,r.anterior,r.nuevo,r.motivo].map((v,j)=><td key={j} style={{padding:10,borderTop:"1px solid #edf2f0"}}>{texto(v)||"—"}</td>)}</tr>)}</tbody></table></div>
