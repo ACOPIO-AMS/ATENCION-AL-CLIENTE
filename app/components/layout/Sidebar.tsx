@@ -6,6 +6,10 @@ export type AppView =
   | "pendientes"
   | "buscar"
   | "personas"
+  | "estadia"
+  | "salidaProveedores"
+  | "habitaciones"
+  | "resumenGuardia"
   | "cargos"
   | "buscarSalidas"
   | "guias"
@@ -57,6 +61,10 @@ type Props = {
   pendientes: () => void;
   buscar: () => void;
   clientes: () => void;
+  estadia: () => void;
+  salidaProveedores: () => void;
+  habitaciones: () => void;
+  resumenGuardia: () => void;
 
   registrarSalida: () => void;
   buscarSalidas: () => void;
@@ -182,6 +190,24 @@ export default function SidebarMenu(p: Props) {
     "BD Clientes"
   );
 
+  const aEstadia = can(
+    "Estadía, Servicios y Consumos",
+    "Estadia, Servicios y Consumos"
+  );
+
+  const aSalidaProveedores = can(
+    "Salida de Proveedores"
+  );
+
+  const aHabitaciones = can(
+    "Control de Habitaciones"
+  );
+
+  const aResumenGuardia = can(
+    "Resumen diario / guardia",
+    "Resumen diario/guardia"
+  );
+
   const mAtencion = can(
     "ATENCION AL CLIENTE",
     "ATENCIÓN AL CLIENTE"
@@ -203,7 +229,11 @@ export default function SidebarMenu(p: Props) {
     aReporte ||
     aRegularizar ||
     aBuscar ||
-    aClientes;
+    aClientes ||
+    aEstadia ||
+    aSalidaProveedores ||
+    aHabitaciones ||
+    aResumenGuardia;
 
   // ====================================================
   // 2. CARGOS Y SALIDAS
@@ -408,6 +438,62 @@ export default function SidebarMenu(p: Props) {
                 >
                   <Icon tone="cyan">👥</Icon>
                   <span>BD Clientes</span>
+                </button>
+              )}
+
+              {aEstadia && (
+                <button
+                  className={
+                    p.activeView === "estadia"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.estadia}
+                >
+                  <Icon tone="cyan">🧾</Icon>
+                  <span>Estadía, Servicios y Consumos</span>
+                </button>
+              )}
+
+              {aSalidaProveedores && (
+                <button
+                  className={
+                    p.activeView === "salidaProveedores"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.salidaProveedores}
+                >
+                  <Icon tone="orange">🚪</Icon>
+                  <span>Salida de Proveedores</span>
+                </button>
+              )}
+
+              {aHabitaciones && (
+                <button
+                  className={
+                    p.activeView === "habitaciones"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.habitaciones}
+                >
+                  <Icon tone="cyan">🛏</Icon>
+                  <span>Control de Habitaciones</span>
+                </button>
+              )}
+
+              {aResumenGuardia && (
+                <button
+                  className={
+                    p.activeView === "resumenGuardia"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={p.resumenGuardia}
+                >
+                  <Icon tone="gold">📊</Icon>
+                  <span>Resumen diario / guardia</span>
                 </button>
               )}
 
