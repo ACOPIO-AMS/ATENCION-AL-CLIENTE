@@ -1,51 +1,18 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import { btn, duracionDesde, estadiaApi, EstadiaPersona, input, panel } from "./estadiaApi";
-
-type Servicio = "DESAYUNO"|"ALMUERZO"|"CENA"|"AGUA"|"GASEOSA"|"GALLETAS"|"PAPEL HIGIÉNICO"|"SHAMPOO"|"JABÓN";
-
-export default function EstadiaServicios({ responsable }: { responsable: string }) {
-  const [personas,setPersonas]=useState<EstadiaPersona[]>([]);
-  const [sel,setSel]=useState("");
-  const [servicio,setServicio]=useState<Servicio>("AGUA");
-  const [cantidad,setCantidad]=useState(1);
-  const [salidaPrevista,setSalidaPrevista]=useState("");
-  const [msg,setMsg]=useState("");
-  const [,tick]=useState(0);
-  const cargar=async()=>{ try{ setPersonas(await estadiaApi<EstadiaPersona[]>("estadiaListarPresentes")); }catch(e){setMsg(e instanceof Error?e.message:"Error");}};
-  useEffect(()=>{void cargar(); const t=setInterval(()=>tick(x=>x+1),60000); return()=>clearInterval(t)},[]);
-  const actual=useMemo(()=>personas.find(p=>`${p.idIngreso}|${p.dni}`===sel),[personas,sel]);
-  async function guardarServicio(){
-    if(!actual) return setMsg("Selecciona una persona.");
-    try{
-      await estadiaApi("estadiaRegistrarServicio",{idIngreso:actual.idIngreso,dni:actual.dni,nombre:actual.nombre,placa:actual.placa,proveedor:actual.proveedor,servicio,cantidad,responsable});
-      setMsg("Servicio registrado."); 
-    }catch(e){setMsg(e instanceof Error?e.message:"Error");}
-  }
-  async function guardarSalidaPrevista(){
-    if(!actual||!salidaPrevista) return setMsg("Selecciona persona y salida prevista.");
-    try{await estadiaApi("estadiaActualizarSalidaPrevista",{idIngreso:actual.idIngreso,dni:actual.dni,salidaPrevista,responsable}); setMsg("Salida prevista actualizada."); await cargar();}
-    catch(e){setMsg(e instanceof Error?e.message:"Error");}
-  }
-  const comidas={desayuno:personas.length,almuerzo:personas.length,cena:personas.length};
-  return <section style={{display:"grid",gap:16}}>
-    <div><h1 style={{margin:0}}>Estadía, Servicios y Consumos</h1><p style={{margin:"6px 0 0",color:"#60706d"}}>Personas actualmente en instalaciones y registro individual de servicios.</p></div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:12}}>
-      {[["Personas presentes",personas.length],["Desayunos requeridos",comidas.desayuno],["Almuerzos requeridos",comidas.almuerzo],["Cenas requeridas",comidas.cena]].map(([a,b])=><div key={String(a)} style={panel}><small>{a}</small><strong style={{display:"block",fontSize:28,marginTop:6}}>{b}</strong></div>)}
-    </div>
-    <div style={panel}>
-      <h3>Personas en instalaciones</h3>
-      <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["Placa","Proveedor","Persona","Ingreso","Salida prevista","Permanencia","Habitación"].map(x=><th key={x} style={{textAlign:"left",padding:8,borderBottom:"1px solid #ddd"}}>{x}</th>)}</tr></thead>
-      <tbody>{personas.map(p=><tr key={`${p.idIngreso}-${p.dni}`} onClick={()=>setSel(`${p.idIngreso}|${p.dni}`)} style={{cursor:"pointer",background:sel===`${p.idIngreso}|${p.dni}`?"#eef8f6":undefined}}><td style={{padding:8}}>{p.placa||"-"}</td><td>{p.proveedor||"-"}</td><td>{p.nombre}</td><td>{p.fechaIngreso}</td><td>{p.salidaPrevista||"-"}</td><td>{duracionDesde(p.fechaIngreso)}</td><td>{p.habitacion||"-"}</td></tr>)}</tbody></table></div>
-    </div>
-    <div style={{...panel,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:12,alignItems:"end"}}>
-      <label>Persona<select style={input} value={sel} onChange={e=>setSel(e.target.value)}><option value="">Seleccionar...</option>{personas.map(p=><option key={`${p.idIngreso}-${p.dni}`} value={`${p.idIngreso}|${p.dni}`}>{p.nombre} · {p.placa}</option>)}</select></label>
-      <label>Servicio<select style={input} value={servicio} onChange={e=>setServicio(e.target.value as Servicio)}>{["DESAYUNO","ALMUERZO","CENA","AGUA","GASEOSA","GALLETAS","PAPEL HIGIÉNICO","SHAMPOO","JABÓN"].map(x=><option key={x}>{x}</option>)}</select></label>
-      <label>Cantidad<input style={input} type="number" min={1} value={cantidad} onChange={e=>setCantidad(Math.max(1,Number(e.target.value)||1))}/></label>
-      <button style={btn} onClick={()=>void guardarServicio()}>Registrar servicio</button>
-      <label>Salida prevista<input style={input} type="datetime-local" value={salidaPrevista} onChange={e=>setSalidaPrevista(e.target.value)}/></label>
-      <button style={btn} onClick={()=>void guardarSalidaPrevista()}>Guardar salida prevista</button>
-    </div>
-    {msg&&<div style={{...panel,padding:12}}>{msg}</div>}
-  </section>
+import {useEffect,useMemo,useState} from "react";
+import {btn,duracionDesde,estadiaApi,EstadiaPersona,input,kpi,panel} from "./estadiaApi";
+const SERVICIOS=["DESAYUNO","ALMUERZO","CENA","AGUA","GASEOSA","GALLETAS"] as const;
+type S=typeof SERVICIOS[number];
+export default function EstadiaServicios({responsable}:{responsable:string}){
+ const [personas,setPersonas]=useState<EstadiaPersona[]>([]),[q,setQ]=useState(""),[selected,setSelected]=useState<string[]>([]),[serv,setServ]=useState<Record<S,{on:boolean,cantidad:number}>>(()=>Object.fromEntries(SERVICIOS.map(x=>[x,{on:false,cantidad:1}])) as Record<S,{on:boolean,cantidad:number}>),[salida,setSalida]=useState(""),[msg,setMsg]=useState("");const[,tick]=useState(0);
+ const cargar=async()=>{try{setPersonas(await estadiaApi<EstadiaPersona[]>("estadiaListarPresentes"))}catch(e){setMsg(e instanceof Error?e.message:"Error")}};useEffect(()=>{void cargar();const t=setInterval(()=>tick(x=>x+1),60000);return()=>clearInterval(t)},[]);
+ const visibles=useMemo(()=>{const z=q.trim().toLowerCase();return !z?personas:personas.filter(p=>[p.dni,p.nombre,p.placa,p.proveedor,p.idIngreso].some(v=>String(v||"").toLowerCase().includes(z)))},[q,personas]);
+ const keys=(p:EstadiaPersona)=>`${p.idIngreso}|${p.dni}`;const elegidas=personas.filter(p=>selected.includes(keys(p)));
+ async function registrar(){const activos=SERVICIOS.filter(s=>serv[s].on);if(!elegidas.length)return setMsg("Selecciona al menos una persona.");if(!activos.length)return setMsg("Marca al menos un servicio.");try{for(const p of elegidas)for(const s of activos)await estadiaApi("estadiaRegistrarServicio",{idIngreso:p.idIngreso,dni:p.dni,nombre:p.nombre,placa:p.placa,proveedor:p.proveedor,servicio:s,cantidad:serv[s].cantidad,responsable});setMsg(`Entrega registrada: ${elegidas.length} persona(s), ${activos.length} servicio(s).`)}catch(e){setMsg(e instanceof Error?e.message:"Error")}}
+ async function guardarSalida(){if(elegidas.length!==1||!salida)return setMsg("Para salida prevista selecciona una sola persona y fecha/hora.");const p=elegidas[0];try{await estadiaApi("estadiaActualizarSalidaPrevista",{idIngreso:p.idIngreso,dni:p.dni,salidaPrevista:salida,responsable});setMsg("Salida prevista actualizada.");await cargar()}catch(e){setMsg(e instanceof Error?e.message:"Error")}}
+ const cards=[["Personas presentes",personas.length,"#e8f5ff","#83c5ee"],["Desayunos requeridos",personas.length,"#fff7d9","#efc84a"],["Almuerzos requeridos",personas.length,"#fff0df","#f2a24d"],["Cenas requeridas",personas.length,"#f0ecff","#9a84e8"]] as const;
+ return <section style={{display:"grid",gap:16}}><div><h1 style={{margin:0}}>Estadía, Servicios y Consumos</h1><p style={{color:"#60706d"}}>Selecciona una o varias personas y registra varios consumos en una sola operación.</p></div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>{cards.map(c=><div key={c[0]} style={kpi(c[2],c[3])}><small>{c[0]}</small><strong style={{display:"block",fontSize:30,marginTop:6}}>{c[1]}</strong></div>)}</div>
+ <div style={panel}><input style={input} placeholder="Buscar por DNI, nombre, placa, proveedor o ID..." value={q} onChange={e=>setQ(e.target.value)}/><div style={{marginTop:10,overflowX:"auto",maxHeight:390}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{["","Placa","Proveedor","Persona","DNI","Ingreso","Salida prevista","Permanencia","Habitación"].map(x=><th key={x} style={{textAlign:"left",padding:8,borderBottom:"1px solid #ddd"}}>{x}</th>)}</tr></thead><tbody>{visibles.map(p=><tr key={keys(p)}><td style={{padding:8}}><input type="checkbox" checked={selected.includes(keys(p))} onChange={e=>setSelected(v=>e.target.checked?[...v,keys(p)]:v.filter(x=>x!==keys(p)))}/></td><td>{p.placa||"-"}</td><td>{p.proveedor||"-"}</td><td>{p.nombre}</td><td>{p.dni}</td><td>{p.fechaIngreso}</td><td>{p.salidaPrevista||"-"}</td><td>{duracionDesde(p.fechaIngreso)}</td><td>{p.habitacion||"-"}</td></tr>)}</tbody></table></div></div>
+ <div style={panel}><h3 style={{marginTop:0}}>Entrega múltiple <small style={{fontWeight:500}}>({elegidas.length} persona(s) seleccionada(s))</small></h3><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:10}}>{SERVICIOS.map(s=><div key={s} style={{border:"1px solid #dce6e4",borderRadius:10,padding:10}}><label style={{fontWeight:800}}><input type="checkbox" checked={serv[s].on} onChange={e=>setServ(v=>({...v,[s]:{...v[s],on:e.target.checked}}))}/> {s}</label><input style={{...input,marginTop:8}} type="number" min={1} value={serv[s].cantidad} onChange={e=>setServ(v=>({...v,[s]:{...v[s],cantidad:Math.max(1,Number(e.target.value)||1)}}))}/></div>)}</div><button style={{...btn,marginTop:12}} onClick={()=>void registrar()}>Registrar entrega seleccionada</button></div>
+ <div style={panel}><h3 style={{marginTop:0}}>Salida prevista</h3><p style={{color:"#60706d"}}>Selecciona una sola persona arriba para actualizar su salida prevista.</p><div style={{display:"flex",gap:10,flexWrap:"wrap"}}><input style={{...input,maxWidth:280}} type="datetime-local" value={salida} onChange={e=>setSalida(e.target.value)}/><button style={btn} onClick={()=>void guardarSalida()}>Guardar salida prevista</button></div></div>{msg&&<div style={panel}>{msg}</div>}</section>
 }
