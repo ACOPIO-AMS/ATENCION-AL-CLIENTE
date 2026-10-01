@@ -42,21 +42,17 @@ export async function estadiaApi<T>(
 ): Promise<T> {
   const r = await fetch("/api/sheets", {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      accept: "application/json",
-    },
+    headers: { "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({ action, payload }),
   });
-
-  const j = await r
-    .json()
-    .catch(() => ({ ok: false, error: "Respuesta inválida del servidor." }));
-
-  if (!r.ok || !j.ok) {
-    throw new Error(j.error || "No se pudo completar la operación.");
+  const raw = await r.text();
+  let j: any = null;
+  try { j = raw ? JSON.parse(raw) : null; } catch {
+    if (r.status === 524 || /524|timeout|timed out/i.test(raw))
+      throw new Error("El servidor tardó demasiado en responder. Verifica antes de volver a registrar para evitar duplicados.");
+    throw new Error("El servidor devolvió una respuesta no válida.");
   }
-
+  if (!r.ok || !j?.ok) throw new Error(j?.error || j?.message || `No se pudo completar la operación (${r.status}).`);
   return j.data as T;
 }
 
@@ -130,9 +126,10 @@ export const kpi = (bg: string, border: string): CSSProperties => ({
 export const page: CSSProperties = {
   display: "grid",
   gap: 18,
-  padding: "8px 24px 28px",
-  maxWidth: 1600,
-  margin: "0 auto",
+  padding: "8px 1cm 28px",
+  maxWidth: "none",
+  width: "100%",
+  margin: "0",
 };
 
 export const roomStyle: Record<string, CSSProperties> = {
