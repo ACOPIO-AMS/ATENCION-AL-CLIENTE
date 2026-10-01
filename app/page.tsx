@@ -444,6 +444,7 @@ export default function Home() {
       if (saved?.user && saved?.name && saved?.role && saved.permissions) {
         const restored: AppUser = { ...saved, permissions: normalizePermissions(saved.permissions) };
         window.localStorage.setItem(SESSION_KEY, JSON.stringify(restored));
+        window.localStorage.setItem("usuario", restored.user);
         setCurrentUser(restored);
         setEvent(current => ({ ...current, responsible: restored.name }));
         openFirstAuthorized(restored);
@@ -500,6 +501,7 @@ export default function Home() {
         permissions: normalizePermissions(rawPermissions),
       };
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      window.localStorage.setItem("usuario", session.user);
       setCurrentUser(session);
       setEvent(current => ({ ...current, responsible: session.name }));
       openFirstAuthorized(session);
@@ -514,6 +516,7 @@ export default function Home() {
   function logout() {
     if (!window.confirm("¿Cerrar la sesión actual?")) return;
     window.localStorage.removeItem(SESSION_KEY);
+    window.localStorage.removeItem("usuario");
     setCurrentUser(null);
     setLoginUser("");
     setLoginPin("");
