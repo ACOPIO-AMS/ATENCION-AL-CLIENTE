@@ -208,8 +208,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
   async function reasignarUno(x:EstadiaPersona,c:Comida){
     const candidatos=p.filter(y=>key(y)!==key(x));
     if(!candidatos.length){setMsg("No hay otra persona presente disponible para reasignar.");return;}
-    const lista=candidatos.map((y,i)=>`${i+1}. ${y.nombre} · DNI ${y.dni} · ${y.placa||"-"}`).join("
-");
+    const lista=candidatos.map((y,i)=>`${i+1}. ${y.nombre} · DNI ${y.dni} · ${y.placa||"-"}`).join("\n");
     const n=window.prompt(`Reasignar ${c.toLowerCase()} de ${x.nombre}.
 
 Escribe el número de la persona que realmente recibió la ración:
