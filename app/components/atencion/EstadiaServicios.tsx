@@ -207,16 +207,14 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
 
   const icono=(x:EstadiaPersona,c:Comida)=>{
     const v=estado.personas[key(x)]?.[c];
+    return v==="ENTREGADO"?"✓":v==="PENDIENTE"?"⏳":v==="RETIRO"?"✕":v==="REASIGNADO"?"↗":"—";
+  };
 
-    return v==="ENTREGADO"
-      ?"✓"
-      :v==="PENDIENTE"
-      ?"⏳"
-      :v==="RETIRO"
-      ?"✕"
-      :v==="REASIGNADO"
-      ?"↗"
-      :"—";
+  const estadoComida=(x:EstadiaPersona,c:Comida)=>String(estado.personas[key(x)]?.[c]||"");
+  const badgeComida=(x:EstadiaPersona,c:Comida)=>{
+    const v=estadoComida(x,c);
+    const cfg:any=v==="ENTREGADO"?{bg:"#e3f6e9",fg:"#176b3a",t:"✓ Entregado"}:v==="PENDIENTE"?{bg:"#fff2df",fg:"#9a5a00",t:"⏳ Pendiente"}:v==="REASIGNADO"?{bg:"#e9efff",fg:"#3456a8",t:"↗ Reasignado"}:v==="RETIRO"?{bg:"#f3f4f5",fg:"#5d6568",t:"✕ No entregado"}:{bg:"transparent",fg:"#778",t:"—"};
+    return <span style={{display:"inline-block",padding:v?"5px 8px":"0",borderRadius:8,background:cfg.bg,color:cfg.fg,fontWeight:v?700:500,fontSize:11}}>{cfg.t}</span>;
   };
 
   const card=(c:Comida,ico:string,bg:string,bd:string)=>{
@@ -248,10 +246,8 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
             </b>
           </span>
 
-          <span>
-            Retiro/Reasig.{" "}
-            <b>{z.retiro+z.reasignados}</b>
-          </span>
+          <span>Reasignados <b>{z.reasignados}</b></span>
+          <span>No entregados <b>{z.retiro}</b></span>
         </div>
         <div style={{fontSize:11,marginTop:8,fontWeight:700}}>Ver personas →</div>
       </div>
@@ -407,13 +403,14 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
                   "Placa",
                   "Persona",
                   "DNI",
-                  "Ingreso",
-                  "Salida prevista",
                   "Permanencia",
                   "Hab.",
-                  "Alimentación",
+                  "Desayuno",
+                  "Almuerzo",
+                  "Cena",
                   "Consumos de hoy",
-                  "Historial"
+                  "Salida prevista",
+                  "Acciones"
                 ].map(x=>
                   <th key={x} style={th}>
                     {x}
@@ -454,14 +451,6 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
                   </td>
 
                   <td style={td}>
-                    {fechaHora(x.fechaIngreso)}
-                  </td>
-
-                  <td style={td}>
-                    {fechaHora(x.salidaPrevista)}
-                  </td>
-
-                  <td style={td}>
                     {duracionDesde(x.fechaIngreso)}
                   </td>
 
@@ -469,25 +458,9 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
                     {x.habitacion||"-"}
                   </td>
 
-                  <td style={{...td,minWidth:260}}>
-
-                    <span>
-                      Des: <b>{icono(x,"DESAYUNO")}</b>
-                    </span>
-
-                    <span style={{margin:"0 12px"}}>|</span>
-
-                    <span>
-                      Alm: <b>{icono(x,"ALMUERZO")}</b>
-                    </span>
-
-                    <span style={{margin:"0 12px"}}>|</span>
-
-                    <span>
-                      Cena: <b>{icono(x,"CENA")}</b>
-                    </span>
-
-                  </td>
+                  <td style={td}>{badgeComida(x,"DESAYUNO")}</td>
+                  <td style={td}>{badgeComida(x,"ALMUERZO")}</td>
+                  <td style={td}>{badgeComida(x,"CENA")}</td>
 
                   <td style={{...td,minWidth:190}}>
 
@@ -512,8 +485,9 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
 
                   </td>
 
+                  <td style={td}>{fechaHora(x.salidaPrevista)}</td>
                   <td style={td}>
-                    <button style={{...btn,padding:"6px 10px",fontSize:12}} onClick={()=>void verHistorial(x)}>Ver</button>
+                    <button style={{...btn,padding:"6px 12px",fontSize:12}} onClick={()=>void verHistorial(x)}>Ver</button>
                   </td>
 
                 </tr>
