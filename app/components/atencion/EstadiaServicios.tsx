@@ -764,8 +764,20 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
         </div>
 
       </div>
-
       {msg&&(
-        <div style={{
-          ...panel,
+        <div
+          style={{
+            ...panel,
+            borderColor:"#d86a61",
+            background:"#fff4f2"
+          }}
+        >
+          {msg}
+        </div>
+      )}
+
+    </section>
+  );
+}
+     
          
