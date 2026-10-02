@@ -16,6 +16,7 @@ export type EstadiaPersona = {
   estado: "PRESENTE" | "SALIO";
   guardia?: string;
   turno?: string;
+  zona?: string;
 };
 
 export type Habitacion = {
