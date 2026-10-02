@@ -453,8 +453,12 @@ function estadiaEstadoServicios_() {
   // ============================================================
 
   var comidas = {};
+  var fechaOperativaHoy = estadiaFechaOperativa_(new Date());
 
   srv.forEach(function(r) {
+
+    // La pantalla principal muestra únicamente el estado del día operativo actual.
+    if (String(r[1] || "") !== fechaOperativaHoy) return;
 
     var id = limpio_(r[4]);
     var dni = limpio_(r[5]);
@@ -669,4 +673,23 @@ function estadiaResumenGuardia_(p){
  var req={};srs.forEach(function(r){var f=String(r[1]||"");if(f<desde||f>hasta)return;if(fg&&String(r[3]||"").toUpperCase()!==fg)return;if(ft&&String(r[2]||"").toUpperCase()!==ft)return;if(fr&&String(r[12]||"").toUpperCase()!==fr)return;var sv=String(r[9]).toUpperCase(),st=String(r[11]).toUpperCase(),n=Number(r[10])||0,k=String(r[4])+"|"+String(r[5])+"|"+f+"|"+sv;if(estadiaServicioEsComida_(sv)){if(st==="SOLICITADO"||st==="ATENDIDO"||st.indexOf("RETIRO")>=0||st.indexOf("REASIGN")>=0)req[k]=sv;if(st==="ENTREGADO"){out.alimentacion[sv].entregados++;if(String(r[16]||"").toUpperCase()==="FUERA DE HORARIO")out.alimentacion[sv].fueraHorario++;}else if(st.indexOf("RETIRO")>=0)out.alimentacion[sv].retiro++;else if(st.indexOf("REASIGN")>=0){out.alimentacion[sv].reasignados++;out.reasignaciones.push({servicio:sv,original:String(r[6]||""),entregadoA:String(r[13]||""),dniDestino:String(r[14]||""),observacion:String(r[15]||"")});}}else if(sv==="AGUA")out.agua+=n;else if(sv==="GASEOSA")out.gaseosa+=n;else if(sv==="GALLETAS")out.galletas+=n;else if(sv==="PAPEL HIGIÉNICO")out.papel+=n;else if(sv==="SHAMPOO")out.shampoo+=n;else if(sv==="JABÓN")out.jabon+=n;});
  Object.keys(req).forEach(function(k){out.alimentacion[req[k]].solicitados++;});["DESAYUNO","ALMUERZO","CENA"].forEach(function(sv){var z=out.alimentacion[sv];z.pendientes=Math.max(0,z.solicitados-z.entregados-z.retiro-z.reasignados);});out.desayunos=out.alimentacion.DESAYUNO.entregados;out.almuerzos=out.alimentacion.ALMUERZO.entregados;out.cenas=out.alimentacion.CENA.entregados;
  Object.keys(ingresos).sort().forEach(function(f){out.ingresosPorFecha.push({fecha:f,cantidad:ingresos[f]});});h.forEach(function(x){var e=String(x.estado).toUpperCase();if(e==="DISPONIBLE")out.habitaciones.disponibles++;else if(e==="OCUPADA")out.habitaciones.ocupadas++;else if(e==="RESERVADA")out.habitaciones.reservadas++;else if(e==="POR LIMPIAR")out.habitaciones.porLimpiar++;else if(e==="FUERA DE SERVICIO")out.habitaciones.fueraServicio++;});return out;
+}
+
+/* ============================================================
+   V19 - HISTORIAL DE SERVICIOS POR PERSONA
+   ============================================================ */
+function estadiaHistorialPersona_(p) {
+  p = p || {};
+  var id = String(p.idIngreso || "").trim();
+  var dni = String(p.dni || "").trim();
+  if (!id && !dni) throw new Error("Falta identificar a la persona.");
+  estadiaInit_();
+  var sh = estadiaSS_().getSheetByName(EST_CFG.SERVICIOS);
+  var rows = estadiaRows_(sh), out = [];
+  rows.forEach(function(r) {
+    if ((id && String(r[4] || "").trim() !== id) || (dni && String(r[5] || "").trim() !== dni)) return;
+    out.push({fechaHora:estadiaIso_(r[0]),fechaOperativa:String(r[1]||""),turno:String(r[2]||""),guardia:String(r[3]||""),servicio:String(r[9]||""),cantidad:Number(r[10])||0,estado:String(r[11]||""),responsable:String(r[12]||""),entregadoA:String(r[13]||""),dniDestino:String(r[14]||""),observacion:String(r[15]||""),cumplimiento:String(r[16]||"")});
+  });
+  out.sort(function(a,b){return String(b.fechaHora).localeCompare(String(a.fechaHora));});
+  return out;
 }

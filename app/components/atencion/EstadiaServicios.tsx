@@ -44,6 +44,8 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
   const[msg,setMsg]=useState("");
   const[load,setLoad]=useState("");
   const[ok,setOk]=useState("");
+  const[hist,setHist]=useState<any[]>([]);
+  const[histPersona,setHistPersona]=useState<EstadiaPersona|null>(null);
 
   const key=(x:EstadiaPersona)=>`${x.idIngreso}|${x.dni}`;
 
@@ -142,6 +144,13 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
     }finally{
       setLoad("");
     }
+  }
+
+  async function verHistorial(x:EstadiaPersona){
+    setLoad("Cargando historial..."); setMsg("");
+    try{ const h=await estadiaApi<any[]>("estadiaHistorialPersona",{idIngreso:x.idIngreso,dni:x.dni}); setHist(h||[]); setHistPersona(x); }
+    catch(e){setMsg(e instanceof Error?e.message:"Error al cargar historial");}
+    finally{setLoad("");}
   }
 
   async function prevista(){
@@ -311,7 +320,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
         {card("CENA","🌙","#f0ecff","#9a84e8")}
 
         <div style={kpi("#eaf6ff","#67a9d4")}>
-          <b>🥤 Atención de ingreso</b>
+          <b>🥤 Consumos de hoy</b>
 
           <div style={{fontSize:12,marginTop:8}}>
             💧 Agua <b>{estado.consumos.AGUA}</b>
@@ -388,7 +397,8 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
                   "Permanencia",
                   "Hab.",
                   "Alimentación",
-                  "Atención ingreso"
+                  "Consumos de hoy",
+                  "Historial"
                 ].map(x=>
                   <th key={x} style={th}>
                     {x}
@@ -485,6 +495,10 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
                       {estado.personas[key(x)]?.GALLETAS||0}
                     </b>
 
+                  </td>
+
+                  <td style={td}>
+                    <button style={{...btn,padding:"6px 10px",fontSize:12}} onClick={()=>void verHistorial(x)}>Ver</button>
                   </td>
 
                 </tr>
@@ -626,7 +640,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
         }}>
 
           <h3>
-            3. Atención de ingreso
+            3. Consumos
           </h3>
 
           <p style={{fontSize:13}}>
@@ -731,7 +745,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
               )
             }
           >
-            Entregar atención de ingreso
+            Registrar consumos
           </button>
 
         </div>
@@ -782,6 +796,8 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
           {msg}
         </div>
       )}
+
+      {histPersona&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(5,28,34,.55)",display:"grid",placeItems:"center",padding:20}}><div style={{...panel,width:"min(980px,96vw)",maxHeight:"85vh",overflow:"auto"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><div><h2 style={{margin:0}}>Historial de servicios y consumos</h2><p style={{margin:"5px 0 12px"}}><b>{histPersona.nombre}</b> · DNI {histPersona.dni}</p></div><button style={{...btn,background:"#687775"}} onClick={()=>{setHistPersona(null);setHist([])}}>Cerrar</button></div><div style={{overflowX:"auto"}}><table style={{width:"100%",fontSize:12,borderCollapse:"collapse"}}><thead><tr><th style={th}>Fecha/hora</th><th style={th}>Fecha operativa</th><th style={th}>Servicio</th><th style={th}>Cant.</th><th style={th}>Estado</th><th style={th}>Horario</th><th style={th}>Responsable</th><th style={th}>Observación</th></tr></thead><tbody>{hist.length?hist.map((h:any,i:number)=><tr key={i}><td style={td}>{fechaHora(h.fechaHora)}</td><td style={td}>{h.fechaOperativa||"-"}</td><td style={td}><b>{h.servicio}</b></td><td style={td}>{h.cantidad}</td><td style={td}>{h.estado}</td><td style={td}>{h.cumplimiento||"-"}</td><td style={td}>{h.responsable||"-"}</td><td style={td}>{h.observacion||"-"}{h.entregadoA?` · Entregado a: ${h.entregadoA}`:""}</td></tr>):<tr><td style={td} colSpan={8}>Sin movimientos registrados.</td></tr>}</tbody></table></div></div></div>}
 
     </section>
   );

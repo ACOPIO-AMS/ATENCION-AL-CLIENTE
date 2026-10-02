@@ -1,0 +1,20 @@
+AMS V19 INTEGRAL - 02/10/2026
+
+CORRECCIONES VERIFICADAS SOBRE V18:
+- Corrige falso aviso "Apps Script desactualizado": frontend reconoce V18/V19 y backend queda V19.
+- Estadía: "Atención de ingreso" pasa a "Consumos de hoy".
+- Estado de alimentación y consumos de la pantalla principal se calcula por FECHA OPERATIVA ACTUAL; no mezcla días anteriores de estadías multiday.
+- Historial por persona: botón Ver con fecha/hora, fecha operativa, servicio, cantidad, estado, cumplimiento horario, responsable y observación.
+- Mantiene horarios: desayuno 06:00-08:00, almuerzo 12:00-14:00, cena 18:00-20:00; fuera de horario exige observación.
+- Mantiene resolución de alimentación pendiente por retiro o reasignación antes de salida.
+- Mantiene consumos repetibles e independientes (agua, gaseosa, galletas).
+- Mantiene resumen histórico con ingreso, salida, permanencia, filtros y reasignaciones.
+- Mantiene habitaciones y estados.
+- Mantiene recepción de cargos filtrada exclusivamente a tipo CH.
+- Mantiene RI-RM V032/V011 y Modelo 2 sin cambios funcionales.
+
+VALIDACIONES REALIZADAS:
+- Sintaxis JavaScript de Code.gs: OK.
+- Sintaxis JavaScript de EstadiaServicios.gs: OK.
+- Verificación de rutas/acciones V19: OK.
+- TypeScript completo no pudo validarse en este entorno porque el paquete no contiene node_modules y faltan dependencias Next/React/vinext; los errores de tsc son de módulos ausentes, no una confirmación de error funcional del código modificado.

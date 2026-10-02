@@ -2,7 +2,7 @@
 // VERSION: ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
 // VERIFICACION: este archivo usa sintaxis ES5 compatible, sin operadores modernos.
 
-var SCRIPT_VERSION = 'AMS-2026-10-02-V18-INTEGRAL';
+var SCRIPT_VERSION = 'AMS-2026-10-02-V19-INTEGRAL';
 var WRITE_LOCK_MS = 1500;
 
 var CFG = Object.freeze({
@@ -112,6 +112,7 @@ estadiaRegistrarServiciosLote: function () {
 estadiaEstadoServicios: function () {
   return estadiaEstadoServicios_();
 },
+estadiaHistorialPersona: function () { return estadiaHistorialPersona_(p_1); },
 estadiaPendientesAlimentacion: function () {
   return estadiaPendientesAlimentacion_(p_1);
 },
