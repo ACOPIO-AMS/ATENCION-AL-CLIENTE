@@ -43,6 +43,8 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
   const[filtroComida,setFiltroComida]=useState("TODOS");
   const[filtroPresencia,setFiltroPresencia]=useState<"TODOS"|"HOY"|"ANTERIORES">("TODOS");
   const[menuComida,setMenuComida]=useState<{k:string;c:Comida}|null>(null);
+  const[modalFuera,setModalFuera]=useState<{persona:EstadiaPersona;comida:Comida;observacion:string}|null>(null);
+  const[modalReasignar,setModalReasignar]=useState<{persona:EstadiaPersona;comida:Comida;destinoKey:string;busqueda:string;otra:boolean;otroNombre:string;otroDni:string;observacion:string}|null>(null);
 
   const key=(x:EstadiaPersona)=>`${x.idIngreso}|${x.dni}`;
 
@@ -189,40 +191,61 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
     return new Intl.DateTimeFormat("es-PE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"America/Lima"}).format(d);
   };
 
-  async function entregarUno(x:EstadiaPersona,c:Comida){
-    const prevSel=sel;
-    setSel([key(x)]);
-    setMsg("");
-    setLoad(`Entregando ${c.toLowerCase()}...`);
+  const fueraHorario=(c:Comida)=>{
+    const ahora=new Date(),m=ahora.getHours()*60+ahora.getMinutes();
+    return c==="DESAYUNO"?(m<360||m>480):c==="ALMUERZO"?(m<720||m>840):(m<1080||m>1200);
+  };
+
+  const horarioComida=(c:Comida)=>c==="DESAYUNO"?"06:00–08:00":c==="ALMUERZO"?"12:00–14:00":"18:00–20:00";
+
+  async function confirmarEntrega(x:EstadiaPersona,c:Comida,observacion=""){
+    setLoad(`Entregando ${c.toLowerCase()}...`);setMsg("");
     try{
-      let observacion="";
-      const ahora=new Date(),m=ahora.getHours()*60+ahora.getMinutes();
-      const fuera=c==="DESAYUNO"?(m<360||m>480):c==="ALMUERZO"?(m<720||m>840):(m<1080||m>1200);
-      if(fuera){observacion=window.prompt("La entrega está fuera del horario normal. Ingresa el motivo/observación:")?.trim()||"";if(!observacion){setMsg("La observación es obligatoria para entregar fuera de horario.");return;}}
       await estadiaApi("estadiaRegistrarServiciosLote",{personas:[x],servicios:[{servicio:c,cantidad:1}],responsable,modo:"ENTREGA",observacion});
-      await cargar(true); exito("Entrega registrada correctamente");
+      await cargar(true);
+      if(detalleComida?.servicio){const d=await estadiaApi<any>("estadiaDetalleAlimentacion",{servicio:detalleComida.servicio});setDetalleComida(d);}
+      exito("Entrega registrada correctamente");
     }catch(e){setMsg(e instanceof Error?e.message:"Error al entregar");}
-    finally{setSel(prevSel);setMenuComida(null);setLoad("");}
+    finally{setMenuComida(null);setModalFuera(null);setLoad("");}
   }
 
-  async function reasignarUno(x:EstadiaPersona,c:Comida){
-    const candidatos=p.filter(y=>key(y)!==key(x));
-    if(!candidatos.length){setMsg("No hay otra persona presente disponible para reasignar.");return;}
-    const lista=candidatos.map((y,i)=>`${i+1}. ${y.nombre} · DNI ${y.dni} · ${y.placa||"-"}`).join("\n");
-    const n=window.prompt(`Reasignar ${c.toLowerCase()} de ${x.nombre}.
+  async function entregarUno(x:EstadiaPersona,c:Comida){
+    setMenuComida(null);setMsg("");
+    if(fueraHorario(c)){
+      setModalFuera({persona:x,comida:c,observacion:""});
+      return;
+    }
+    await confirmarEntrega(x,c);
+  }
 
-Escribe el número de la persona que realmente recibió la ración:
+  function reasignarUno(x:EstadiaPersona,c:Comida){
+    setMenuComida(null);setMsg("");
+    setModalReasignar({persona:x,comida:c,destinoKey:"",busqueda:"",otra:false,otroNombre:"",otroDni:"",observacion:""});
+  }
 
-${lista}`);
-    if(!n)return;
-    const destino=candidatos[Number(n)-1];
-    if(!destino){setMsg("Selección no válida.");return;}
+  async function confirmarReasignacion(){
+    if(!modalReasignar)return;
+    const m=modalReasignar;
+    let nombre="",dni="";
+    if(m.otra){
+      nombre=m.otroNombre.trim().toUpperCase();
+      dni=m.otroDni.replace(/\D/g,"");
+      if(!nombre){setMsg("Ingresa el nombre de la persona que recibió la ración.");return;}
+      if(dni && dni.length!==8){setMsg("El DNI debe tener 8 dígitos o dejarse vacío.");return;}
+    }else{
+      const destino=p.find(y=>key(y)===m.destinoKey);
+      if(!destino){setMsg("Selecciona la persona que recibió la ración.");return;}
+      nombre=destino.nombre;dni=destino.dni;
+    }
+    const obs=m.observacion.trim()||`Reasignado a ${nombre}`;
     setLoad("Guardando reasignación...");setMsg("");
     try{
-      await estadiaApi("estadiaReasignarAlimentacion",{idIngreso:x.idIngreso,dni:x.dni,servicio:c,entregadoA:destino.nombre,dniDestino:destino.dni,responsable,observacion:`Reasignado a ${destino.nombre}`});
-      await cargar(true); exito("Ración reasignada correctamente");
+      await estadiaApi("estadiaReasignarAlimentacion",{idIngreso:m.persona.idIngreso,dni:m.persona.dni,servicio:m.comida,entregadoA:nombre,dniDestino:dni,responsable,observacion:obs});
+      await cargar(true);
+      if(detalleComida?.servicio){const d=await estadiaApi<any>("estadiaDetalleAlimentacion",{servicio:detalleComida.servicio});setDetalleComida(d);}
+      setModalReasignar(null);exito("Ración reasignada correctamente");
     }catch(e){setMsg(e instanceof Error?e.message:"Error al reasignar");}
-    finally{setMenuComida(null);setLoad("");}
+    finally{setLoad("");}
   }
 
   const celdaComida=(x:EstadiaPersona,c:Comida)=>{
@@ -556,6 +579,34 @@ ${lista}`);
           {msg}
         </div>
       )}
+
+      {modalFuera&&<div style={{position:"fixed",inset:0,zIndex:10020,background:"rgba(5,28,34,.58)",display:"grid",placeItems:"center",padding:20}}>
+        <div style={{...panel,width:"min(560px,96vw)",padding:22}}>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}><div style={{fontSize:34}}>⏰</div><div><h2 style={{margin:0}}>Entrega fuera de horario</h2><div style={{color:"#60706d",marginTop:3}}>{modalFuera.comida[0]+modalFuera.comida.slice(1).toLowerCase()} · horario {horarioComida(modalFuera.comida)}</div></div></div>
+          <div style={{marginTop:16,padding:12,borderRadius:10,background:"#f4f8f7"}}><b>{modalFuera.persona.nombre}</b><div style={{fontSize:12,color:"#60706d"}}>DNI {modalFuera.persona.dni} · {modalFuera.persona.placa||"Sin placa"}</div></div>
+          <label style={{display:"block",fontWeight:700,marginTop:16}}>Motivo / observación <span style={{color:"#c43b34"}}>*</span></label>
+          <textarea autoFocus rows={4} value={modalFuera.observacion} onChange={e=>setModalFuera({...modalFuera,observacion:e.target.value})} placeholder="Ej.: La persona llegó después del horario establecido..." style={{...input,resize:"vertical",marginTop:6}}/>
+          <div style={{fontSize:11,color:"#60706d",marginTop:6}}>La entrega quedará registrada como fuera de horario con fecha, hora y responsable.</div>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:9,marginTop:18}}><button style={{...btn,background:"#687775"}} onClick={()=>setModalFuera(null)}>Cancelar</button><button disabled={!modalFuera.observacion.trim()||!!load} style={{...btn,opacity:modalFuera.observacion.trim()?1:.55}} onClick={()=>void confirmarEntrega(modalFuera.persona,modalFuera.comida,modalFuera.observacion.trim())}>✓ Confirmar entrega</button></div>
+        </div>
+      </div>}
+
+      {modalReasignar&&<div style={{position:"fixed",inset:0,zIndex:10021,background:"rgba(5,28,34,.62)",display:"grid",placeItems:"center",padding:20}}>
+        <div style={{...panel,width:"min(720px,97vw)",maxHeight:"90vh",overflow:"auto",padding:22}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"start"}}><div><h2 style={{margin:0}}>↗ Reasignar alimentación</h2><p style={{margin:"5px 0 0",color:"#60706d"}}>{modalReasignar.comida[0]+modalReasignar.comida.slice(1).toLowerCase()} solicitado para <b>{modalReasignar.persona.nombre}</b></p></div><button style={{...btn,background:"#687775",padding:"7px 11px"}} onClick={()=>setModalReasignar(null)}>✕</button></div>
+          <div style={{marginTop:15,padding:12,borderRadius:10,background:"#fff7e8",border:"1px solid #f1d397"}}><small>SOLICITADO PARA</small><div><b>{modalReasignar.persona.nombre}</b> · DNI {modalReasignar.persona.dni}</div></div>
+          <div style={{display:"flex",gap:8,marginTop:16}}><button style={{...btn,background:!modalReasignar.otra?"#1268c4":"#e9eff2",color:!modalReasignar.otra?"#fff":"#17333a"}} onClick={()=>setModalReasignar({...modalReasignar,otra:false})}>👤 Persona presente</button><button style={{...btn,background:modalReasignar.otra?"#1268c4":"#e9eff2",color:modalReasignar.otra?"#fff":"#17333a"}} onClick={()=>setModalReasignar({...modalReasignar,otra:true,destinoKey:""})}>＋ Otra persona</button></div>
+          {!modalReasignar.otra?<>
+            <input style={{...input,marginTop:12}} placeholder="Buscar por nombre, DNI o placa..." value={modalReasignar.busqueda} onChange={e=>setModalReasignar({...modalReasignar,busqueda:e.target.value})}/>
+            <div style={{display:"grid",gap:7,marginTop:9,maxHeight:260,overflow:"auto"}}>
+              {p.filter(y=>key(y)!==key(modalReasignar.persona)).filter(y=>{const z=modalReasignar.busqueda.toLowerCase().trim();return !z||[y.nombre,y.dni,y.placa].some(v=>String(v||"").toLowerCase().includes(z));}).map(y=><button key={key(y)} onClick={()=>setModalReasignar({...modalReasignar,destinoKey:key(y)})} style={{textAlign:"left",padding:11,borderRadius:10,cursor:"pointer",border:modalReasignar.destinoKey===key(y)?"2px solid #1268c4":"1px solid #d9e1df",background:modalReasignar.destinoKey===key(y)?"#eaf4ff":"#fff"}}><b>{y.nombre}</b><div style={{fontSize:11,color:"#60706d",marginTop:2}}>DNI {y.dni} · {y.placa||"Sin placa"}{y.habitacion?` · Hab. ${y.habitacion}`:""}</div></button>)}
+            </div>
+          </>:<div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10,marginTop:12}}><div><label style={{fontWeight:700,fontSize:12}}>Nombre y apellidos *</label><input style={{...input,marginTop:5}} value={modalReasignar.otroNombre} onChange={e=>setModalReasignar({...modalReasignar,otroNombre:e.target.value})} placeholder="Nombre de quien recibió"/></div><div><label style={{fontWeight:700,fontSize:12}}>DNI (opcional)</label><input style={{...input,marginTop:5}} maxLength={8} value={modalReasignar.otroDni} onChange={e=>setModalReasignar({...modalReasignar,otroDni:e.target.value.replace(/\D/g,"").slice(0,8)})} placeholder="8 dígitos"/></div></div>}
+          <label style={{display:"block",fontWeight:700,marginTop:15}}>Motivo / observación</label><textarea rows={3} value={modalReasignar.observacion} onChange={e=>setModalReasignar({...modalReasignar,observacion:e.target.value})} placeholder="Ej.: El titular se retiró antes de recibir la ración." style={{...input,resize:"vertical",marginTop:6}}/>
+          <div style={{marginTop:13,padding:11,borderRadius:10,background:"#eef6ff",fontSize:12}}><b>Trazabilidad:</b> {modalReasignar.persona.nombre} → {modalReasignar.otra?(modalReasignar.otroNombre.trim()||"Otra persona"):(p.find(y=>key(y)===modalReasignar.destinoKey)?.nombre||"Selecciona un destinatario")}</div>
+          <div style={{display:"flex",justifyContent:"flex-end",gap:9,marginTop:18}}><button style={{...btn,background:"#687775"}} onClick={()=>setModalReasignar(null)}>Cancelar</button><button disabled={!!load||(!modalReasignar.otra&&!modalReasignar.destinoKey)||(modalReasignar.otra&&!modalReasignar.otroNombre.trim())} style={{...btn,background:"#596bd8"}} onClick={()=>void confirmarReasignacion()}>↗ Confirmar reasignación</button></div>
+        </div>
+      </div>}
 
       {detalleComida&&<div style={{position:"fixed",inset:0,zIndex:10002,background:"rgba(5,28,34,.58)",display:"grid",placeItems:"center",padding:20}}><div style={{...panel,width:"min(1050px,97vw)",maxHeight:"88vh",overflow:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><div><h2 style={{margin:0}}>🍽️ Detalle de {String(detalleComida.servicio||"").toLowerCase()} — {fechaOpTexto(detalleComida.fechaOperativa)}</h2><p style={{margin:"5px 0 12px",color:"#60706d"}}>Personas para quienes se solicitó esta comida y su estado real.</p></div><button style={{...btn,background:"#687775"}} onClick={()=>setDetalleComida(null)}>Cerrar</button></div>
