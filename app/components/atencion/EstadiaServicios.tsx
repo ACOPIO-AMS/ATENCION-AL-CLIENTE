@@ -46,6 +46,8 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
   const[ok,setOk]=useState("");
   const[hist,setHist]=useState<any[]>([]);
   const[histPersona,setHistPersona]=useState<EstadiaPersona|null>(null);
+  const[detalleComida,setDetalleComida]=useState<any|null>(null);
+  const[filtroComida,setFiltroComida]=useState("TODOS");
 
   const key=(x:EstadiaPersona)=>`${x.idIngreso}|${x.dni}`;
 
@@ -94,6 +96,19 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
     window.setTimeout(()=>setOk(""),1400);
   };
 
+  const fechaOpTexto=(v:string)=>{
+    const m=String(v||"").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m?`${m[3]}/${m[2]}/${m[1]}`:String(v||"-");
+  };
+  const horaTexto=(v:string)=>{ if(!v)return "—"; const d=new Date(v); return Number.isNaN(d.getTime())?"—":new Intl.DateTimeFormat("es-PE",{hour:"2-digit",minute:"2-digit",hourCycle:"h23",timeZone:"America/Lima"}).format(d); };
+
+  async function abrirDetalleComida(servicio:Comida){
+    setLoad(`Cargando detalle de ${servicio.toLowerCase()}...`);setMsg("");
+    try{const d=await estadiaApi<any>("estadiaDetalleAlimentacion",{servicio});setDetalleComida(d);setFiltroComida("TODOS");}
+    catch(e){setMsg(e instanceof Error?e.message:"Error al cargar detalle");}
+    finally{setLoad("");}
+  }
+
   async function guardar(
     modo:"SOLICITUD"|"ENTREGA",
     servicios:{servicio:string,cantidad:number}[]
@@ -122,7 +137,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
         const fuera=servicios.some(s=>s.servicio==="DESAYUNO"?(m<360||m>480):s.servicio==="ALMUERZO"?(m<720||m>840):s.servicio==="CENA"?(m<1080||m>1200):false);
         if(fuera){ observacion=window.prompt("La entrega está fuera del horario normal. Ingresa el motivo/observación:")?.trim()||""; if(!observacion){setLoad("");setMsg("La observación es obligatoria para entregar fuera de horario.");return;} }
       }
-      await estadiaApi("estadiaRegistrarServiciosLote",{
+      const resultado=await estadiaApi<any>("estadiaRegistrarServiciosLote",{
         personas:eleg,
         servicios,
         responsable,
@@ -133,11 +148,11 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
       await cargar(true);
       reset();
 
-      exito(
-        modo==="SOLICITUD"
-          ?"Requerimiento guardado correctamente"
-          :"Entrega guardada correctamente"
-      );
+      const dup=Array.isArray(resultado?.duplicados)?resultado.duplicados.length:0;
+      exito(modo==="SOLICITUD"
+        ?(dup?`Requerimiento actualizado. ${dup} duplicado(s) fueron bloqueados.`:"Requerimiento guardado correctamente")
+        :"Entrega guardada correctamente");
+      if(detalleComida?.servicio){ const d=await estadiaApi<any>("estadiaDetalleAlimentacion",{servicio:detalleComida.servicio}); setDetalleComida(d); }
 
     }catch(e){
       setMsg(e instanceof Error?e.message:"Error al guardar");
@@ -209,7 +224,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
     const z=estado.resumen[c]||vacio().resumen[c];
 
     return(
-      <div style={kpi(bg,bd)}>
+      <div onClick={()=>void abrirDetalleComida(c)} title={`Ver personas de ${c.toLowerCase()}`} style={{...kpi(bg,bd),cursor:"pointer"}}>
 
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <span style={{fontSize:25}}>{ico}</span>
@@ -238,7 +253,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
             <b>{z.retiro+z.reasignados}</b>
           </span>
         </div>
-
+        <div style={{fontSize:11,marginTop:8,fontWeight:700}}>Ver personas →</div>
       </div>
     );
   };
@@ -576,7 +591,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
 
         </div>
 
-        <div style={{
+        <div id="entrega-alimentacion" style={{
           ...panel,
           background:"#edf8f0"
         }}>
@@ -797,7 +812,17 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
         </div>
       )}
 
-      {histPersona&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(5,28,34,.55)",display:"grid",placeItems:"center",padding:20}}><div style={{...panel,width:"min(980px,96vw)",maxHeight:"85vh",overflow:"auto"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><div><h2 style={{margin:0}}>Historial de servicios y consumos</h2><p style={{margin:"5px 0 12px"}}><b>{histPersona.nombre}</b> · DNI {histPersona.dni}</p></div><button style={{...btn,background:"#687775"}} onClick={()=>{setHistPersona(null);setHist([])}}>Cerrar</button></div><div style={{overflowX:"auto"}}><table style={{width:"100%",fontSize:12,borderCollapse:"collapse"}}><thead><tr><th style={th}>Fecha/hora</th><th style={th}>Fecha operativa</th><th style={th}>Servicio</th><th style={th}>Cant.</th><th style={th}>Estado</th><th style={th}>Horario</th><th style={th}>Responsable</th><th style={th}>Observación</th></tr></thead><tbody>{hist.length?hist.map((h:any,i:number)=><tr key={i}><td style={td}>{fechaHora(h.fechaHora)}</td><td style={td}>{h.fechaOperativa||"-"}</td><td style={td}><b>{h.servicio}</b></td><td style={td}>{h.cantidad}</td><td style={td}>{h.estado}</td><td style={td}>{h.cumplimiento||"-"}</td><td style={td}>{h.responsable||"-"}</td><td style={td}>{h.observacion||"-"}{h.entregadoA?` · Entregado a: ${h.entregadoA}`:""}</td></tr>):<tr><td style={td} colSpan={8}>Sin movimientos registrados.</td></tr>}</tbody></table></div></div></div>}
+      {detalleComida&&<div style={{position:"fixed",inset:0,zIndex:10002,background:"rgba(5,28,34,.58)",display:"grid",placeItems:"center",padding:20}}><div style={{...panel,width:"min(1050px,97vw)",maxHeight:"88vh",overflow:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}><div><h2 style={{margin:0}}>🍽️ Detalle de {String(detalleComida.servicio||"").toLowerCase()} — {fechaOpTexto(detalleComida.fechaOperativa)}</h2><p style={{margin:"5px 0 12px",color:"#60706d"}}>Personas para quienes se solicitó esta comida y su estado real.</p></div><button style={{...btn,background:"#687775"}} onClick={()=>setDetalleComida(null)}>Cerrar</button></div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(110px,1fr))",gap:8,marginBottom:12}}>{[["Solicitados",detalleComida.resumen?.solicitados],["Entregados",detalleComida.resumen?.entregados],["Pendientes",detalleComida.resumen?.pendientes],["Reasignados",detalleComida.resumen?.reasignados],["No entregados",detalleComida.resumen?.retiro]].map(([a,b])=><div key={String(a)} style={{...panel,padding:10}}><small>{a}</small><div style={{fontSize:22,fontWeight:800}}>{b||0}</div></div>)}</div>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:10}}>{["TODOS","PENDIENTE","ENTREGADO","REASIGNADO","NO ENTREGADO - RETIRO"].map(f=><button key={f} style={{...btn,background:filtroComida===f?"#1268c4":"#e9eff2",color:filtroComida===f?"white":"#17333a",padding:"7px 10px"}} onClick={()=>setFiltroComida(f)}>{f}</button>)}</div>
+        <div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr><th style={th}>Placa</th><th style={th}>Persona</th><th style={th}>Hab.</th><th style={th}>Estado</th><th style={th}>Hora</th><th style={th}>Acción</th></tr></thead><tbody>{(detalleComida.personas||[]).filter((x:any)=>filtroComida==="TODOS"||x.estado===filtroComida).map((x:any)=><tr key={`${x.idIngreso}|${x.dni}`}><td style={td}>{x.placa||"-"}</td><td style={td}><b>{x.nombre}</b><div style={{fontSize:11,color:"#667"}}>DNI {x.dni}</div></td><td style={td}>{x.habitacion||"-"}</td><td style={td}><b>{x.estado}</b>{x.entregadoA&&<div style={{fontSize:11}}>A: {x.entregadoA}</div>}</td><td style={td}>{horaTexto(x.hora)}</td><td style={td}>{x.estado==="PENDIENTE"&&x.presente?<button style={{...btn,padding:"6px 10px"}} onClick={async()=>{const persona=p.find(y=>y.idIngreso===x.idIngreso&&y.dni===x.dni);if(!persona)return;setSel([key(persona)]);setEnt({DESAYUNO:false,ALMUERZO:false,CENA:false,[detalleComida.servicio]:true} as Record<Comida,boolean>);setDetalleComida(null);window.setTimeout(()=>document.getElementById("entrega-alimentacion")?.scrollIntoView({behavior:"smooth",block:"center"}),50);}}>Entregar</button>:<button style={{...btn,padding:"6px 10px",background:"#687775"}} onClick={()=>{const persona=p.find(y=>y.idIngreso===x.idIngreso&&y.dni===x.dni);if(persona){setDetalleComida(null);void verHistorial(persona);}}}>Ver</button>}</td></tr>)}</tbody></table></div>
+      </div></div>}
+
+      {histPersona&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(5,28,34,.55)",display:"grid",placeItems:"center",padding:20}}><div style={{...panel,width:"min(1000px,96vw)",maxHeight:"88vh",overflow:"auto"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><div><h2 style={{margin:0}}>Historial de servicios y consumos</h2><p style={{margin:"5px 0 12px"}}><b>{histPersona.nombre}</b> · DNI {histPersona.dni} · Hab. {histPersona.habitacion||"-"}</p></div><button style={{...btn,background:"#687775"}} onClick={()=>{setHistPersona(null);setHist([])}}>Cerrar</button></div>
+        <div style={{display:"grid",gap:10}}>{Object.entries(hist.reduce((acc:any,h:any)=>{const f=String(h.fechaOperativa||"");if(!acc[f])acc[f]=[];acc[f].push(h);return acc;},{} as Record<string,any[]>)).sort(([a],[b])=>String(b).localeCompare(String(a))).map(([f,movs]:any)=>{const estado=(c:string)=>{const a=movs.filter((h:any)=>h.servicio===c);if(a.some((h:any)=>h.estado==="ENTREGADO"))return "✓ Entregado";if(a.some((h:any)=>String(h.estado).includes("REASIGN")))return "↗ Reasignado";if(a.some((h:any)=>String(h.estado).includes("RETIRO")))return "✕ No entregado";if(a.some((h:any)=>h.estado==="SOLICITADO"))return "⏳ Pendiente";return "—";};const suma=(c:string)=>movs.filter((h:any)=>h.servicio===c&&["ENTREGADO","ATENDIDO"].includes(h.estado)).reduce((n:number,h:any)=>n+(Number(h.cantidad)||0),0);return <div key={f} style={{...panel,padding:12}}><b style={{fontSize:15}}>{fechaOpTexto(f)}</b><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginTop:8,fontSize:12}}><div>☕ Desayuno<br/><b>{estado("DESAYUNO")}</b></div><div>🍽️ Almuerzo<br/><b>{estado("ALMUERZO")}</b></div><div>🌙 Cena<br/><b>{estado("CENA")}</b></div><div>💧 Agua <b>{suma("AGUA")}</b> · 🥤 <b>{suma("GASEOSA")}</b> · 🍪 <b>{suma("GALLETAS")}</b></div></div><details style={{marginTop:9}}><summary style={{cursor:"pointer",fontWeight:700}}>Ver detalle de movimientos</summary><div style={{overflowX:"auto",marginTop:8}}><table style={{width:"100%",fontSize:11,borderCollapse:"collapse"}}><thead><tr><th style={th}>Hora</th><th style={th}>Servicio</th><th style={th}>Cant.</th><th style={th}>Estado</th><th style={th}>Responsable</th><th style={th}>Observación</th></tr></thead><tbody>{movs.map((h:any,i:number)=><tr key={i}><td style={td}>{horaTexto(h.fechaHora)}</td><td style={td}><b>{h.servicio}</b></td><td style={td}>{h.cantidad}</td><td style={td}>{h.estado}</td><td style={td}>{h.responsable||"-"}</td><td style={td}>{h.observacion||"-"}{h.entregadoA?` · Entregado a: ${h.entregadoA}`:""}</td></tr>)}</tbody></table></div></details></div>})}</div>
+      </div></div>}
+
 
     </section>
   );
