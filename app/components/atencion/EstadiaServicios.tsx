@@ -114,11 +114,18 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
     );
 
     try{
+      let observacion="";
+      if(modo==="ENTREGA"){
+        const ahora=new Date(); const m=ahora.getHours()*60+ahora.getMinutes();
+        const fuera=servicios.some(s=>s.servicio==="DESAYUNO"?(m<360||m>480):s.servicio==="ALMUERZO"?(m<720||m>840):s.servicio==="CENA"?(m<1080||m>1200):false);
+        if(fuera){ observacion=window.prompt("La entrega está fuera del horario normal. Ingresa el motivo/observación:")?.trim()||""; if(!observacion){setLoad("");setMsg("La observación es obligatoria para entregar fuera de horario.");return;} }
+      }
       await estadiaApi("estadiaRegistrarServiciosLote",{
         personas:eleg,
         servicios,
         responsable,
-        modo
+        modo,
+        observacion
       });
 
       await cargar(true);

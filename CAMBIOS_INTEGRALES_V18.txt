@@ -1,0 +1,7 @@
+AMS V18 INTEGRAL
+- RI-RM: administrador puede crear solicitudes; Solicitado por conserva valor visible/editable.
+- Cargos: pendientes de recepción solo TIPO CH; confirmación masiva con escritura selectiva.
+- Estadía: comidas por fecha operativa; entrega requiere solicitud; horarios 06-08 / 12-14 / 18-20; fuera de horario exige observación.
+- Salida: bloquea pendientes sin resolver; retiro/reasignación; escrituras selectivas.
+- Resumen: tabla histórica del periodo con ingreso, salida y permanencia.
+- Rendimiento: se eliminaron reescrituras completas en servicios, salidas y recepción de cargos críticas.

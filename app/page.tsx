@@ -12,7 +12,8 @@ import ControlHabitaciones from "./components/atencion/ControlHabitaciones";
 import ResumenGuardia from "./components/atencion/ResumenGuardia";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
-type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "estadia" | "salidaProveedores" | "habitaciones" | "resumenGuardia" | "cargos" | "buscarSalidas" | "guias" | "rirm" | "admin";
+type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "estadia" | "salidaProveedores" | "habitaciones" | "resumenGuardia" | "cargos" | "buscarSalidas" | "recepcionCargos" | "guias" | "rirm" | "admin";
+type CargoReceipt = { correlative:string; type:string; code:string; dateTime:string; responsible:string; shift:string; receiptStatus:string };
 type CargoExitResult = {
   correlative: string; type: string; code: string; dateTime: string;
   responsible: string; guard: string; shift: string; conductor?: string; observations?: string;
@@ -361,6 +362,9 @@ export default function Home() {
   const [exitDateFilter, setExitDateFilter] = useState("");
   const [exitResults, setExitResults] = useState<CargoExitResult[]>([]);
   const [exitSearching, setExitSearching] = useState(false);
+  const [cargoReceipts,setCargoReceipts]=useState<CargoReceipt[]>([]);
+  const [cargoReceiptSel,setCargoReceiptSel]=useState<string[]>([]);
+  const [cargoReceiptBusy,setCargoReceiptBusy]=useState(false);
   const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | "admin" | null>("atencion");
   const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos">("registrar");
   const [rirmSection, setRirmSection] = useState<RirmSection>("pendientes");
@@ -1104,6 +1108,10 @@ export default function Home() {
     }
   }
 
+  const cargoReceiptKey=(x:CargoReceipt)=>`${x.correlative}|${x.type}|${x.code}`;
+  async function loadCargoReceipts(){setCargoReceiptBusy(true);try{const a=await sheetsApi<CargoReceipt[]>("cargoPendingReceipts",{limit:500});setCargoReceipts(Array.isArray(a)?a:[]);setCargoReceiptSel([]);}catch(e){flash(e instanceof Error?e.message:"No se pudieron cargar los pendientes.");}finally{setCargoReceiptBusy(false);}}
+  async function confirmCargoReceipts(){if(!cargoReceiptSel.length)return flash("Selecciona al menos un registro.","warning");if(!confirm(`¿Marcar como recibido ${cargoReceiptSel.length} registro(s) CH?`))return;setCargoReceiptBusy(true);try{await sheetsApi("cargoConfirmReceipts",{keys:cargoReceiptSel,responsable:currentUser?.name||""});flash(`Recepción confirmada: ${cargoReceiptSel.length} registro(s).`);await loadCargoReceipts();}catch(e){flash(e instanceof Error?e.message:"No se pudo confirmar la recepción.");}finally{setCargoReceiptBusy(false);}}
+
   function clearExitSearch() {
     setExitTypeFilter("");
     setExitCodeFilter("");
@@ -1543,6 +1551,7 @@ ${documentBody}
         resumenGuardia={() => setActiveView("resumenGuardia")}
         registrarSalida={() => setActiveView("cargos")}
         buscarSalidas={() => setActiveView("buscarSalidas")}
+        recepcionCargos={() => {setActiveView("recepcionCargos");void loadCargoReceipts();}}
         abrirGuias={openGuiasSection}
         abrirRirm={openRirmSection}
         abrirAdmin={openAdminSection}
@@ -1563,8 +1572,8 @@ ${documentBody}
       </header>
       <section className="module-page-heading">
         <div>
-          <h1>{activeView === "registro" || activeView === "hoy" || activeView === "pendientes" || activeView === "buscar" || activeView === "personas" || activeView === "estadia" || activeView === "salidaProveedores" || activeView === "habitaciones" || activeView === "resumenGuardia" ? "1. ATENCIÓN AL CLIENTE" : activeView === "cargos" || activeView === "buscarSalidas" ? "2. CARGOS Y SALIDAS" : activeView === "guias" ? "3. REGISTRO DE GUÍAS" : activeView === "rirm" ? "4. REGISTRO RI-RM" : "5. ADMINISTRACIÓN GENERAL"}</h1>
-          <p>{activeView === "registro" ? "REGISTRO DE PROVEEDORES Y VEHÍCULOS" : activeView === "hoy" ? "REPORTE DIARIO" : activeView === "pendientes" ? "REGISTROS POR REGULARIZAR" : activeView === "buscar" ? "BÚSQUEDA DE REGISTROS" : activeView === "personas" ? "BASE DE DATOS DE CLIENTES" : activeView === "estadia" ? "ESTADÍA, SERVICIOS Y CONSUMOS" : activeView === "salidaProveedores" ? "SALIDA DE PROVEEDORES" : activeView === "habitaciones" ? "CONTROL DE HABITACIONES" : activeView === "resumenGuardia" ? "RESUMEN DIARIO / GUARDIA" : activeView === "cargos" ? "REGISTRO DE SALIDAS DE MATERIALES" : activeView === "buscarSalidas" ? "CONSULTA DE SALIDAS" : activeView === "guias" ? "GESTIÓN Y SEGUIMIENTO DE GUÍAS" : activeView === "rirm" ? "GESTIÓN Y TRAZABILIDAD DE RI / RM" : "CONFIGURACIÓN Y CONTROL DEL SISTEMA"}</p>
+          <h1>{activeView === "registro" || activeView === "hoy" || activeView === "pendientes" || activeView === "buscar" || activeView === "personas" || activeView === "estadia" || activeView === "salidaProveedores" || activeView === "habitaciones" || activeView === "resumenGuardia" ? "1. ATENCIÓN AL CLIENTE" : activeView === "cargos" || activeView === "buscarSalidas" || activeView === "recepcionCargos" ? "2. CARGOS Y SALIDAS" : activeView === "guias" ? "3. REGISTRO DE GUÍAS" : activeView === "rirm" ? "4. REGISTRO RI-RM" : "5. ADMINISTRACIÓN GENERAL"}</h1>
+          <p>{activeView === "registro" ? "REGISTRO DE PROVEEDORES Y VEHÍCULOS" : activeView === "hoy" ? "REPORTE DIARIO" : activeView === "pendientes" ? "REGISTROS POR REGULARIZAR" : activeView === "buscar" ? "BÚSQUEDA DE REGISTROS" : activeView === "personas" ? "BASE DE DATOS DE CLIENTES" : activeView === "estadia" ? "ESTADÍA, SERVICIOS Y CONSUMOS" : activeView === "salidaProveedores" ? "SALIDA DE PROVEEDORES" : activeView === "habitaciones" ? "CONTROL DE HABITACIONES" : activeView === "resumenGuardia" ? "RESUMEN DIARIO / GUARDIA" : activeView === "cargos" ? "REGISTRO DE SALIDAS DE MATERIALES" : activeView === "buscarSalidas" ? "CONSULTA DE SALIDAS" : activeView === "recepcionCargos" ? "PENDIENTES DE RECEPCIÓN - CH" : activeView === "guias" ? "GESTIÓN Y SEGUIMIENTO DE GUÍAS" : activeView === "rirm" ? "GESTIÓN Y TRAZABILIDAD DE RI / RM" : "CONFIGURACIÓN Y CONTROL DEL SISTEMA"}</p>
         </div>
       </section>
       <section className={`sync-strip connection-${connection}`}><div className="sync-status"><span className="status-dot" /><p><strong>{connectionTitle}</strong><small>{connection === "outdated" ? "La versión activa escribe en columnas incorrectas. Los nuevos registros se conservarán en este dispositivo hasta actualizarla." : queue.length ? `${queue.length} registro(s) asegurado(s). ${syncing ? `Procesando la cola; los demás esperan protegidos.` : queue.some(item => item.lastError) ? "Hay registros que requieren revisión. Abre Gestionar pendientes para ver el motivo." : "Listos para enviarse uno por uno."}` : connection === "online" ? "Conexión verificada. No hay registros pendientes de envío." : "Puedes continuar registrando; los datos se conservarán en este dispositivo."}</small></p></div>{queue.length > 0 && <div className="sync-actions"><button className="manage-sync" type="button" onClick={() => setShowQueueManager(current => !current)}>{showQueueManager ? "Ocultar pendientes" : `Gestionar pendientes (${queue.length})`}</button><button type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? `Sincronizando…` : `Sincronizar ahora`}</button></div>}</section>
@@ -1762,6 +1771,7 @@ ${documentBody}
           </table>
         </div>
       </section>}
+      {activeView === "recepcionCargos" && <section className="empty-view data-view"><div className="view-heading"><div><span>✓</span><div><h2>Pendientes de recepción</h2><p>Solo se muestran salidas TIPO CH pendientes de confirmación.</p></div></div><button className="secondary-action" onClick={()=>void loadCargoReceipts()} disabled={cargoReceiptBusy}>{cargoReceiptBusy?"Actualizando…":"Actualizar"}</button></div><div style={{display:"flex",gap:10,margin:"14px 0",flexWrap:"wrap"}}><button className="secondary-action" onClick={()=>setCargoReceiptSel(cargoReceiptSel.length===cargoReceipts.length?[]:cargoReceipts.map(cargoReceiptKey))}>{cargoReceiptSel.length===cargoReceipts.length&&cargoReceipts.length?"Deseleccionar todo":"Seleccionar todo"}</button><button className="primary-action" disabled={!cargoReceiptSel.length||cargoReceiptBusy} onClick={()=>void confirmCargoReceipts()}>Marcar recibido ({cargoReceiptSel.length})</button></div><div style={{overflowX:"auto",border:"1px solid #d9e4e1",borderRadius:12}}><table style={{width:"100%",minWidth:760,borderCollapse:"collapse",background:"#fff"}}><thead><tr style={{background:"#eef7f5"}}><th></th><th>N° salida</th><th>Tipo</th><th>Código</th><th>Fecha y hora de envío</th><th>Responsable</th><th>Turno</th></tr></thead><tbody>{cargoReceipts.map(x=>{const k=cargoReceiptKey(x);return <tr key={k}><td style={{padding:10}}><input type="checkbox" checked={cargoReceiptSel.includes(k)} onChange={e=>setCargoReceiptSel(v=>e.target.checked?[...v,k]:v.filter(y=>y!==k))}/></td><td><b>{x.correlative}</b></td><td><b>{x.type}</b></td><td>{x.code}</td><td>{x.dateTime?new Date(x.dateTime).toLocaleString("es-PE",{timeZone:"America/Lima"}):"—"}</td><td>{x.responsible||"—"}</td><td>{x.shift||"—"}</td></tr>})}{!cargoReceipts.length&&<tr><td colSpan={7} style={{padding:24,textAlign:"center",color:"#6b7d78"}}>No hay salidas CH pendientes de recepción.</td></tr>}</tbody></table></div></section>}
       {activeView === "estadia" && <EstadiaServicios responsable={currentUser.name} />}
       {activeView === "salidaProveedores" && <SalidaProveedores responsable={currentUser.name} />}
       {activeView === "habitaciones" && <ControlHabitaciones responsable={currentUser.name} />}

@@ -2,10 +2,22 @@
 // VERSION: ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS - REEMPLAZAR TODO EL CONTENIDO DE Codigo.gs
 // VERIFICACION: este archivo usa sintaxis ES5 compatible, sin operadores modernos.
 
-var SCRIPT_VERSION = 'ATENCION-2026-08-21-V14-REGULARIZACION-CAMPOS';
+var SCRIPT_VERSION = 'AMS-2026-10-02-V18-INTEGRAL';
 var WRITE_LOCK_MS = 1500;
 
-var CFG = Object.freeze({ HEADER: 2, MATRIX: 'MATRIZ', CLIENTS: 'BD CLIENTES' });
+var CFG = Object.freeze({
+    HEADER: 2,
+    MATRIX: 'MATRIZ',
+    CLIENTS: 'BD CLIENTES',
+    CARGOS: 'BD CARGOS',
+    SALIDAS: 'BD SALIDAS',
+    SALIDAS_CARGO: 'BD SALIDAS CARGO',
+    CARGO_DETAIL: 'DETALLE CARGOS',
+    USERS: 'USUARIOS',
+    CONFIG: 'CONFIG',
+    GUIAS_ID: '1wNLHyRGZ8zXvL7w0f-rsfkPEdMLTFpoP60srEjo4Ob0',
+    GUIAS_SHEET: 'PROCESOS - GUIAS'
+});
 var MF = Object.freeze({
     id: ['ID'], dateTime: ['FECHA Y HORA DE INGRESO'], dni: ['DNI'], name: ['NOMBRES Y APELLIDOS'],
     phone: ['CELULAR'], role: ['OCUPACION'], motive: ['MOTIVO DE INGRESO'], plate: ['PLACA'], zone: ['ZONA'],
@@ -25,10 +37,138 @@ function doPost(e) {
         auth_(body.apiKey);
         var p_1 = body.payload || {};
         var actions = {
-            health: function () { return health_(); }, searchPerson: function () { return searchPerson_(p_1.dni); }, recent: function () { return search_(p_1.query || '', p_1.limit || 8); }, today: function () { return today_(); },
+          bootstrap: function () { return bootstrap_(p_1); },
+            health: function () { return health_(); }, login: function () { return login_(p_1); }, searchPerson: function () { return searchPerson_(p_1.dni); }, recent: function () { return search_(p_1.query || '', p_1.limit || 8); }, today: function () { return today_(); },
             search: function () { return search_(p_1.query || '', p_1.limit || 30); }, pending: function () { return pending_(); }, listPeople: function () { return listPeople_(p_1.limit); },
             getEvent: function () { return getEvent_(p_1.id); }, saveEvent: function () { return saveEvent_(p_1); }, regularizeEvent: function () { return regularize_(p_1); },
-            syncBatch: function () { return syncBatch_(p_1.items || []); }
+           lookupCargoProvider: function () { return lookupCargoProvider_(p_1.code); },
+previewCargoCorrelative: function () { return previewCargoCorrelative_(p_1.type); },
+saveCargo: function () { return saveCargo_(p_1); },
+getCargo: function () { return getCargo_(p_1.id); },
+searchCargoExits: function () { return searchCargoExits_(p_1); },
+cargoPendingReceipts: function () { return cargoPendingReceipts_(p_1); },
+cargoConfirmReceipts: function () { return cargoConfirmReceipts_(p_1); },
+            syncBatch: function () { return syncBatch_(p_1.items || []); },
+
+// ============================================================
+// MODULO 5 - ADMINISTRADOR
+// ============================================================
+adminUsuarios: function () {
+    return adminUsuarios_(p_1);
+},
+
+adminGuardarUsuario: function () {
+    return adminGuardarUsuario_(p_1);
+},
+
+adminCambiarEstadoUsuario: function () {
+    return adminCambiarEstadoUsuario_(p_1);
+},
+
+adminAuditoria: function () {
+    return adminAuditoria_(p_1);
+},
+
+adminBuscarRegistroGuias: function () {
+    return adminBuscarRegistroGuias_(p_1);
+},
+
+adminModificarRegistroGuias: function () {
+    return adminModificarRegistroGuias_(p_1);
+},
+
+adminAnularRegistroGuias: function () {
+    return adminAnularRegistroGuias_(p_1);
+},
+
+adminGestionarRegistroGuias: function () {
+    return adminGestionarRegistroGuias_(p_1);
+},
+adminBuscarRegistroAtencion: function () { return adminBuscarRegistroAtencion_(p_1); },
+adminModificarRegistroAtencion: function () { return adminModificarRegistroAtencion_(p_1); },
+adminAnularRegistroAtencion: function () { return adminAnularRegistroAtencion_(p_1); },
+adminBuscarRegistroCargos: function () { return adminBuscarRegistroCargos_(p_1); },
+adminModificarRegistroCargos: function () { return adminModificarRegistroCargos_(p_1); },
+adminAnularRegistroCargos: function () { return adminAnularRegistroCargos_(p_1); },
+adminBuscarRegistroRirm: function () { return adminBuscarRegistroRirm_(p_1); },
+adminModificarRegistroRirm: function () { return adminModificarRegistroRirm_(p_1); },
+adminAnularRegistroRirm: function () { return adminAnularRegistroRirm_(p_1); },
+
+// =====================================================
+// ESTADIA, SERVICIOS, CONSUMOS Y HABITACIONES - V3
+// =====================================================
+
+estadiaListarPresentes: function () {
+  return estadiaListarPresentes_();
+},
+
+estadiaRegistrarServicio: function () {
+  return estadiaRegistrarServicio_(p_1);
+},
+
+estadiaRegistrarServiciosLote: function () {
+  return estadiaRegistrarServiciosLote_(p_1);
+},
+estadiaEstadoServicios: function () {
+  return estadiaEstadoServicios_();
+},
+estadiaPendientesAlimentacion: function () {
+  return estadiaPendientesAlimentacion_(p_1);
+},
+
+estadiaActualizarSalidaPrevista: function () {
+  return estadiaActualizarSalidaPrevista_(p_1);
+},
+
+estadiaRegistrarSalida: function () {
+  return estadiaRegistrarSalida_(p_1);
+},
+
+estadiaRegistrarSalidasLote: function () {
+  return estadiaRegistrarSalidasLote_(p_1);
+},
+
+estadiaListarHabitaciones: function () {
+  return estadiaListarHabitaciones_();
+},
+
+estadiaAsignarHabitacion: function () {
+  return estadiaAsignarHabitacion_(p_1);
+},
+
+estadiaConfirmarLimpieza: function () {
+  return estadiaConfirmarLimpieza_(p_1);
+},
+
+estadiaReservarHabitacion: function () {
+  return estadiaReservarHabitacion_(p_1);
+},
+
+estadiaCancelarReserva: function () {
+  return estadiaCancelarReserva_(p_1);
+},
+
+estadiaConfirmarReserva: function () {
+  return estadiaConfirmarReserva_(p_1);
+},
+
+estadiaFueraServicioHabitacion: function () {
+  return estadiaFueraServicioHabitacion_(p_1);
+},
+
+estadiaHabilitarHabitacion: function () {
+  return estadiaHabilitarHabitacion_(p_1);
+},
+
+estadiaListarResponsablesAtencion: function () {
+  return estadiaListarResponsablesAtencion_();
+},
+
+estadiaResumenGuardia: function () {
+  return estadiaResumenGuardia_(p_1);
+}
+
+
         };
         if (!actions[body.action])
             throw new Error('Acción no permitida.');
@@ -46,6 +186,183 @@ function configurarBase() {
     PropertiesService.getScriptProperties().setProperty('APP_API_KEY', Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, ''));
     SpreadsheetApp.getUi().alert('Base configurada. Copia APP_API_KEY desde Propiedades del script.');
 }
+// ============================================================
+// INICIO DE SESION - USUARIO + PIN
+// USUARIOS: A USUARIO | B NOMBRE COMPLETO | C ROL | D ACTIVO
+//           E ULTIMO ACCESO | F PIN
+// ============================================================
+function login_(p) {
+  p = p || {};
+
+  var usuario = String(p.user || p.usuario || "").trim().toUpperCase();
+  var pin = String(p.pin || "").trim();
+
+  if (!usuario) throw new Error("Ingresa tu usuario.");
+  if (!pin) throw new Error("Ingresa tu PIN.");
+
+  var sh = sheet_(CFG.USERS);
+  var lastRow = sh.getLastRow();
+  var lastCol = sh.getLastColumn();
+
+  if (lastRow < 2) {
+    throw new Error("No hay usuarios registrados.");
+  }
+
+  // Lee encabezados completos, incluidos todos los permisos
+  var headers = sh
+    .getRange(1, 1, 1, lastCol)
+    .getDisplayValues()[0]
+    .map(function (x) {
+      return String(x || "").trim();
+    });
+
+  // Lee todos los usuarios una sola vez
+  var data = sh
+    .getRange(2, 1, lastRow - 1, lastCol)
+    .getDisplayValues();
+
+  var fila = -1;
+  var row = null;
+
+  for (var i = 0; i < data.length; i++) {
+    var userBD = String(data[i][0] || "").trim().toUpperCase();
+
+    if (userBD === usuario) {
+      fila = i + 2;
+      row = data[i];
+      break;
+    }
+  }
+
+  if (!row) {
+    throw new Error("Usuario no encontrado.");
+  }
+
+  var nombre = String(row[1] || "").trim();
+  var rol = String(row[2] || "").trim().toUpperCase();
+  var activo = String(row[3] || "").trim().toUpperCase();
+  var pinBD = String(row[5] || "").trim();
+
+  var estaActivo =
+    activo === "SI" ||
+    activo === "SÍ" ||
+    activo === "TRUE" ||
+    activo === "1" ||
+    activo === "ACTIVO";
+
+  if (!estaActivo) {
+    throw new Error("Usuario inactivo.");
+  }
+
+  if (pinBD !== pin) {
+    throw new Error("PIN incorrecto.");
+  }
+
+  // =====================================================
+  // PERMISOS
+  // Todo lo que esté después de la columna PIN
+  // se devuelve automáticamente al frontend.
+  // =====================================================
+  var permisos = {};
+
+  for (var c = 6; c < headers.length; c++) {
+    var nombrePermiso = String(headers[c] || "").trim();
+
+    if (!nombrePermiso) continue;
+
+    var valor = String(row[c] || "").trim().toUpperCase();
+
+    permisos[nombrePermiso] =
+      valor === "SI" ||
+      valor === "SÍ" ||
+      valor === "TRUE" ||
+      valor === "1";
+  }
+
+  // Actualizar ÚLTIMO ACCESO - columna E
+  var ahora = new Date();
+  sh.getRange(fila, 5).setValue(ahora);
+
+  return {
+    authenticated: true,
+
+    user: usuario,
+    usuario: usuario,
+
+    name: nombre,
+    nombre: nombre,
+
+    role: rol,
+    rol: rol,
+
+    responsableSesion: nombre,
+
+    lastAccess: ahora,
+
+    // NUEVO
+    permissions: permisos,
+    permisos: permisos
+  };
+}
+
+// ============================================================
+// V16 - BOOTSTRAP RAPIDO DE SESION
+// ============================================================
+function bootstrap_(p) {
+    p = p && typeof p === 'object' ? p : {};
+    var usuario = String(p.user || p.usuario || '').trim().toUpperCase();
+    if (!usuario) throw new Error('Usuario requerido.');
+
+    var sh = sheet_(CFG.USERS);
+    var lastRow = sh.getLastRow();
+    var lastColumn = sh.getLastColumn();
+    if (lastRow < 2) throw new Error('No hay usuarios configurados.');
+
+    var headers = sh.getRange(1, 1, 1, lastColumn).getDisplayValues()[0];
+    var data = sh.getRange(2, 1, lastRow - 1, lastColumn).getDisplayValues();
+    var row = null;
+
+    for (var i = 0; i < data.length; i++) {
+        if (String(data[i][0] || '').trim().toUpperCase() === usuario) {
+            row = data[i];
+            break;
+        }
+    }
+
+    if (!row) throw new Error('Usuario no encontrado.');
+
+    var activo = String(row[3] || '').trim().toUpperCase();
+    if (['SI', 'SÍ', 'TRUE', '1', 'ACTIVO'].indexOf(activo) < 0) {
+        throw new Error('Usuario inactivo.');
+    }
+
+    var permisos = {};
+    for (var c = 6; c < headers.length; c++) {
+        var key = String(headers[c] || '').trim();
+        if (!key) continue;
+        permisos[key] = String(row[c] || '').trim().toUpperCase();
+    }
+
+    var rol = String(row[2] || '').trim().toUpperCase();
+    return {
+        backendVersion: SCRIPT_VERSION,
+        usuario: {
+            user: usuario,
+            name: String(row[1] || '').trim(),
+            role: rol,
+            active: true
+        },
+        permisos: permisos,
+        modulos: {
+            atencion: true,
+            cargos: true,
+            guias: true,
+            rirm: true,
+            admin: rol === 'ADMINISTRADOR'
+        }
+    };
+}
+
 function health_() {
     var matrix = sheet_(CFG.MATRIX), clients = sheet_(CFG.CLIENTS);
     var matrixMap = map_(matrix, MF), clientMap = map_(clients, CF);
@@ -258,30 +575,129 @@ function search_(query, limit) {
     return ids.map(function (id) { return eventFromRows_(id, groups[id], clients, null, states); });
 }
 function today_() {
-    var sheet = sheet_(CFG.MATRIX), m = map_(sheet, MF), groups = {}, todayIds = {}, today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'), allRows = matrixRows_(sheet, m);
-    allRows.forEach(function (row) {
-        if (Utilities.formatDate(new Date(row.dateTime), Session.getScriptTimeZone(), 'yyyy-MM-dd') === today)
-            todayIds[row.id] = true;
-    });
-    allRows.forEach(function (row) {
-        if (!todayIds[row.id])
+    var sheet = sheet_(CFG.MATRIX);
+    var m = map_(sheet, MF);
+    var lastRow = sheet.getLastRow();
+
+    if (lastRow <= CFG.HEADER) {
+        return [];
+    }
+
+    var startRow = CFG.HEADER + 1;
+    var count = lastRow - CFG.HEADER;
+    var tz = Session.getScriptTimeZone();
+    var today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+
+    // Solo leemos las 2 columnas necesarias para localizar
+    // los eventos de hoy: ID y FECHA/HORA.
+    var ids = sheet
+        .getRange(startRow, m.id + 1, count, 1)
+        .getDisplayValues();
+
+    var dates = sheet
+        .getRange(startRow, m.dateTime + 1, count, 1)
+        .getValues();
+
+    var todayIds = {};
+    var i;
+
+    for (i = 0; i < count; i++) {
+        var id = String(ids[i][0] || '').trim();
+        var value = dates[i][0];
+
+        if (!id || !value) {
+            continue;
+        }
+
+        var d = value instanceof Date ? value : new Date(value);
+
+        if (isNaN(d.getTime())) {
+            continue;
+        }
+
+        if (Utilities.formatDate(d, tz, 'yyyy-MM-dd') === today) {
+            todayIds[id] = true;
+        }
+    }
+
+    var eventIds = Object.keys(todayIds);
+
+    if (!eventIds.length) {
+        return [];
+    }
+
+    var states = pendingMap_();
+    var clients = {};
+    var result = [];
+
+    // Una vez identificados los ID de hoy,
+    // recuperamos únicamente las filas pertenecientes a esos eventos.
+    eventIds.forEach(function (id) {
+        var rows = matrixRowsForId_(sheet, m, id);
+
+        if (!rows || !rows.length) {
             return;
-        if (!groups[row.id])
-            groups[row.id] = [];
-        groups[row.id].push(row);
+        }
+
+        result.push(
+            eventFromRows_(
+                id,
+                rows,
+                clients,
+                null,
+                states
+            )
+        );
     });
-    var clients = {}, states = pendingMap_();
-    return Object.keys(groups).sort(function (a, b) { return new Date(groups[b][0].dateTime) - new Date(groups[a][0].dateTime); }).map(function (id) { return eventFromRows_(id, groups[id], clients, null, states); });
+
+    result.sort(function (a, b) {
+        return new Date(b.dateTime) - new Date(a.dateTime);
+    });
+
+    return result;
 }
 function pending_() {
-    var states = pendingMap_(), pendingIds = Object.keys(states).filter(function (id) { return states[id].status === 'PENDIENTE'; });
-    if (!pendingIds.length)
+    var states = pendingMap_();
+
+    var pendingIds = Object.keys(states).filter(function (id) {
+        return states[id] && states[id].status === 'PENDIENTE';
+    });
+
+    if (!pendingIds.length) {
         return [];
-    var matrix = sheet_(CFG.MATRIX), m = map_(matrix, MF), wanted = {}, groups = {}, clients = {};
-    pendingIds.forEach(function (id) { wanted[id] = true; });
-    matrixRows_(matrix, m).forEach(function (row) { if (wanted[row.id]) { if (!groups[row.id])
-        groups[row.id] = []; groups[row.id].push(row); } });
-    return pendingIds.filter(function (id) { return groups[id] && groups[id].length; }).map(function (id) { return eventFromRows_(id, groups[id], clients, null, states); }).sort(function (a, b) { return new Date(b.dateTime) - new Date(a.dateTime); });
+    }
+
+    var matrix = sheet_(CFG.MATRIX);
+    var m = map_(matrix, MF);
+    var clients = {};
+    var result = [];
+
+    // Ya NO cargamos toda MATRIZ.
+    // Buscamos únicamente los ID que realmente están pendientes.
+    pendingIds.forEach(function (id) {
+
+        var rows = matrixRowsForId_(matrix, m, String(id));
+
+        if (!rows || !rows.length) {
+            return;
+        }
+
+        result.push(
+            eventFromRows_(
+                String(id),
+                rows,
+                clients,
+                null,
+                states
+            )
+        );
+    });
+
+    result.sort(function (a, b) {
+        return new Date(b.dateTime) - new Date(a.dateTime);
+    });
+
+    return result;
 }
 function getEvent_(id) {
     var sheet = sheet_(CFG.MATRIX), m = map_(sheet, MF), rows = matrixRowsForId_(sheet, m, String(id));
@@ -561,4 +977,548 @@ function probarConexionYRegistro() {
         participants: [{ dni: '73342591', name: 'ABIGAIL VANESSA PALOMINO VICENTE', phone: '989422718', role: 'PROVEEDOR', license: '', category: '', lots: '1', detail: '', lotCodes: ['PRUEBA-' + stamp] }]
     });
     SpreadsheetApp.getUi().alert('Conexión correcta. Se creó ' + saved.id + ' directamente en MATRIZ.');
+}
+
+
+// ============================================================
+// MODULO CARGOS Y SALIDAS - V15
+// ============================================================
+function configurarModuloCargos() {
+    var ss = SpreadsheetApp.getActive();
+
+    // BD SALIDAS es la base operativa consolidada para Cargos y Salidas.
+    // No borra ni modifica los registros históricos existentes.
+    ensureSheetWithHeaders_(ss, CFG.SALIDAS, [
+        'N°',
+        'TIPO',
+        'CODIGO',
+        'FECHA Y HORA',
+        'ATENCION AL CLIENTE',
+        'CONDUCTOR',
+        'OBSERVACIONES'
+    ]);
+
+    // Base exclusiva para AUTORIZACIÓN DE SALIDA - GENERALES (GE).
+    // Cada ítem del documento se guarda en una fila con el mismo correlativo GE.
+    ensureSheetWithHeaders_(ss, CFG.SALIDAS_CARGO, [
+        'N°',
+        'TIPO SALIDA',
+        'DESCRIPCIÓN',
+        'MOTIVO',
+        'CANT.',
+        'UND. MEDIDA',
+        'OBSERVACIONES',
+        'FECHA/HORA',
+        'ATENCIÓN AL CLIENTE',
+        'CONDUCTOR'
+    ]);
+
+    ensureSheetWithHeaders_(ss, CFG.USERS, ['USUARIO','NOMBRE COMPLETO','ROL','ACTIVO','ULTIMO ACCESO','PIN']);
+
+    var cfg = ensureSheetWithHeaders_(ss, CFG.CONFIG, ['CLAVE','VALOR']);
+    setConfigIfMissing_(cfg, 'CORRELATIVO_CH', '187');
+    setConfigIfMissing_(cfg, 'CORRELATIVO_PR', '211');
+    setConfigIfMissing_(cfg, 'CORRELATIVO_GE', '0');
+
+    SpreadsheetApp.getUi().alert('Módulo Cargos configurado para guardar en BD SALIDAS. No se modificó el historial existente.');
+}
+function ensureSheetWithHeaders_(ss, name, headers) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) sh = ss.insertSheet(name);
+    if (sh.getLastRow() === 0) sh.getRange(1,1,1,headers.length).setValues([headers]);
+    else {
+        var current = sh.getRange(1,1,1,Math.max(sh.getLastColumn(), headers.length)).getDisplayValues()[0];
+        for (var i=0;i<headers.length;i++) if (!String(current[i] || '').trim()) sh.getRange(1,i+1).setValue(headers[i]);
+    }
+    sh.setFrozenRows(1);
+    return sh;
+}
+function setConfigIfMissing_(sh, key, value) {
+    var last = sh.getLastRow();
+    if (last > 1) {
+        var vals = sh.getRange(2,1,last-1,2).getDisplayValues();
+        for (var i=0;i<vals.length;i++) if (String(vals[i][0]).trim() === key) return;
+    }
+    sh.appendRow([key,value]);
+}
+function cargoPrefix_(type) {
+    type = String(type || '').trim().toUpperCase();
+
+    if (type === 'CHALA') return 'CH';
+    if (type === 'PROVEEDORES') return 'PR';
+    if (type === 'GENERALES') return 'GE';
+
+    throw new Error('Tipo de documento no válido.');
+}
+
+
+// ============================================================
+// CONSULTAR PRÓXIMO CORRELATIVO
+// NO incrementa ni modifica la hoja CONFIG
+// ============================================================
+function previewCargoCorrelative_(type) {
+    var prefix = cargoPrefix_(type);
+    var key = 'CORRELATIVO_' + prefix;
+
+    var sh = sheet_(CFG.CONFIG);
+    var last = sh.getLastRow();
+    var current = 0;
+
+    if (last > 1) {
+        var vals = sh.getRange(2, 1, last - 1, 2).getValues();
+
+        for (var i = 0; i < vals.length; i++) {
+            if (String(vals[i][0]).trim() === key) {
+                current = Number(vals[i][1]) || 0;
+                break;
+            }
+        }
+    }
+
+    var next = current + 1;
+
+    return {
+        type: String(type || '').trim().toUpperCase(),
+        prefix: prefix,
+        current: current,
+        next: next,
+        correlative: prefix + '-' + ('0000' + next).slice(-4)
+    };
+}
+
+
+// ============================================================
+// GENERAR Y RESERVAR CORRELATIVO
+// Esta función SÍ incrementa CONFIG.
+// Se utiliza únicamente cuando se guarda el documento.
+// ============================================================
+function nextCargoCorrelative_(type) {
+    var prefix = cargoPrefix_(type);
+    var key = 'CORRELATIVO_' + prefix;
+
+    var sh = sheet_(CFG.CONFIG);
+    var last = sh.getLastRow();
+    var row = 0;
+    var current = 0;
+
+    if (last > 1) {
+        var vals = sh.getRange(2, 1, last - 1, 2).getValues();
+
+        for (var i = 0; i < vals.length; i++) {
+            if (String(vals[i][0]).trim() === key) {
+                row = i + 2;
+                current = Number(vals[i][1]) || 0;
+                break;
+            }
+        }
+    }
+
+    if (!row) {
+        sh.appendRow([key, 0]);
+        row = sh.getLastRow();
+    }
+
+    current++;
+
+    sh.getRange(row, 2).setValue(current);
+
+    return prefix + '-' + ('0000' + current).slice(-4);
+}
+function lookupCargoProvider_(code) {
+    code = String(code || '').trim();
+    if (!code) throw new Error('Ingresa un código para buscar el proveedor.');
+    var ext = SpreadsheetApp.openById(CFG.GUIAS_ID);
+    var sh = ext.getSheetByName(CFG.GUIAS_SHEET);
+    if (!sh) throw new Error('No se encontró la hoja PROCESOS - GUIAS.');
+    var last = sh.getLastRow();
+    if (last < 1) return { found:false, code:code, provider:'' };
+    var hit = sh.getRange(1,1,last,1).createTextFinder(code).matchEntireCell(true).findNext();
+    if (!hit) return { found:false, code:code, provider:'' };
+    var provider = String(sh.getRange(hit.getRow(),9).getDisplayValue() || '').trim();
+    return { found:Boolean(provider), code:code, provider:provider, row:hit.getRow() };
+}
+function saveCargo_(p) {
+    var type = String(p.type || '').trim().toUpperCase();
+
+    if (['CHALA', 'PROVEEDORES', 'GENERALES'].indexOf(type) < 0) {
+        throw new Error('Tipo de documento no válido.');
+    }
+
+    var user = String(p.attentionUser || '').trim().toUpperCase();
+
+    if (!user) {
+        throw new Error('Falta el responsable de Atención al Cliente.');
+    }
+
+    var rows = array_(p.rows).filter(function(r) {
+        return r && [
+            r.type,
+            r.code,
+            r.weight,
+            r.destination,
+            r.description,
+            r.reason,
+            r.quantity,
+            r.unit,
+            r.observations
+        ].some(function(v) {
+            return String(v || '').trim();
+        });
+    });
+
+    if (!rows.length) {
+        throw new Error('Agrega al menos un ítem al documento.');
+    }
+
+    if (type === 'PROVEEDORES' && !String(p.provider || '').trim()) {
+        throw new Error('Falta identificar el proveedor.');
+    }
+
+    var lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+
+    try {
+
+        var corr = nextCargoCorrelative_(type);
+        var now = new Date();
+        var conductor = type === 'PROVEEDORES' ? String(p.provider || '').trim().toUpperCase() : String(p.conductor || '').trim().toUpperCase();
+
+        // =====================================================
+        // GENERALES -> BD SALIDAS CARGO
+        // =====================================================
+        if (type === 'GENERALES') {
+
+            var shCargo = sheet_(CFG.SALIDAS_CARGO);
+
+            /*
+             * BD SALIDAS CARGO
+             *
+             * A N°
+             * B TIPO SALIDA
+             * C DESCRIPCIÓN
+             * D MOTIVO
+             * E CANT.
+             * F UND. MEDIDA
+             * G OBSERVACIONES
+             * H FECHA/HORA
+             * I ATENCIÓN AL CLIENTE
+             * J CONDUCTOR
+             */
+
+            var tipoSalida = String(
+                p.generalExitType || ''
+            ).trim().toUpperCase();
+
+            if (!tipoSalida) {
+                throw new Error('Selecciona el tipo de salida.');
+            }
+
+            var salidaCargo = rows.map(function(r) {
+
+                return [
+                    corr,
+                    tipoSalida,
+                    String(r.description || '').trim().toUpperCase(),
+                    String(r.reason || '').trim().toUpperCase(),
+                    String(r.quantity || '').trim(),
+                    String(r.unit || '').trim().toUpperCase(),
+                    String(r.observations || '').trim().toUpperCase(),
+                    now,
+                    user,
+                    conductor
+                ];
+
+            });
+
+            var filaCargo = Math.max(
+                shCargo.getLastRow() + 1,
+                2
+            );
+
+            shCargo.getRange(
+                filaCargo,
+                1,
+                salidaCargo.length,
+                10
+            ).setValues(salidaCargo);
+
+            // FECHA/HORA = columna H
+            shCargo.getRange(
+                filaCargo,
+                8,
+                salidaCargo.length,
+                1
+            ).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+
+        }
+
+        // =====================================================
+        // CHALA Y PROVEEDORES -> BD SALIDAS
+        // =====================================================
+        else {
+
+            var sh = sheet_(CFG.SALIDAS);
+
+            /*
+             * BD SALIDAS
+             *
+             * A N°
+             * B TIPO
+             * C CODIGO
+             * D FECHA Y HORA
+             * E ATENCION AL CLIENTE
+             * F CONDUCTOR
+             * G OBSERVACIONES
+             */
+
+            var salida = rows.map(function(r) {
+
+                return [
+                    corr,
+                    String(r.type || '').trim().toUpperCase(),
+                    String(r.code || '').trim().toUpperCase(),
+                    now,
+                    user,
+                    conductor,
+                    String(r.observations || '').trim().toUpperCase()
+                ];
+
+            });
+
+            var filaInicio = Math.max(
+                sh.getLastRow() + 1,
+                2
+            );
+
+            sh.getRange(
+                filaInicio,
+                1,
+                salida.length,
+                7
+            ).setValues(salida);
+
+            // FECHA/HORA = columna D
+            sh.getRange(
+                filaInicio,
+                4,
+                salida.length,
+                1
+            ).setNumberFormat('dd/MM/yyyy HH:mm:ss');
+
+        }
+
+        return {
+            id: corr,
+            correlative: corr,
+            savedAt: now.toISOString(),
+            status: 'GUARDADO'
+        };
+
+    } finally {
+        lock.releaseLock();
+    }
+}
+
+function searchCargoExits_(p) {
+    p = p && typeof p === 'object' ? p : {};
+
+    var tipo = String(p.type || '').trim().toUpperCase();
+    var codigo = String(p.code || '').trim().toUpperCase();
+    var fecha = String(p.date || '').trim();
+    var limit = Math.min(Math.max(Number(p.limit) || 200, 1), 500);
+
+    var sh = sheet_(CFG.SALIDAS);
+    var last = sh.getLastRow();
+    if (last < 2) return [];
+
+    var data = sh.getRange(2, 1, last - 1, Math.max(sh.getLastColumn(), 10)).getValues();
+
+    // Índice de códigos de MATRIZ para recuperar GUARDIA y TURNO
+    // de los ingresos ya registrados, sin alterar el historial de BD SALIDAS.
+    var matrix = sheet_(CFG.MATRIX);
+    var mm = map_(matrix, MF);
+    var matrixData = values_(matrix, CFG.HEADER + 1);
+    var byCode = {};
+
+    matrixData.forEach(function(r) {
+        var rawCodes = String(r[mm.code] || '').toUpperCase().split(/\s+/).filter(Boolean);
+        rawCodes.forEach(function(c) {
+            if (!byCode[c]) {
+                byCode[c] = {
+                    guard: String(r[mm.guard] || '').trim().toUpperCase(),
+                    shift: String(r[mm.shift] || '').trim().toUpperCase()
+                };
+            }
+        });
+    });
+
+    var tz = Session.getScriptTimeZone();
+    var out = [];
+
+    data.forEach(function(r) {
+        var corr = String(r[0] || '').trim().toUpperCase();
+        var rowType = String(r[1] || '').trim().toUpperCase();
+        var rowCode = String(r[2] || '').trim().toUpperCase();
+        var dt = r[3];
+        var responsible = String(r[4] || '').trim().toUpperCase();
+        var conductor = String(r[5] || '').trim().toUpperCase();
+        var observations = String(r[6] || '').trim().toUpperCase();
+        var receiptStatus = String(r[7] || 'PENDIENTE').trim().toUpperCase();
+        var receivedAt = r[8];
+        var receivedBy = String(r[9] || '').trim().toUpperCase();
+
+        if (!corr || !rowCode) return;
+        if (tipo && rowType !== tipo) return;
+        if (codigo && rowCode.indexOf(codigo) < 0) return;
+
+        var d = dt instanceof Date ? dt : new Date(dt);
+        var validDate = !isNaN(d.getTime());
+        var day = validDate ? Utilities.formatDate(d, tz, 'yyyy-MM-dd') : '';
+
+        if (fecha && day !== fecha) return;
+
+        var op = byCode[rowCode] || {};
+        var shift = String(op.shift || '').trim().toUpperCase();
+        if (!shift && validDate) shift = operationalShift_(d);
+
+        out.push({
+            correlative: corr,
+            type: rowType,
+            code: rowCode,
+            dateTime: validDate ? d.toISOString() : String(dt || ''),
+            responsible: responsible,
+            guard: String(op.guard || '').trim().toUpperCase(),
+            shift: shift,
+            conductor: conductor,
+            observations: observations,
+            receiptStatus: receiptStatus || 'PENDIENTE',
+            receivedAt: receivedAt instanceof Date ? receivedAt.toISOString() : String(receivedAt || ''),
+            receivedBy: receivedBy
+        });
+    });
+
+    out.sort(function(a, b) {
+        return new Date(b.dateTime).getTime() - new Date(a.dateTime).getTime();
+    });
+
+    return out.slice(0, limit);
+}
+
+function cargoPendingReceipts_(p) {
+  p=p||{};var limit=Math.min(Math.max(Number(p.limit)||300,1),500),sh=sheet_(CFG.SALIDAS),last=sh.getLastRow();if(last<2)return [];
+  var data=sh.getRange(2,1,last-1,Math.max(sh.getLastColumn(),10)).getValues(),out=[],tz=Session.getScriptTimeZone();
+  data.forEach(function(r){var corr=String(r[0]||'').trim().toUpperCase(),type=String(r[1]||'').trim().toUpperCase(),code=String(r[2]||'').trim().toUpperCase(),st=String(r[7]||'PENDIENTE').trim().toUpperCase();if(!corr||!code||st==='RECIBIDO'||type!=='CH')return;var d=r[3] instanceof Date?r[3]:new Date(r[3]);out.push({correlative:corr,type:type,code:code,dateTime:isNaN(d.getTime())?String(r[3]||''):d.toISOString(),responsible:String(r[4]||''),shift:!isNaN(d.getTime())?operationalShift_(d):'',receiptStatus:'PENDIENTE'});});
+  out.sort(function(a,b){return new Date(a.dateTime).getTime()-new Date(b.dateTime).getTime();});return out.slice(0,limit);
+}
+function cargoConfirmReceipts_(p) {
+  p=p||{};var keys=p.keys||[],responsable=String(p.responsable||'').trim().toUpperCase();if(!keys.length)throw new Error('No hay registros seleccionados.');if(!responsable)throw new Error('No se identificó al responsable.');
+  var wanted={};keys.forEach(function(k){wanted[String(k).toUpperCase()]=true;});var lock=LockService.getScriptLock();lock.waitLock(15000);try{var sh=sheet_(CFG.SALIDAS),last=sh.getLastRow();if(last<2)return {cantidad:0};var cols=Math.max(sh.getLastColumn(),10),data=sh.getRange(2,1,last-1,cols).getValues(),now=new Date(),n=0;data.forEach(function(r,i){var k=[r[0],r[1],r[2]].map(function(x){return String(x||'').trim().toUpperCase();}).join('|');if(wanted[k]&&String(r[1]||'').trim().toUpperCase()==='CH'&&String(r[7]||'PENDIENTE').toUpperCase()!=='RECIBIDO'){sh.getRange(i+2,8,1,3).setValues([['RECIBIDO',now,responsable]]);sh.getRange(i+2,9).setNumberFormat('dd/MM/yyyy HH:mm:ss');n++;}});if(!n)throw new Error('Los registros seleccionados ya no están pendientes o no corresponden a tipo CH.');return {cantidad:n,fecha:now.toISOString()};}finally{lock.releaseLock();}
+}
+
+function getCargo_(id) {
+    id = String(id || '').trim().toUpperCase();
+    if (!id) throw new Error('Falta el correlativo del cargo.');
+
+    // GE se consulta en su base exclusiva.
+    if (id.indexOf('GE-') === 0) {
+        var shCargo = sheet_(CFG.SALIDAS_CARGO);
+        var lastCargo = shCargo.getLastRow();
+
+        if (lastCargo < 2) throw new Error('Cargo no encontrado.');
+
+        var hitsCargo = shCargo
+            .getRange(2, 1, lastCargo - 1, 1)
+            .createTextFinder(id)
+            .matchEntireCell(true)
+            .findAll();
+
+        if (!hitsCargo.length) throw new Error('Cargo no encontrado.');
+
+        var rowsCargo = hitsCargo.map(function(hit) {
+            var v = shCargo.getRange(hit.getRow(), 1, 1, 10).getDisplayValues()[0];
+            return {
+                correlative: v[0],
+                generalExitType: v[1],
+                description: v[2],
+                reason: v[3],
+                quantity: v[4],
+                unit: v[5],
+                observations: v[6],
+                dateTime: v[7],
+                attentionUser: v[8],
+                conductor: v[9]
+            };
+        });
+
+        return {
+            id: id,
+            correlative: id,
+            type: 'GENERALES',
+            generalExitType: rowsCargo[0].generalExitType,
+            dateTime: rowsCargo[0].dateTime,
+            attentionUser: rowsCargo[0].attentionUser,
+            conductor: rowsCargo[0].conductor,
+            status: 'GUARDADO',
+            rows: rowsCargo
+        };
+    }
+
+    // CH y PR continúan consultándose en BD SALIDAS.
+    var sh = sheet_(CFG.SALIDAS);
+    var last = sh.getLastRow();
+
+    if (last < 2) throw new Error('Cargo no encontrado.');
+
+    var hits = sh
+        .getRange(2, 1, last - 1, 1)
+        .createTextFinder(id)
+        .matchEntireCell(true)
+        .findAll();
+
+    if (!hits.length) throw new Error('Cargo no encontrado.');
+
+    var rows = hits.map(function(hit) {
+        var v = sh.getRange(hit.getRow(), 1, 1, 7).getDisplayValues()[0];
+        return {
+            correlative: v[0],
+            type: v[1],
+            code: v[2],
+            dateTime: v[3],
+            attentionUser: v[4],
+            conductor: v[5],
+            observations: v[6]
+        };
+    });
+
+    return {
+        id: id,
+        correlative: id,
+        dateTime: rows[0].dateTime,
+        attentionUser: rows[0].attentionUser,
+        conductor: rows[0].conductor,
+        status: 'GUARDADO',
+        rows: rows
+    };
+}
+
+
+
+// ============================================================
+// V5 - CONFIGURAR NUEVOS PERMISOS DE SUBMODULOS
+// Ejecutar una sola vez desde Apps Script. No borra permisos existentes.
+// ============================================================
+function configurarPermisosSubmodulosV5() {
+  var sh = sheet_(CFG.USERS);
+  var lastCol = sh.getLastColumn();
+  var headers = sh.getRange(1, 1, 1, lastCol).getDisplayValues()[0].map(function(x){return String(x||"").trim();});
+  var nuevos = [
+    "Estadía, Servicios y Consumos",
+    "Salida de Proveedores",
+    "Control de Habitaciones",
+    "Resumen diario / guardia",
+    "Pendientes de recepción"
+  ];
+  var faltan = nuevos.filter(function(n){return headers.indexOf(n) < 0;});
+  if (faltan.length) sh.getRange(1, lastCol + 1, 1, faltan.length).setValues([faltan]);
+  return {ok:true, agregados:faltan, total:nuevos.length};
 }
