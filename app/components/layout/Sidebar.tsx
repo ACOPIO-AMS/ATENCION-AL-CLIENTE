@@ -12,7 +12,6 @@ export type AppView =
   | "resumenGuardia"
   | "cargos"
   | "buscarSalidas"
-  | "pendientesRecepcion"
   | "guias"
   | "rirm"
   | "admin";
@@ -69,7 +68,6 @@ type Props = {
 
   registrarSalida: () => void;
   buscarSalidas: () => void;
-  pendientesRecepcion: () => void;
 
   abrirGuias: (s: GuiasSection) => void;
   abrirRirm: (s: RirmSection) => void;
@@ -245,8 +243,9 @@ export default function SidebarMenu(p: Props) {
     "Registrar salida"
   );
 
-  const sBuscar = can("Buscar salidas");
-  const sRecepcion = can("Pendientes de recepción");
+  const sBuscar = can(
+    "Buscar salidas"
+  );
 
   const mCargos = can(
     "CARGOS Y SALIDAS"
@@ -255,8 +254,7 @@ export default function SidebarMenu(p: Props) {
   const showCargos =
     mCargos ||
     sRegistrar ||
-    sBuscar ||
-    sRecepcion;
+    sBuscar;
 
   // ====================================================
   // 3. REGISTRO DE GUÍAS
@@ -302,13 +300,10 @@ export default function SidebarMenu(p: Props) {
     "Nueva solicitud"
   );
 
-  const rMis = can(
-    "Mis solicitudes"
-  );
-
   const rHistorial = can(
     "Historial / Buscar",
-    "Historial/Buscar"
+    "Historial/Buscar",
+    "Mis solicitudes"
   );
 
   const rModulo = can(
@@ -564,12 +559,6 @@ export default function SidebarMenu(p: Props) {
                 </button>
               )}
 
-              {sRecepcion && (
-                <button className={p.activeView === "pendientesRecepcion" ? "nav-item active" : "nav-item"} onClick={p.pendientesRecepcion}>
-                  <Icon tone="orange">📥</Icon><span>Pendientes de recepción</span>
-                </button>
-              )}
-
             </div>
           )}
         </div>
@@ -747,23 +736,6 @@ export default function SidebarMenu(p: Props) {
                 >
                   <Icon>➕</Icon>
                   <span>Nueva solicitud</span>
-                </button>
-              )}
-
-              {rMis && (
-                <button
-                  className={
-                    p.activeView === "rirm" &&
-                    p.rirmSection === "mis-solicitudes"
-                      ? "nav-item active"
-                      : "nav-item"
-                  }
-                  onClick={() =>
-                    p.abrirRirm("mis-solicitudes")
-                  }
-                >
-                  <Icon tone="cyan">📋</Icon>
-                  <span>Mis solicitudes</span>
                 </button>
               )}
 
