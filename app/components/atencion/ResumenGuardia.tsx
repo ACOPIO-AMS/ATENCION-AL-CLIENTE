@@ -677,37 +677,99 @@ export default function ResumenGuardia({
           </div>
         </div>
 
-        {/* PENDIENTES */}
-        <div
-          style={{
-            ...panel,
-            background: "#fff2f2",
-            margin: 0,
-          }}
-        >
-          <h3
-            style={{
-              color: "#c43b34",
-              marginTop: 0,
-            }}
-          >
-            ⚠ Pendientes para la siguiente guardia
-          </h3>
+       {/* PENDIENTES */}
+<div
+  style={{
+    ...panel,
+    background:
+      r.personasPresentes > 0 ||
+      r.habitaciones.ocupadas > 0 ||
+      r.habitaciones.porLimpiar > 0 ||
+      r.alimentacion.DESAYUNO.pendientes > 0 ||
+      r.alimentacion.ALMUERZO.pendientes > 0 ||
+      r.alimentacion.CENA.pendientes > 0
+        ? "#fff2f2"
+        : "#eaf8ef",
+    margin: 0,
+  }}
+>
+  <h3
+    style={{
+      color:
+        r.personasPresentes > 0 ||
+        r.habitaciones.ocupadas > 0 ||
+        r.habitaciones.porLimpiar > 0 ||
+        r.alimentacion.DESAYUNO.pendientes > 0 ||
+        r.alimentacion.ALMUERZO.pendientes > 0 ||
+        r.alimentacion.CENA.pendientes > 0
+          ? "#c43b34"
+          : "#25834a",
+      marginTop: 0,
+    }}
+  >
+    ⚠ Pendientes para la siguiente guardia
+  </h3>
 
-          <div style={{ lineHeight: 1.8 }}>
-            <b>{r.personasPresentes}</b>{" "}
-            persona(s) permanecen
-            <br />
-
-            <b>{r.habitaciones.ocupadas}</b>{" "}
-            habitación(es) ocupadas
-            <br />
-
-            <b>{r.habitaciones.porLimpiar}</b>{" "}
-            por limpiar.
-          </div>
+  {r.personasPresentes === 0 &&
+  r.habitaciones.ocupadas === 0 &&
+  r.habitaciones.porLimpiar === 0 &&
+  r.alimentacion.DESAYUNO.pendientes === 0 &&
+  r.alimentacion.ALMUERZO.pendientes === 0 &&
+  r.alimentacion.CENA.pendientes === 0 ? (
+    <div
+      style={{
+        color: "#25834a",
+        fontWeight: 800,
+      }}
+    >
+      ✓ Sin pendientes para la siguiente guardia
+    </div>
+  ) : (
+    <div style={{ lineHeight: 1.9 }}>
+      {r.personasPresentes > 0 && (
+        <div>
+          👤 <b>{r.personasPresentes}</b>{" "}
+          persona(s) permanecen
         </div>
-      </div>
+      )}
+
+      {r.habitaciones.ocupadas > 0 && (
+        <div>
+          🏨 <b>{r.habitaciones.ocupadas}</b>{" "}
+          habitación(es) ocupadas
+        </div>
+      )}
+
+      {r.habitaciones.porLimpiar > 0 && (
+        <div>
+          🧹 <b>{r.habitaciones.porLimpiar}</b>{" "}
+          habitación(es) por limpiar
+        </div>
+      )}
+
+      {r.alimentacion.DESAYUNO.pendientes > 0 && (
+        <div>
+          ☕ <b>{r.alimentacion.DESAYUNO.pendientes}</b>{" "}
+          desayuno(s) pendiente(s)
+        </div>
+      )}
+
+      {r.alimentacion.ALMUERZO.pendientes > 0 && (
+        <div>
+          🍽️ <b>{r.alimentacion.ALMUERZO.pendientes}</b>{" "}
+          almuerzo(s) pendiente(s)
+        </div>
+      )}
+
+      {r.alimentacion.CENA.pendientes > 0 && (
+        <div>
+          🌙 <b>{r.alimentacion.CENA.pendientes}</b>{" "}
+          cena(s) pendiente(s)
+        </div>
+      )}
+    </div>
+  )}
+</div>
 
       {/* ==================================================
           PERSONAS DEL PERIODO
