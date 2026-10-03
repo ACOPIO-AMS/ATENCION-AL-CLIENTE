@@ -186,7 +186,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
   const[usuarios,setUsuarios]=useState<string[]>([]);
   const[msg,setMsg]=useState("");
   const[load,setLoad]=useState("");
-  const[q,setQ]=useState("");
   const[mov,setMov]=useState<"TODOS"|"RECIBIDOS"|"SALIERON"|"PERMANECEN">("TODOS");
 
   useEffect(()=>{
@@ -211,8 +210,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
           hasta,
           guardia,
           turno,
-          responsableFiltro:resp,
-          personaFiltro:q
+          responsableFiltro:resp
         });
 
         if(vivo){
@@ -233,7 +231,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
       vivo=false;
       window.clearTimeout(t);
     };
-  },[desde,hasta,guardia,turno,resp,q]);
+  },[desde,hasta,guardia,turno,resp]);
 
   const personasFiltradas=useMemo(()=>{
     if(!r)return [];
@@ -327,58 +325,65 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
       </label>
     </div>
 
-    <div style={{...panel,padding:12}}>
-      <label style={{fontWeight:800,fontSize:12}}>
-        Persona / DNI
-      </label>
-      <input
-        value={q}
-        onChange={e=>setQ(e.target.value)}
-        placeholder="Filtrar todo el dashboard por DNI o nombre..."
-        style={{...input,maxWidth:480,marginTop:6}}
-      />
-      <div style={{fontSize:11,color:"#60706d",marginTop:5}}>
-        Este filtro afecta movimiento, alimentación, consumos, tabla y reasignaciones.
+
+    <div style={{
+      display:"grid",
+      gridTemplateColumns:"minmax(310px,.9fr) minmax(520px,1.55fr) minmax(250px,.7fr)",
+      gap:14,
+      alignItems:"stretch",
+      overflowX:"auto"
+    }}>
+      <div>
+        <h3 style={{color:"#0b5d8d",margin:"0 0 8px"}}>Movimiento de personas</h3>
+        <div style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(3,minmax(90px,1fr))",
+          gap:8
+        }}>
+          {cards.map(c=><div key={c[1]} style={{...kpi(c[3],c[4]),padding:12}}>
+            <span style={{fontSize:20}}>{c[0]}</span>
+            <small style={{display:"block"}}>{c[1]}</small>
+            <strong style={{fontSize:27}}>{c[2]}</strong>
+          </div>)}
+        </div>
+      </div>
+
+      <div>
+        <h3 style={{color:"#c8473d",margin:"0 0 8px"}}>Habitaciones</h3>
+        <div style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(5,minmax(92px,1fr))",
+          gap:8
+        }}>
+          {[
+            ["🛏️","Disponibles",r.habitaciones.disponibles,"#eaf8ef","#55b875"],
+            ["🏨","Ocupadas",r.habitaciones.ocupadas,"#fff0ef","#ef716b"],
+            ["📅","Reservadas",r.habitaciones.reservadas,"#edf5ff","#5d9fe8"],
+            ["🧹","Por limpiar",r.habitaciones.porLimpiar,"#fff7e3","#e9a72e"],
+            ["🛠️","Fuera servicio",r.habitaciones.fueraServicio,"#eef1f3","#7c8790"]
+          ].map(x=><div key={String(x[1])} style={{...kpi(String(x[3]),String(x[4])),padding:12}}>
+            <span style={{fontSize:19}}>{x[0]}</span>
+            <small style={{display:"block"}}>{x[1]}</small>
+            <strong style={{fontSize:25}}>{x[2]}</strong>
+          </div>)}
+        </div>
+      </div>
+
+      <div style={{...panel,background:"#fff2f2",margin:0,height:"100%"}}>
+        <h3 style={{color:"#c43b34",marginTop:0}}>⚠ Pendientes para la siguiente guardia</h3>
+        <div style={{lineHeight:1.8}}>
+          <b>{r.personasPresentes}</b> persona(s) permanecen
+          <br/>
+          <b>{r.habitaciones.ocupadas}</b> habitación(es) ocupadas
+          <br/>
+          <b>{r.habitaciones.porLimpiar}</b> por limpiar.
+        </div>
       </div>
     </div>
 
-    <h3 style={{color:"#0b5d8d",marginBottom:-8}}>Movimiento de personas</h3>
-
     <div style={{
       display:"grid",
-      gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",
-      gap:12
-    }}>
-      {cards.map(c=><div key={c[1]} style={kpi(c[3],c[4])}>
-        <span style={{fontSize:24}}>{c[0]}</span>
-        <small style={{display:"block"}}>{c[1]}</small>
-        <strong style={{fontSize:32}}>{c[2]}</strong>
-      </div>)}
-    </div>
-
-    <h3 style={{color:"#c8473d",marginBottom:-8}}>Habitaciones</h3>
-
-    <div style={{
-      display:"grid",
-      gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",
-      gap:10
-    }}>
-      {[
-        ["🛏️","Disponibles",r.habitaciones.disponibles,"#eaf8ef","#55b875"],
-        ["🏨","Ocupadas",r.habitaciones.ocupadas,"#fff0ef","#ef716b"],
-        ["📅","Reservadas",r.habitaciones.reservadas,"#edf5ff","#5d9fe8"],
-        ["🧹","Por limpiar",r.habitaciones.porLimpiar,"#fff7e3","#e9a72e"],
-        ["🛠️","Fuera servicio",r.habitaciones.fueraServicio,"#eef1f3","#7c8790"]
-      ].map(x=><div key={String(x[1])} style={kpi(String(x[3]),String(x[4]))}>
-        <span style={{fontSize:22}}>{x[0]}</span>
-        <small style={{display:"block"}}>{x[1]}</small>
-        <strong style={{fontSize:28}}>{x[2]}</strong>
-      </div>)}
-    </div>
-
-    <div style={{
-      display:"grid",
-      gridTemplateColumns:"minmax(0,1.45fr) minmax(0,1fr) minmax(260px,.8fr)",
+      gridTemplateColumns:"minmax(0,1.35fr) minmax(0,1fr)",
       gap:14,
       alignItems:"stretch"
     }}>
@@ -419,16 +424,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         </div>
       </div>
 
-      <div style={{...panel,background:"#fff2f2",margin:0}}>
-        <h3 style={{color:"#c43b34",marginTop:0}}>⚠ Pendientes para la siguiente guardia</h3>
-        <div style={{lineHeight:1.8}}>
-          <b>{r.personasPresentes}</b> persona(s) permanecen
-          <br/>
-          <b>{r.habitaciones.ocupadas}</b> habitación(es) ocupadas
-          <br/>
-          <b>{r.habitaciones.porLimpiar}</b> por limpiar.
-        </div>
-      </div>
     </div>
 
     <div style={panel}>
@@ -459,7 +454,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
       </div>
 
       <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",minWidth:1430,fontSize:12,borderCollapse:"collapse"}}>
+        <table style={{width:"100%",minWidth:1320,fontSize:12,borderCollapse:"collapse"}}>
           <thead>
             <tr>
               <th style={{textAlign:"left"}}>DNI</th>
@@ -469,7 +464,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
               <th>Hora de salida</th>
               <th>Permanencia</th>
               <th>Zona</th>
-              <th>Estado</th>
               <th>Desayuno</th>
               <th>Almuerzo</th>
               <th>Cena</th>
@@ -497,9 +491,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
                 </td>
                 <td style={{textAlign:"center"}}>{x.zona||"-"}</td>
                 <td style={{textAlign:"center"}}>
-                  <BadgeEstado value={x.estadoPeriodo||x.estado}/>
-                </td>
-                <td style={{textAlign:"center"}}>
                   <BadgeEstado value={x.alimentacion?.DESAYUNO}/>
                 </td>
                 <td style={{textAlign:"center"}}>
@@ -514,7 +505,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
 
             {!personasFiltradas.length&&(
               <tr>
-                <td colSpan={12} style={{padding:22,textAlign:"center",color:"#60706d"}}>
+                <td colSpan={11} style={{padding:22,textAlign:"center",color:"#60706d"}}>
                   No hay personas que coincidan con los filtros seleccionados.
                 </td>
               </tr>
