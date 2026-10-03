@@ -45,6 +45,8 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
   const[menuComida,setMenuComida]=useState<{k:string;c:Comida}|null>(null);
   const[modalFuera,setModalFuera]=useState<{persona:EstadiaPersona;comida:Comida;observacion:string}|null>(null);
   const[modalReasignar,setModalReasignar]=useState<{persona:EstadiaPersona;comida:Comida;destinoKey:string;busqueda:string;otra:boolean;otroNombre:string;otroDni:string;observacion:string}|null>(null);
+  const[buscandoReceptor,setBuscandoReceptor]=useState(false);
+  const[estadoDniReceptor,setEstadoDniReceptor]=useState("");
 
   const key=(x:EstadiaPersona)=>`${x.idIngreso}|${x.dni}`;
 
@@ -219,33 +221,126 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
   }
 
   function reasignarUno(x:EstadiaPersona,c:Comida){
-    setMenuComida(null);setMsg("");
-    setModalReasignar({persona:x,comida:c,destinoKey:"",busqueda:"",otra:false,otroNombre:"",otroDni:"",observacion:""});
+    setMenuComida(null);
+    setMsg("");
+    setEstadoDniReceptor("");
+    setModalReasignar({
+      persona:x,
+      comida:c,
+      destinoKey:"",
+      busqueda:"",
+      otra:true,
+      otroNombre:"",
+      otroDni:"",
+      observacion:""
+    });
+  }
+
+  async function buscarDniReceptor(dni:string){
+    const limpio=dni.replace(/\D/g,"").slice(0,8);
+    if(limpio.length!==8)return;
+
+    setBuscandoReceptor(true);
+    setEstadoDniReceptor("Buscando DNI...");
+
+    try{
+      const r=await estadiaApi<any>("searchPerson",{dni:limpio});
+
+      if(r?.found&&r?.person){
+        const nombre=String(r.person.name||r.person.nombre||"").trim().toUpperCase();
+
+        setModalReasignar(m=>m?{
+          ...m,
+          otra:true,
+          otroDni:limpio,
+          otroNombre:nombre
+        }:m);
+
+        setEstadoDniReceptor(
+          nombre
+            ?"DNI encontrado. Nombre completado automáticamente."
+            :"DNI encontrado. Completa los nombres."
+        );
+      }else{
+        setModalReasignar(m=>m?{
+          ...m,
+          otra:true,
+          otroDni:limpio,
+          otroNombre:""
+        }:m);
+
+        setEstadoDniReceptor(
+          "DNI nuevo. Ingresa los nombres completos; se guardarán para futuras reasignaciones."
+        );
+      }
+
+    }catch(e){
+      setEstadoDniReceptor(
+        e instanceof Error
+          ?e.message
+          :"No se pudo consultar el DNI."
+      );
+    }finally{
+      setBuscandoReceptor(false);
+    }
   }
 
   async function confirmarReasignacion(){
     if(!modalReasignar)return;
+
     const m=modalReasignar;
-    let nombre="",dni="";
-    if(m.otra){
-      nombre=m.otroNombre.trim().toUpperCase();
-      dni=m.otroDni.replace(/\D/g,"");
-      if(!nombre){setMsg("Ingresa el nombre de la persona que recibió la ración.");return;}
-      if(dni && dni.length!==8){setMsg("El DNI debe tener 8 dígitos o dejarse vacío.");return;}
-    }else{
-      const destino=p.find(y=>key(y)===m.destinoKey);
-      if(!destino){setMsg("Selecciona la persona que recibió la ración.");return;}
-      nombre=destino.nombre;dni=destino.dni;
+    const dni=m.otroDni.replace(/\D/g,"");
+    const nombre=m.otroNombre.trim().replace(/\s+/g," ").toUpperCase();
+
+    if(!/^\d{8}$/.test(dni)){
+      setMsg("El DNI de la persona receptora es obligatorio y debe tener 8 dígitos.");
+      return;
     }
+
+    if(nombre.split(" ").filter(Boolean).length<2){
+      setMsg("Ingresa los nombres completos de la persona que recibió la ración.");
+      return;
+    }
+
     const obs=m.observacion.trim()||`Reasignado a ${nombre}`;
-    setLoad("Guardando reasignación...");setMsg("");
+
+    setLoad("Guardando reasignación...");
+    setMsg("");
+
     try{
-      await estadiaApi("estadiaReasignarAlimentacion",{idIngreso:m.persona.idIngreso,dni:m.persona.dni,servicio:m.comida,entregadoA:nombre,dniDestino:dni,responsable,observacion:obs});
+      await estadiaApi("estadiaReasignarAlimentacion",{
+        idIngreso:m.persona.idIngreso,
+        dni:m.persona.dni,
+        servicio:m.comida,
+        entregadoA:nombre,
+        dniDestino:dni,
+        responsable,
+        observacion:obs
+      });
+
       await cargar(true);
-      if(detalleComida?.servicio){const d=await estadiaApi<any>("estadiaDetalleAlimentacion",{servicio:detalleComida.servicio});setDetalleComida(d);}
-      setModalReasignar(null);exito("Ración reasignada correctamente");
-    }catch(e){setMsg(e instanceof Error?e.message:"Error al reasignar");}
-    finally{setLoad("");}
+
+      if(detalleComida?.servicio){
+        const d=await estadiaApi<any>(
+          "estadiaDetalleAlimentacion",
+          {servicio:detalleComida.servicio}
+        );
+        setDetalleComida(d);
+      }
+
+      setModalReasignar(null);
+      setEstadoDniReceptor("");
+      exito("Ración reasignada correctamente");
+
+    }catch(e){
+      setMsg(
+        e instanceof Error
+          ?e.message
+          :"Error al reasignar"
+      );
+    }finally{
+      setLoad("");
+    }
   }
 
   const celdaComida=(x:EstadiaPersona,c:Comida)=>{
@@ -593,18 +688,148 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
 
       {modalReasignar&&<div style={{position:"fixed",inset:0,zIndex:10021,background:"rgba(5,28,34,.62)",display:"grid",placeItems:"center",padding:20}}>
         <div style={{...panel,width:"min(720px,97vw)",maxHeight:"90vh",overflow:"auto",padding:22}}>
-          <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"start"}}><div><h2 style={{margin:0}}>↗ Reasignar alimentación</h2><p style={{margin:"5px 0 0",color:"#60706d"}}>{modalReasignar.comida[0]+modalReasignar.comida.slice(1).toLowerCase()} solicitado para <b>{modalReasignar.persona.nombre}</b></p></div><button style={{...btn,background:"#687775",padding:"7px 11px"}} onClick={()=>setModalReasignar(null)}>✕</button></div>
-          <div style={{marginTop:15,padding:12,borderRadius:10,background:"#fff7e8",border:"1px solid #f1d397"}}><small>SOLICITADO PARA</small><div><b>{modalReasignar.persona.nombre}</b> · DNI {modalReasignar.persona.dni}</div></div>
-          <div style={{display:"flex",gap:8,marginTop:16}}><button style={{...btn,background:!modalReasignar.otra?"#1268c4":"#e9eff2",color:!modalReasignar.otra?"#fff":"#17333a"}} onClick={()=>setModalReasignar({...modalReasignar,otra:false})}>👤 Persona presente</button><button style={{...btn,background:modalReasignar.otra?"#1268c4":"#e9eff2",color:modalReasignar.otra?"#fff":"#17333a"}} onClick={()=>setModalReasignar({...modalReasignar,otra:true,destinoKey:""})}>＋ Otra persona</button></div>
-          {!modalReasignar.otra?<>
-            <input style={{...input,marginTop:12}} placeholder="Buscar por nombre, DNI o placa..." value={modalReasignar.busqueda} onChange={e=>setModalReasignar({...modalReasignar,busqueda:e.target.value})}/>
-            <div style={{display:"grid",gap:7,marginTop:9,maxHeight:260,overflow:"auto"}}>
-              {p.filter(y=>key(y)!==key(modalReasignar.persona)).filter(y=>{const z=modalReasignar.busqueda.toLowerCase().trim();return !z||[y.nombre,y.dni,y.placa].some(v=>String(v||"").toLowerCase().includes(z));}).map(y=><button key={key(y)} onClick={()=>setModalReasignar({...modalReasignar,destinoKey:key(y)})} style={{textAlign:"left",padding:11,borderRadius:10,cursor:"pointer",border:modalReasignar.destinoKey===key(y)?"2px solid #1268c4":"1px solid #d9e1df",background:modalReasignar.destinoKey===key(y)?"#eaf4ff":"#fff"}}><b>{y.nombre}</b><div style={{fontSize:11,color:"#60706d",marginTop:2}}>DNI {y.dni} · {y.placa||"Sin placa"}{y.habitacion?` · Hab. ${y.habitacion}`:""}</div></button>)}
+          <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"start"}}>
+            <div>
+              <h2 style={{margin:0}}>↗ Reasignar alimentación</h2>
+              <p style={{margin:"5px 0 0",color:"#60706d"}}>
+                {modalReasignar.comida[0]+modalReasignar.comida.slice(1).toLowerCase()} solicitado para <b>{modalReasignar.persona.nombre}</b>
+              </p>
             </div>
-          </>:<div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:10,marginTop:12}}><div><label style={{fontWeight:700,fontSize:12}}>Nombre y apellidos *</label><input style={{...input,marginTop:5}} value={modalReasignar.otroNombre} onChange={e=>setModalReasignar({...modalReasignar,otroNombre:e.target.value})} placeholder="Nombre de quien recibió"/></div><div><label style={{fontWeight:700,fontSize:12}}>DNI (opcional)</label><input style={{...input,marginTop:5}} maxLength={8} value={modalReasignar.otroDni} onChange={e=>setModalReasignar({...modalReasignar,otroDni:e.target.value.replace(/\D/g,"").slice(0,8)})} placeholder="8 dígitos"/></div></div>}
-          <label style={{display:"block",fontWeight:700,marginTop:15}}>Motivo / observación</label><textarea rows={3} value={modalReasignar.observacion} onChange={e=>setModalReasignar({...modalReasignar,observacion:e.target.value})} placeholder="Ej.: El titular se retiró antes de recibir la ración." style={{...input,resize:"vertical",marginTop:6}}/>
-          <div style={{marginTop:13,padding:11,borderRadius:10,background:"#eef6ff",fontSize:12}}><b>Trazabilidad:</b> {modalReasignar.persona.nombre} → {modalReasignar.otra?(modalReasignar.otroNombre.trim()||"Otra persona"):(p.find(y=>key(y)===modalReasignar.destinoKey)?.nombre||"Selecciona un destinatario")}</div>
-          <div style={{display:"flex",justifyContent:"flex-end",gap:9,marginTop:18}}><button style={{...btn,background:"#687775"}} onClick={()=>setModalReasignar(null)}>Cancelar</button><button disabled={!!load||(!modalReasignar.otra&&!modalReasignar.destinoKey)||(modalReasignar.otra&&!modalReasignar.otroNombre.trim())} style={{...btn,background:"#596bd8"}} onClick={()=>void confirmarReasignacion()}>↗ Confirmar reasignación</button></div>
+            <button
+              style={{...btn,background:"#687775",padding:"7px 11px"}}
+              onClick={()=>{setModalReasignar(null);setEstadoDniReceptor("");}}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{marginTop:15,padding:12,borderRadius:10,background:"#fff7e8",border:"1px solid #f1d397"}}>
+            <small>SOLICITADO PARA</small>
+            <div>
+              <b>{modalReasignar.persona.nombre}</b> · DNI {modalReasignar.persona.dni}
+            </div>
+          </div>
+
+          <div style={{marginTop:16,padding:12,borderRadius:10,background:"#eef6ff",fontSize:12}}>
+            <b>Persona que recibirá la ración</b>
+            <div style={{marginTop:3,color:"#60706d"}}>
+              El DNI es obligatorio. Si ya existe en la base, el nombre se completará automáticamente.
+            </div>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"minmax(180px,.8fr) minmax(280px,1.7fr)",gap:10,marginTop:12}}>
+            <div>
+              <label style={{fontWeight:700,fontSize:12}}>
+                DNI receptor <span style={{color:"#c43b34"}}>*</span>
+              </label>
+              <input
+                autoFocus
+                inputMode="numeric"
+                style={{...input,marginTop:5}}
+                maxLength={8}
+                value={modalReasignar.otroDni}
+                onChange={e=>{
+                  const dni=e.target.value.replace(/\D/g,"").slice(0,8);
+                  setModalReasignar({
+                    ...modalReasignar,
+                    otra:true,
+                    otroDni:dni,
+                    otroNombre:dni===modalReasignar.otroDni?modalReasignar.otroNombre:""
+                  });
+                  setEstadoDniReceptor("");
+                  if(dni.length===8)void buscarDniReceptor(dni);
+                }}
+                placeholder="8 dígitos"
+              />
+            </div>
+
+            <div>
+              <label style={{fontWeight:700,fontSize:12}}>
+                Nombres completos <span style={{color:"#c43b34"}}>*</span>
+              </label>
+              <input
+                style={{...input,marginTop:5}}
+                value={modalReasignar.otroNombre}
+                onChange={e=>setModalReasignar({
+                  ...modalReasignar,
+                  otra:true,
+                  otroNombre:e.target.value.toUpperCase()
+                })}
+                placeholder="Nombres y apellidos de quien recibió"
+              />
+            </div>
+          </div>
+
+          {(estadoDniReceptor||buscandoReceptor)&&(
+            <div style={{
+              marginTop:8,
+              padding:"8px 10px",
+              borderRadius:8,
+              background:estadoDniReceptor.toUpperCase().includes("NUEVO")?"#fff7e8":"#eef8f1",
+              fontSize:12,
+              color:"#415a56"
+            }}>
+              {buscandoReceptor?"Buscando DNI...":estadoDniReceptor}
+            </div>
+          )}
+
+          <label style={{display:"block",fontWeight:700,marginTop:15}}>
+            Motivo / observación
+          </label>
+          <textarea
+            rows={3}
+            value={modalReasignar.observacion}
+            onChange={e=>setModalReasignar({
+              ...modalReasignar,
+              observacion:e.target.value
+            })}
+            placeholder="Ej.: El titular se retiró antes de recibir la ración."
+            style={{...input,resize:"vertical",marginTop:6}}
+          />
+
+          <div style={{marginTop:13,padding:11,borderRadius:10,background:"#f4f8f7",fontSize:12}}>
+            <b>Trazabilidad:</b>{" "}
+            {modalReasignar.persona.nombre}
+            {" → "}
+            {modalReasignar.otroNombre.trim()||"Receptor pendiente de identificar"}
+            {modalReasignar.otroDni?` · DNI ${modalReasignar.otroDni}`:""}
+          </div>
+
+          <div style={{fontSize:11,color:"#60706d",marginTop:8}}>
+            Al confirmar, la reasignación se guardará en <b>BD REASIGNACIONES</b> y el DNI receptor quedará disponible para autocompletado futuro.
+          </div>
+
+          <div style={{display:"flex",justifyContent:"flex-end",gap:9,marginTop:18}}>
+            <button
+              style={{...btn,background:"#687775"}}
+              onClick={()=>{setModalReasignar(null);setEstadoDniReceptor("");}}
+            >
+              Cancelar
+            </button>
+
+            <button
+              disabled={
+                !!load||
+                buscandoReceptor||
+                !/^\d{8}$/.test(modalReasignar.otroDni)||
+                modalReasignar.otroNombre.trim().split(/\s+/).filter(Boolean).length<2
+              }
+              style={{
+                ...btn,
+                background:"#596bd8",
+                opacity:
+                  !load&&
+                  !buscandoReceptor&&
+                  /^\d{8}$/.test(modalReasignar.otroDni)&&
+                  modalReasignar.otroNombre.trim().split(/\s+/).filter(Boolean).length>=2
+                    ?1
+                    :.55
+              }}
+              onClick={()=>void confirmarReasignacion()}
+            >
+              ↗ Confirmar reasignación
+            </button>
+          </div>
         </div>
       </div>}
 
