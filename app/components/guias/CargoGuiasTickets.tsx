@@ -34,11 +34,13 @@ type HistorialCargo = {
   numeroCargo?: string | number;
   fecha?: string;
   hora?: string;
+  responsable?: string;
   asistente?: string;
   asistenteComercial?: string;
   conductor?: string;
   estado?: string;
-  items?: number;
+  items?: number | FilaCargo[];
+  idCargo?: string;
 };
 
 const nuevaFila = (): FilaCargo => ({
@@ -91,6 +93,8 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   const [error, setError] = useState("");
   const [historial, setHistorial] = useState<HistorialCargo[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [tab, setTab] = useState<"nuevo" | "historial">("nuevo");
 
   const conductores = useMemo(() => listaCatalogo(catalogos, "conductor"), [catalogos]);
@@ -223,7 +227,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
     setMensaje("");
     setError("");
 
-    if (!asistente) return setError("Selecciona Asistente Comercial 2.");
+    if (!asistente) return setError("Responsable requerido.");
     if (!conductor) return setError("Selecciona Conductor de rutina.");
 
     const validas = filas.filter(
@@ -239,6 +243,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
     setGuardando(true);
     try {
       const data = await api("cgtGuardarCargo", {
+        responsable: asistente,
         asistente,
         conductor,
         usuario: user?.name || user?.user || "",
@@ -271,7 +276,11 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
     setError("");
     try {
       const d = await api("cgtObtenerHistorial");
-      setHistorial(Array.isArray(d) ? d : Array.isArray(d?.items) ? d.items : []);
+      setHistorial(
+        Array.isArray(d) ? d :
+        Array.isArray(d?.cargos) ? d.cargos :
+        Array.isArray(d?.items) ? d.items : []
+      );
       setTab("historial");
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar el historial.");
@@ -280,9 +289,50 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
 
   const historialFiltrado = useMemo(() => {
     const q = busqueda.trim().toUpperCase();
-    if (!q) return historial;
-    return historial.filter((h) => JSON.stringify(h).toUpperCase().includes(q));
-  }, [historial, busqueda]);
+    const fechaISO = (v?: string) => {
+      const p = String(v || "").split("/");
+      return p.length === 3 ? `${p[2]}-${p[1].padStart(2,"0")}-${p[0].padStart(2,"0")}` : "";
+    };
+    return historial.filter((h) => {
+      const f = fechaISO(h.fecha);
+      return (!q || JSON.stringify(h).toUpperCase().includes(q)) &&
+             (!fechaDesde || (!!f && f >= fechaDesde)) &&
+             (!fechaHasta || (!!f && f <= fechaHasta));
+    });
+  }, [historial, busqueda, fechaDesde, fechaHasta]);
+
+  async function imprimirDesdeHistorial(h: HistorialCargo) {
+    setError("");
+    try {
+      const n = String(valorNumero(h));
+      const d = await api("cgtObtenerCargo", { numero: n });
+      const cargo = d?.cargo ?? d;
+      const detalle = Array.isArray(cargo?.items) ? cargo.items : [];
+      if (!cargo) throw new Error("No se pudo recuperar el cargo.");
+
+      setNumero(String(cargo.numero ?? n));
+      setAsistente(String(cargo.responsable ?? cargo.asistente ?? ""));
+      setConductor(String(cargo.conductor ?? ""));
+      setFilas(detalle.map((x: any, i: number) => ({
+        id:`hist-${n}-${i}`, grrSerie:String(x.grrSerie ?? ""), grrNumero:String(x.grrNumero ?? ""),
+        grtSerie:String(x.grtSerie ?? ""), grtNumero:String(x.grtNumero ?? ""),
+        lotes:String(x.lotes ?? ""), tickets:String(x.tickets ?? ""),
+        documentos:String(x.documentos ?? "OK").toUpperCase()==="PENDIENTE" ? "PENDIENTE" : "OK",
+        observacion:String(x.observacion ?? "")
+      })));
+
+      const p = String(cargo.fecha || "").split("/");
+      if (p.length === 3) {
+        const f = new Date(`${p[2]}-${p[1]}-${p[0]}T${String(cargo.hora || "00:00:00")}`);
+        if (!Number.isNaN(f.getTime())) setFechaHora(f);
+      }
+      setCargoGuardado(true);
+      setCargoImpreso(false);
+      window.setTimeout(() => window.print(), 200);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo imprimir el cargo.");
+    }
+  }
 
   function imprimir() {
     if (!cargoGuardado) {
@@ -293,6 +343,29 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
     setMensaje(`Cargo N.º ${numero} enviado a impresión. Para continuar, pulsa Nuevo cargo.`);
     window.print();
   }
+
+  const CopiaCargo = ({ copia }: { copia: number }) => (
+    <div className="cgt-print-copy">
+      <div className="cgt-print-title"><h1>CARGO - GUÍAS Y TICKETS</h1><p>ANALYTICA MINERAL SERVICES S.A.C.</p></div>
+      <div className="cgt-print-head">
+        <div><b>N.º CARGO</b><span>{numero}</span></div>
+        <div><b>FECHA Y HORA</b><span>{fechaHora.toLocaleString("es-PE")}</span></div>
+      </div>
+      <table className="cgt-print-table">
+        <thead>
+          <tr><th rowSpan={2}>ITEM</th><th colSpan={2}>GRR</th><th colSpan={2}>GRT</th><th rowSpan={2}>LOTES</th><th rowSpan={2}>TICKET DE PESAJE</th><th rowSpan={2}>DOCUMENTOS ADJUNTOS</th><th rowSpan={2}>OBSERVACIÓN</th></tr>
+          <tr><th>SERIE 1</th><th>N.º 1</th><th>SERIE 2</th><th>N.º 2</th></tr>
+        </thead>
+        <tbody>{filas.map((f,i)=><tr key={`p-${copia}-${f.id}`}><td>{i+1}</td><td>{f.grrSerie}</td><td>{f.grrNumero}</td><td>{f.grtSerie}</td><td>{f.grtNumero}</td><td><b>{f.lotes}</b></td><td><b>{f.tickets}</b></td><td>{f.documentos}</td><td>{f.observacion}</td></tr>)}</tbody>
+      </table>
+      <div className="cgt-print-docs"><b>DOCUMENTOS:</b> SOAT, LICENCIA DE CONDUCIR, TARJETA DE PROPIEDAD, ACTA DE CONFORMIDAD, TICKET DE PESAJE, TICKET DE REVISIÓN, GRR Y GRT.</div>
+      <div className="cgt-print-signatures">
+        <div><span></span><b>OFICINA DE GUÍAS</b><small>{asistente}</small></div>
+        <div><span></span><b>CONDUCTOR DE RUTINA</b><small>{conductor}</small></div>
+        <div><span></span><b>OFICINA CHALA</b><small>&nbsp;</small></div>
+      </div>
+    </div>
+  );
 
   return (
     <section className="cgt">
@@ -334,69 +407,30 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
           .cgt-top{flex-direction:column}
         }
         @media(max-width:600px){.cgt-headgrid{grid-template-columns:1fr}}
+        .cgt-print-sheet{display:none}
         @media print{
+          @page{size:A4 portrait;margin:6mm}
           body *{visibility:hidden!important}
-          .cgt,.cgt *{visibility:visible!important}
-          .cgt{position:absolute;left:0;top:0;width:100%;padding:0;color:#000}
-          .no-print{display:none!important}
-          .print-only{display:block!important}
-          .cgt-card{box-shadow:none;border:0;padding:0}
-          .cgt-title h1{text-align:center;font-size:22px;color:#000}
-          .cgt-title p{text-align:center;color:#000}
-          .cgt-headgrid{grid-template-columns:180px 1fr;margin:18px 0;gap:28px}
-          .hide-on-print{display:none!important}
-          .cgt input,.cgt select,.cgt textarea{
-            border:0!important;
-            outline:0!important;
-            box-shadow:none!important;
-            padding:0!important;
-            margin:0!important;
-            background:transparent!important;
-            appearance:none;
-            font-size:12px!important;
-            line-height:1.25;
-          }
-          .cgt-table-wrap{overflow:visible!important}
-          .cgt table{
-            width:100%!important;
-            min-width:0!important;
-            table-layout:fixed;
-            border-collapse:collapse!important;
-            border-spacing:0!important;
-            font-size:12px!important;
-            border:1px solid #000!important;
-          }
-          .cgt thead,.cgt tbody,.cgt tr{break-inside:avoid}
-          .cgt th{
-            font-size:10.5px!important;
-            line-height:1.2;
-            background:#fff!important;
-          }
-          .cgt td{
-            font-size:12px!important;
-            line-height:1.25;
-            height:42px;
-            vertical-align:middle!important;
-          }
-          .cgt th,.cgt td{
-            border:1px solid #000!important;
-            padding:7px 5px!important;
-            overflow-wrap:anywhere;
-            word-break:normal;
-            background-clip:padding-box!important;
-          }
-          .cgt td input,.cgt td select,.cgt td textarea{
-            display:block!important;
-            width:100%!important;
-            min-width:0!important;
-            height:auto!important;
-          }
-          .cgt td textarea{resize:none!important;overflow:hidden!important}
-          .cgt .row-error{display:none}
-          .signatures{display:grid!important;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:65px}
-          .signature{border-top:1px solid #000;text-align:center;padding-top:8px;min-height:55px;font-size:11px}
+          .cgt-print-sheet,.cgt-print-sheet *{visibility:visible!important}
+          .cgt-print-sheet{display:block!important;position:absolute;left:0;top:0;width:100%;color:#000;background:#fff}
+          .cgt-print-copy{width:100%;height:132mm;overflow:hidden;break-inside:avoid;page-break-inside:avoid;padding:1mm 0 0}
+          .cgt-print-cut{height:5mm;border-top:1px dashed #666;position:relative}
+          .cgt-print-cut span{position:absolute;top:-5px;left:50%;transform:translateX(-50%);background:#fff;padding:0 5px;font-size:7px}
+          .cgt-print-title{text-align:center;margin:0 0 3mm}.cgt-print-title h1{font-size:15px;margin:0}.cgt-print-title p{font-size:9px;margin:1mm 0 0}
+          .cgt-print-head{display:grid;grid-template-columns:90px 1fr;gap:18mm;margin-bottom:3mm}.cgt-print-head div{display:flex;flex-direction:column}.cgt-print-head b{font-size:7px}.cgt-print-head span{font-size:10px;font-weight:800}
+          .cgt-print-table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border:1px solid #000!important}
+          .cgt-print-table th,.cgt-print-table td{border:1px solid #000!important;text-align:center;vertical-align:middle;padding:1.7mm 1mm!important;line-height:1.1;overflow-wrap:anywhere}
+          .cgt-print-table th{font-size:7px!important}.cgt-print-table td{font-size:9px!important}
+          .cgt-print-docs{font-size:7px;line-height:1.25;margin-top:2.5mm}
+          .cgt-print-signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9mm;margin-top:9mm}.cgt-print-signatures div{text-align:center}.cgt-print-signatures span{display:block;border-top:1px solid #000;margin-bottom:1.5mm}.cgt-print-signatures b,.cgt-print-signatures small{display:block;font-size:7px}
         }
       `}</style>
+
+      <div className="cgt-print-sheet" aria-hidden="true">
+        <CopiaCargo copia={1} />
+        <div className="cgt-print-cut"><span>CORTE</span></div>
+        <CopiaCargo copia={2} />
+      </div>
 
       <div className="cgt-top no-print">
         <div className="cgt-title">
@@ -430,7 +464,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
                 <input className="readonly" value={fechaHora.toLocaleString("es-PE")} readOnly />
               </div>
               <div className="hide-on-print">
-                <label>ASISTENTE COMERCIAL 2</label>
+                <label>RESPONSABLE</label>
                 <input className="readonly" value={asistente} readOnly />
               </div>
               <div className="hide-on-print">
@@ -522,27 +556,25 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
       ) : (
         <div className="cgt-card no-print">
           <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",marginBottom:14,flexWrap:"wrap"}}>
-            <div>
-              <h2 style={{margin:0}}>Historial de cargos</h2>
-              <small style={{color:"#667085"}}>{historial.length} registro(s)</small>
-            </div>
-            <input style={{maxWidth:340}} placeholder="Buscar cargo, asistente, conductor..." value={busqueda} onChange={(e)=>setBusqueda(e.target.value)} />
+            <div><h2 style={{margin:0}}>Historial de cargos</h2><small style={{color:"#667085"}}>{historialFiltrado.length} de {historial.length} cargo(s)</small></div>
+            <input style={{maxWidth:430}} placeholder="Buscar cargo, responsable, conductor, GRR/GRT, lote, ticket..." value={busqueda} onChange={(e)=>setBusqueda(e.target.value)} />
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"end",marginBottom:14,flexWrap:"wrap"}}>
+            <div><label>DESDE</label><input type="date" value={fechaDesde} onChange={(e)=>setFechaDesde(e.target.value)} /></div>
+            <div><label>HASTA</label><input type="date" value={fechaHasta} onChange={(e)=>setFechaHasta(e.target.value)} /></div>
+            <button className="ghost" onClick={()=>{setFechaDesde("");setFechaHasta("");setBusqueda("");}}>Limpiar filtros</button>
           </div>
           <div style={{overflow:"auto"}}>
             <table className="cgt-history">
-              <thead><tr><th>N.º Cargo</th><th>Fecha</th><th>Asistente Comercial 2</th><th>Conductor</th><th>Ítems</th><th>Estado</th></tr></thead>
+              <thead><tr><th>N.º Cargo</th><th>Fecha</th><th>Responsable</th><th>Conductor</th><th>Ítems</th><th>Estado</th><th style={{textAlign:"center"}}>Imprimir</th></tr></thead>
               <tbody>
-                {historialFiltrado.map((h, i) => (
-                  <tr key={`${valorNumero(h)}-${i}`}>
-                    <td><b>{String(valorNumero(h))}</b></td>
-                    <td>{[h.fecha,h.hora].filter(Boolean).join(" ")}</td>
-                    <td>{h.asistenteComercial || h.asistente || ""}</td>
-                    <td>{h.conductor || ""}</td>
-                    <td>{h.items ?? ""}</td>
-                    <td>{h.estado || ""}</td>
-                  </tr>
-                ))}
-                {!historialFiltrado.length && <tr><td colSpan={6} style={{textAlign:"center",color:"#667085"}}>No hay registros para mostrar.</td></tr>}
+                {historialFiltrado.map((h,i)=><tr key={`${valorNumero(h)}-${i}`}>
+                  <td><b>{String(valorNumero(h))}</b></td><td>{[h.fecha,h.hora].filter(Boolean).join(" ")}</td>
+                  <td>{h.responsable || h.asistenteComercial || h.asistente || ""}</td><td>{h.conductor || ""}</td>
+                  <td>{Array.isArray(h.items) ? h.items.length : (h.items ?? "")}</td><td>{h.estado || ""}</td>
+                  <td style={{textAlign:"center"}}><button className="secondary" onClick={()=>imprimirDesdeHistorial(h)} title="Imprimir cargo" style={{padding:"7px 10px",fontSize:18}}>🖨️</button></td>
+                </tr>)}
+                {!historialFiltrado.length && <tr><td colSpan={7} style={{textAlign:"center",color:"#667085"}}>No hay registros para mostrar.</td></tr>}
               </tbody>
             </table>
           </div>
