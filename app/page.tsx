@@ -10,6 +10,7 @@ import EstadiaServicios from "./components/atencion/EstadiaServicios";
 import SalidaProveedores from "./components/atencion/SalidaProveedores";
 import ControlHabitaciones from "./components/atencion/ControlHabitaciones";
 import ResumenGuardia from "./components/atencion/ResumenGuardia";
+import CargoGuiasTickets from "./components/guias/CargoGuiasTickets";
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
 type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "estadia" | "salidaProveedores" | "habitaciones" | "resumenGuardia" | "cargos" | "buscarSalidas" | "recepcionCargos" | "guias" | "rirm" | "admin";
@@ -369,7 +370,7 @@ export default function Home() {
   const [cargoReceiptSel,setCargoReceiptSel]=useState<string[]>([]);
   const [cargoReceiptBusy,setCargoReceiptBusy]=useState(false);
   const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | "admin" | null>("atencion");
-  const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos">("registrar");
+  const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias">("registrar");
   const [rirmSection, setRirmSection] = useState<RirmSection>("pendientes");
   const [adminSection, setAdminSection] = useState<AdminSection>("panel");
   const guiasFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -426,9 +427,11 @@ export default function Home() {
     setOpenModule(null);
   }
 
-  function openGuiasSection(section: "registrar" | "historial" | "indicadores" | "sacos") {
+  function openGuiasSection(section: "registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias") {
     setGuiasSection(section);
     setActiveView("guias");
+    setOpenModule("guias");
+    if (section === "cargo-guias") return;
     window.setTimeout(() => {
       const frameWindow = guiasFrameRef.current?.contentWindow as (Window & { mostrarPagina?: (pagina: string) => void }) | null;
       frameWindow?.mostrarPagina?.(section);
@@ -1780,19 +1783,27 @@ ${documentBody}
       {activeView === "habitaciones" && <ControlHabitaciones responsable={currentUser.name} />}
       {activeView === "resumenGuardia" && <ResumenGuardia responsable={currentUser.name} />}
 
-      {activeView === "guias" && <section style={{ padding: 0, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
-        <iframe
-          ref={guiasFrameRef}
-          title="Registro de Guías"
-          srcDoc={GUIAS_HTML_INTEGRADO}
-          onLoad={() => {
-            const frameWindow = guiasFrameRef.current?.contentWindow as (Window & { mostrarPagina?: (pagina: string) => void }) | null;
-            frameWindow?.mostrarPagina?.(guiasSection);
-          }}
-          style={{ width: "100%", height: "calc(100vh - 92px)", minHeight: 760, border: 0, display: "block", background: "white" }}
-          allow="clipboard-read; clipboard-write"
-        />
-      </section>}
+      {activeView === "guias" && (
+        guiasSection === "cargo-guias" ? (
+          <section style={{ padding: 18, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
+            <CargoGuiasTickets user={currentUser} />
+          </section>
+        ) : (
+          <section style={{ padding: 0, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
+            <iframe
+              ref={guiasFrameRef}
+              title="Registro de Guías"
+              srcDoc={GUIAS_HTML_INTEGRADO}
+              onLoad={() => {
+                const frameWindow = guiasFrameRef.current?.contentWindow as (Window & { mostrarPagina?: (pagina: string) => void }) | null;
+                frameWindow?.mostrarPagina?.(guiasSection);
+              }}
+              style={{ width: "100%", height: "calc(100vh - 92px)", minHeight: 760, border: 0, display: "block", background: "white" }}
+              allow="clipboard-read; clipboard-write"
+            />
+          </section>
+        )
+      )}
 
       {activeView === "rirm" && <RiRmFrame section={rirmSection} user={currentUser} />}
       {activeView === "admin" && ["ADMIN", "ADMINISTRADOR"].includes(String(currentUser.role || "").toUpperCase()) && <AdminPanel section={adminSection} />}
