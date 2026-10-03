@@ -81,7 +81,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   const [numero, setNumero] = useState<string>("");
   const [fechaHora, setFechaHora] = useState(new Date());
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
-  const [asistente, setAsistente] = useState("");
+  const [asistente, setAsistente] = useState(() => String(user?.name || "").trim());
   const [conductor, setConductor] = useState("");
   const [filas, setFilas] = useState<FilaCargo[]>([nuevaFila()]);
   const [guardando, setGuardando] = useState(false);
@@ -91,7 +91,6 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   const [busqueda, setBusqueda] = useState("");
   const [tab, setTab] = useState<"nuevo" | "historial">("nuevo");
 
-  const asistentes = useMemo(() => listaCatalogo(catalogos, "asistente"), [catalogos]);
   const conductores = useMemo(() => listaCatalogo(catalogos, "conductor"), [catalogos]);
 
   async function cargarInicial() {
@@ -113,6 +112,10 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
     const timer = window.setInterval(() => setFechaHora(new Date()), 30000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    setAsistente(String(user?.name || "").trim());
+  }, [user?.name]);
 
   function cambiarFila(id: string, campo: keyof FilaCargo, valor: string) {
     setFilas((prev) =>
@@ -182,7 +185,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   }
 
   function limpiar() {
-    setAsistente("");
+    setAsistente(String(user?.name || "").trim());
     setConductor("");
     setFilas([nuevaFila()]);
     setMensaje("");
@@ -306,7 +309,8 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
           .cgt-card{box-shadow:none;border:0;padding:0}
           .cgt-title h1{text-align:center;font-size:22px;color:#000}
           .cgt-title p{text-align:center;color:#000}
-          .cgt-headgrid{grid-template-columns:1fr 1fr 1fr 1fr;margin:18px 0}
+          .cgt-headgrid{grid-template-columns:180px 1fr;margin:18px 0;gap:28px}
+          .hide-on-print{display:none!important}
           .cgt input,.cgt select,.cgt textarea{border:0;padding:2px;background:white;appearance:none}
           .cgt table{min-width:0;font-size:9px}
           .cgt th,.cgt td{border:1px solid #000;padding:5px}
@@ -339,22 +343,19 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
             </div>
 
             <div className="cgt-headgrid">
-              <div>
+              <div className="print-head-cargo">
                 <label>N.º CARGO</label>
                 <input className="readonly" value={numero} readOnly />
               </div>
-              <div>
+              <div className="print-head-date">
                 <label>FECHA Y HORA</label>
                 <input className="readonly" value={fechaHora.toLocaleString("es-PE")} readOnly />
               </div>
-              <div>
+              <div className="hide-on-print">
                 <label>ASISTENTE COMERCIAL 2</label>
-                <select value={asistente} onChange={(e) => setAsistente(e.target.value)}>
-                  <option value="">Seleccionar...</option>
-                  {asistentes.map((x) => <option key={x} value={x}>{x}</option>)}
-                </select>
+                <input className="readonly" value={asistente} readOnly />
               </div>
-              <div>
+              <div className="hide-on-print">
                 <label>CONDUCTOR DE RUTINA</label>
                 <select value={conductor} onChange={(e) => setConductor(e.target.value)}>
                   <option value="">Seleccionar...</option>
