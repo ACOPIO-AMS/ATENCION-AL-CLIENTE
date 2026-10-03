@@ -65,8 +65,10 @@ function etiquetaPermiso(key: string) {
     // CARGOS Y SALIDAS
     "CARGOS Y SALIDAS": "Acceso al módulo",
     "CARGOS REGISTRAR": "Registrar salida",
+    "SALIDA REGISTRAR": "Registrar salida",
     "REGISTRAR SALIDA": "Registrar salida",
     "CARGOS BUSCAR": "Buscar salidas",
+    "SALIDA BUSCAR": "Buscar salidas",
     "BUSCAR SALIDAS": "Buscar salidas",
     "CARGOS RECEPCION": "Pendientes de recepción",
     "PENDIENTES DE RECEPCION": "Pendientes de recepción",
@@ -74,14 +76,19 @@ function etiquetaPermiso(key: string) {
     // REGISTRO DE GUÍAS
     "REGISTRO DE GUIAS": "Acceso al módulo",
     "GUIAS REGISTRAR": "Registrar",
+    "GUIA REGISTRAR": "Registrar",
     "REGISTRAR": "Registrar",
     "GUIAS HISTORIAL": "Historial de registros",
+    "GUIA HISTORIAL": "Historial de registros",
     "HISTORIAL DE REGISTROS": "Historial de registros",
     "GUIAS INDICADORES": "Indicadores",
+    "GUIA INDICADORES": "Indicadores",
     "INDICADORES": "Indicadores",
     "GUIAS SACOS": "Registro de Sacos Mineros",
+    "GUIA SACOS": "Registro de Sacos Mineros",
     "REGISTRO DE SACOS MINEROS": "Registro de Sacos Mineros",
     "GUIAS CARGO": "Cargo - Guías y Tickets",
+    "GUIA CARGO": "Cargo - Guías y Tickets",
     "CARGO GUIAS Y TICKETS": "Cargo - Guías y Tickets",
 
     // RI-RM
@@ -132,6 +139,7 @@ function grupoPermiso(key: string) {
   if (
     k === "CARGOS Y SALIDAS" ||
     k.startsWith("CARGOS ") ||
+    k.startsWith("SALIDA ") ||
     [
       "REGISTRAR SALIDA",
       "BUSCAR SALIDAS",
@@ -145,6 +153,7 @@ function grupoPermiso(key: string) {
   if (
     k === "REGISTRO DE GUIAS" ||
     k.startsWith("GUIAS ") ||
+    k.startsWith("GUIA ") ||
     [
       "REGISTRAR",
       "HISTORIAL DE REGISTROS",
@@ -160,6 +169,7 @@ function grupoPermiso(key: string) {
   if (
     k === "REGISTRO RI RM" ||
     k === "RI RM" ||
+    k.startsWith("RI RM ") ||
     [
       "PENDIENTES",
       "NUEVA SOLICITUD",
@@ -200,61 +210,60 @@ const CATALOGO_MODULOS: Array<{ grupo: string; permisos: string[] }> = [
   {
     grupo: "1. ATENCIÓN AL CLIENTE",
     permisos: [
-      "ATENCION AL CLIENTE",
-      "ATENCION NUEVO",
-      "ATENCION REPORTE",
-      "ATENCION REGULARIZAR",
-      "ATENCION BUSCAR",
-      "ATENCION CLIENTES",
-      "ATENCION ESTADIA",
-      "ATENCION SALIDA PROVEEDORES",
-      "ATENCION HABITACIONES",
-      "ATENCION RESUMEN GUARDIA",
+      "ATENCIÓN AL CLIENTE",
+      "Nuevo ingreso",
+      "Reporte diario",
+      "Por regularizar",
+      "Buscar",
+      "BD Clientes",
+      "Estadía, Servicios y Consumos",
+      "Salida de Proveedores",
+      "Control de Habitaciones",
+      "Resumen diario / guardia",
     ],
   },
   {
     grupo: "2. CARGOS Y SALIDAS",
     permisos: [
       "CARGOS Y SALIDAS",
-      "CARGOS REGISTRAR",
-      "CARGOS BUSCAR",
-      "CARGOS RECEPCION",
+      "Registrar salida",
+      "Buscar salidas",
+      "Pendientes de recepción",
     ],
   },
   {
     grupo: "3. REGISTRO DE GUÍAS",
     permisos: [
-      "REGISTRO DE GUIAS",
-      "GUIAS REGISTRAR",
-      "GUIAS HISTORIAL",
-      "GUIAS INDICADORES",
-      "GUIAS SACOS",
-      "GUIAS CARGO",
+      "REGISTRO DE GUÍAS",
+      "Registrar",
+      "Historial de registros",
+      "Indicadores",
+      "Registro de Sacos Mineros",
+      "Cargo - Guías y Tickets",
     ],
   },
   {
     grupo: "4. REGISTRO RI-RM",
     permisos: [
-      "REGISTRO RI RM",
-      "PENDIENTES",
-      "NUEVA SOLICITUD",
-      "MIS SOLICITUDES",
-      "HISTORIAL / BUSCAR",
+      "REGISTRO RI-RM",
+      "Pendientes",
+      "Nueva solicitud",
+      "Mis solicitudes",
+      "Historial / Buscar",
     ],
   },
   {
     grupo: "5. ADMINISTRADOR",
     permisos: [
       "ADMINISTRADOR",
-      "PANEL GENERAL",
-      "USUARIOS / ACCESOS",
-      "MODIFICAR / ANULAR",
-      "CATALOGOS / CONFIG.",
-      "AUDITORIA",
+      "Panel general",
+      "Usuarios / accesos",
+      "Modificar / Anular",
+      "Catálogos / Config.",
+      "Auditoría",
     ],
   },
 ];
-
 function construirPermisosConfig(permisosBackend: PermisoConfig[]) {
   const salida: PermisoConfig[] = [];
   const usados = new Set<number>();
