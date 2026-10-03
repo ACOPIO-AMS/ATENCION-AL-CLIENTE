@@ -188,9 +188,130 @@ function grupoPermiso(key: string) {
   return "OTROS PERMISOS";
 }
 
+/**
+ * Catálogo maestro de módulos y submódulos.
+ * La UI ya no depende exclusivamente de lo que devuelva el backend:
+ * - Si un permiso existe en backend, conserva su key/columna.
+ * - Si falta en backend, igual se muestra con su key canónica.
+ * - Cualquier permiso adicional del backend se conserva en "OTROS PERMISOS"
+ *   o en el grupo que corresponda.
+ */
+const CATALOGO_MODULOS: Array<{ grupo: string; permisos: string[] }> = [
+  {
+    grupo: "1. ATENCIÓN AL CLIENTE",
+    permisos: [
+      "ATENCION AL CLIENTE",
+      "ATENCION NUEVO",
+      "ATENCION REPORTE",
+      "ATENCION REGULARIZAR",
+      "ATENCION BUSCAR",
+      "ATENCION CLIENTES",
+      "ATENCION ESTADIA",
+      "ATENCION SALIDA PROVEEDORES",
+      "ATENCION HABITACIONES",
+      "ATENCION RESUMEN GUARDIA",
+    ],
+  },
+  {
+    grupo: "2. CARGOS Y SALIDAS",
+    permisos: [
+      "CARGOS Y SALIDAS",
+      "CARGOS REGISTRAR",
+      "CARGOS BUSCAR",
+      "CARGOS RECEPCION",
+    ],
+  },
+  {
+    grupo: "3. REGISTRO DE GUÍAS",
+    permisos: [
+      "REGISTRO DE GUIAS",
+      "GUIAS REGISTRAR",
+      "GUIAS HISTORIAL",
+      "GUIAS INDICADORES",
+      "GUIAS SACOS",
+      "GUIAS CARGO",
+    ],
+  },
+  {
+    grupo: "4. REGISTRO RI-RM",
+    permisos: [
+      "REGISTRO RI RM",
+      "PENDIENTES",
+      "NUEVA SOLICITUD",
+      "MIS SOLICITUDES",
+      "HISTORIAL / BUSCAR",
+    ],
+  },
+  {
+    grupo: "5. ADMINISTRADOR",
+    permisos: [
+      "ADMINISTRADOR",
+      "PANEL GENERAL",
+      "USUARIOS / ACCESOS",
+      "MODIFICAR / ANULAR",
+      "CATALOGOS / CONFIG.",
+      "AUDITORIA",
+    ],
+  },
+];
+
+function construirPermisosConfig(permisosBackend: PermisoConfig[]) {
+  const salida: PermisoConfig[] = [];
+  const usados = new Set<number>();
+
+  CATALOGO_MODULOS.forEach(({ grupo, permisos }) => {
+    permisos.forEach((keyCanonica) => {
+      const etiquetaCanonica = etiquetaPermiso(keyCanonica);
+      const indice = permisosBackend.findIndex((p, i) => {
+        if (usados.has(i)) return false;
+        return (
+          normalizarPermiso(p.key) === normalizarPermiso(keyCanonica) ||
+          (grupoPermiso(p.key) === grupo && etiquetaPermiso(p.key) === etiquetaCanonica)
+        );
+      });
+
+      if (indice >= 0) {
+        usados.add(indice);
+        salida.push(permisosBackend[indice]);
+      } else {
+        salida.push({ key: keyCanonica });
+      }
+    });
+  });
+
+  permisosBackend.forEach((p, i) => {
+    if (!usados.has(i)) salida.push(p);
+  });
+
+  return salida;
+}
+
+function filtrarGrupos(
+  grupos: Record<string, PermisoConfig[]>,
+  busqueda: string
+): Array<[string, PermisoConfig[]]> {
+  const q = normalizarPermiso(busqueda);
+  if (!q) return Object.entries(grupos);
+
+  return Object.entries(grupos)
+    .map(([grupo, lista]) => [
+      grupo,
+      lista.filter(
+        (p) =>
+          normalizarPermiso(etiquetaPermiso(p.key)).includes(q) ||
+          normalizarPermiso(p.key).includes(q) ||
+          normalizarPermiso(grupo).includes(q)
+      ),
+    ] as [string, PermisoConfig[]])
+    .filter(([, lista]) => lista.length > 0);
+}
+
 export default function AdminPanel({section}:{section:AdminSection}) {
   const [usuarios,setUsuarios]=useState<AnyRow[]>([]);
-  const [permisosConfig,setPermisosConfig]=useState<PermisoConfig[]>([]);
+  const [permisosBackend,setPermisosBackend]=useState<PermisoConfig[]>([]);
+  const [gruposAbiertos,setGruposAbiertos]=useState<Record<string,boolean>>({"3. REGISTRO DE GUÍAS":true});
+  const [buscarPermiso,setBuscarPermiso]=useState("");
+  const [buscarPermisoNuevo,setBuscarPermisoNuevo]=useState("");
   const [roles,setRoles]=useState<string[]>([]);
   const [auditoria,setAuditoria]=useState<AnyRow[]>([]);
   const [cargando,setCargando]=useState(false);
@@ -234,7 +355,7 @@ export default function AdminPanel({section}:{section:AdminSection}) {
     try{
       const d=await adminApi("adminUsuarios");
       setUsuarios(Array.isArray(d)?d:Array.isArray(d?.usuarios)?d.usuarios:[]);
-      setPermisosConfig((Array.isArray(d?.permisos)?d.permisos:[]).map((x:any)=>typeof x==="string"?{key:x}:{key:texto(x?.key),columna:Number(x?.columna)||undefined}).filter((x:PermisoConfig)=>!!x.key));
+      setPermisosBackend((Array.isArray(d?.permisos)?d.permisos:[]).map((x:any)=>typeof x==="string"?{key:x}:{key:texto(x?.key),columna:Number(x?.columna)||undefined}).filter((x:PermisoConfig)=>!!x.key));
       setRoles((Array.isArray(d?.roles)?d.roles:[]).map((x:any)=>texto(x)).filter(Boolean));
     }catch(e:any){setError(e?.message||"No se pudieron cargar los usuarios.");}finally{setCargando(false);}
   }
@@ -248,19 +369,114 @@ export default function AdminPanel({section}:{section:AdminSection}) {
   const filtrados=useMemo(()=>{const q=buscar.trim().toUpperCase();return !q?usuarios:usuarios.filter(u=>[u.usuario,u.nombre,u.rol,u.activo].some(v=>texto(v).toUpperCase().includes(q)));},[usuarios,buscar]);
   const activos=usuarios.filter(u=>esSi(u.activo)).length;
   const admins=usuarios.filter(u=>["ADMIN","ADMINISTRADOR"].includes(texto(u.rol).toUpperCase())).length;
-  const grupos=useMemo(()=>{const g:Record<string,PermisoConfig[]>={};permisosConfig.forEach(p=>(g[grupoPermiso(p.key)]??=[]).push(p));return g;},[permisosConfig]);
+  const permisosConfig=useMemo(()=>construirPermisosConfig(permisosBackend),[permisosBackend]);
+  const grupos=useMemo(()=>{
+    const g:Record<string,PermisoConfig[]>={};
+    permisosConfig.forEach(p=>(g[grupoPermiso(p.key)]??=[]).push(p));
+    return g;
+  },[permisosConfig]);
+  const gruposEditor=useMemo(()=>filtrarGrupos(grupos,buscarPermiso),[grupos,buscarPermiso]);
+  const gruposNuevo=useMemo(()=>filtrarGrupos(grupos,buscarPermisoNuevo),[grupos,buscarPermisoNuevo]);
 
   function abrirEditor(u:AnyRow){
     const pu=u?.permisos&&typeof u.permisos==="object"?u.permisos:{};
     const ep:Record<string,boolean>={};permisosConfig.forEach(p=>ep[p.key]=esSi(pu[p.key]));
     setUsuarioEditando(u);setEditNombre(texto(obtener(u,"nombre","nombreCompleto","NOMBRE COMPLETO")));setEditRol(texto(obtener(u,"rol","ROL")));
-    setEditActivo(esSi(obtener(u,"activo","ACTIVO")));setEditPermisos(ep);setMotivo("");setMensajeModal("");
+    setEditActivo(esSi(obtener(u,"activo","ACTIVO")));setEditPermisos(ep);setBuscarPermiso("");setMotivo("");setMensajeModal("");
   }
   const cerrarEditor=()=>{if(!guardando){setUsuarioEditando(null);setMensajeModal("");setMotivo("");}};
   const cambiarPermiso=(k:string)=>setEditPermisos(p=>({...p,[k]:!p[k]}));
   function cambiarGrupo(lista:PermisoConfig[],v:boolean){setEditPermisos(p=>{const c={...p};lista.forEach(x=>c[x.key]=v);return c;});}
+  function cambiarGrupoNuevo(lista:PermisoConfig[],v:boolean){setNuevoPermisos(p=>{const c={...p};lista.forEach(x=>c[x.key]=v);return c;});}
+  function cambiarTodosEdit(v:boolean){setEditPermisos(p=>{const c={...p};permisosConfig.forEach(x=>c[x.key]=v);return c;});}
+  function cambiarTodosNuevo(v:boolean){setNuevoPermisos(p=>{const c={...p};permisosConfig.forEach(x=>c[x.key]=v);return c;});}
+  function toggleGrupo(g:string){setGruposAbiertos(p=>({...p,[g]:!p[g]}));}
+  function cantidadActivos(lista:PermisoConfig[], mapa:Record<string,boolean>){return lista.filter(p=>!!mapa[p.key]).length;}
 
-  function abrirNuevo(){const x:Record<string,boolean>={};permisosConfig.forEach(p=>x[p.key]=false);setNuevoPermisos(x);setNuevoUsuario("");setNuevoNombre("");setNuevoRol(roles[0]||"");setNuevoPin("");setMotivo("");setMensajeModal("");setNuevoAbierto(true)}
+  function renderSelectorPermisos(modo:"editar"|"nuevo"){
+    const esEditor=modo==="editar";
+    const mapa=esEditor?editPermisos:nuevoPermisos;
+    const listaGrupos=esEditor?gruposEditor:gruposNuevo;
+    const valorBusqueda=esEditor?buscarPermiso:buscarPermisoNuevo;
+    const setBusqueda=esEditor?setBuscarPermiso:setBuscarPermisoNuevo;
+    const totalActivos=cantidadActivos(permisosConfig,mapa);
+    const todos=permisosConfig.length>0&&totalActivos===permisosConfig.length;
+
+    return <div style={{marginTop:14}}>
+      <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",marginBottom:12}}>
+        <input
+          value={valorBusqueda}
+          onChange={e=>setBusqueda(e.target.value)}
+          placeholder="Buscar módulo o permiso..."
+          style={{minHeight:42,flex:"1 1 260px",border:"1px solid #cbd9d6",borderRadius:8,padding:"8px 11px"}}
+        />
+        <div style={{padding:"9px 11px",background:"#eef7f5",borderRadius:8,fontWeight:900}}>
+          {totalActivos}/{permisosConfig.length} habilitados
+        </div>
+        <button
+          type="button"
+          style={btn}
+          onClick={()=>esEditor?cambiarTodosEdit(!todos):cambiarTodosNuevo(!todos)}
+        >
+          {todos?"Quitar todos los accesos":"Dar todos los accesos"}
+        </button>
+      </div>
+
+      {listaGrupos.map(([g,l])=>{
+        const listaCompleta=grupos[g]||l;
+        const activosGrupo=cantidadActivos(listaCompleta,mapa);
+        const todoGrupo=listaCompleta.length>0&&activosGrupo===listaCompleta.length;
+        const abierto=!!valorBusqueda||!!gruposAbiertos[g];
+
+        return <div key={g} style={{...card,marginBottom:10,padding:0,overflow:"hidden"}}>
+          <div
+            style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,padding:"12px 14px",background:abierto?"#f7fbfa":"#fff",cursor:"pointer"}}
+            onClick={()=>toggleGrupo(g)}
+          >
+            <div style={{display:"flex",alignItems:"center",gap:9,minWidth:0}}>
+              <span style={{fontSize:15,fontWeight:900,width:18}}>{abierto?"▾":"▸"}</span>
+              <div>
+                <b>{g}</b>
+                <div style={{fontSize:12,marginTop:2,opacity:.72}}>{activosGrupo}/{listaCompleta.length} permisos habilitados</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              style={{...btn,padding:"7px 10px",whiteSpace:"nowrap"}}
+              onClick={e=>{
+                e.stopPropagation();
+                esEditor?cambiarGrupo(listaCompleta,!todoGrupo):cambiarGrupoNuevo(listaCompleta,!todoGrupo);
+              }}
+            >
+              {todoGrupo?"Quitar módulo":"Dar todo el módulo"}
+            </button>
+          </div>
+
+          {abierto&&<div style={{padding:"0 14px 4px"}}>
+            {l.map(p=><label key={p.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,padding:"10px 2px",borderTop:"1px solid #edf2f0",cursor:"pointer"}}>
+              <span>{etiquetaPermiso(p.key)}</span>
+              <input
+                type="checkbox"
+                checked={!!mapa[p.key]}
+                onChange={()=>esEditor?cambiarPermiso(p.key):setNuevoPermisos(v=>({...v,[p.key]:!v[p.key]}))}
+                style={{width:18,height:18}}
+              />
+            </label>)}
+          </div>}
+        </div>
+      })}
+
+      {!listaGrupos.length&&<div style={{padding:12,background:"#fff8e1",borderRadius:8}}>
+        No se encontraron módulos o permisos con esa búsqueda.
+      </div>}
+
+      {!permisosBackend.length&&<div style={{padding:12,marginTop:10,background:"#fff8e1",borderRadius:8}}>
+        El backend no devolvió el catálogo de permisos. Se está mostrando el catálogo maestro del sistema.
+      </div>}
+    </div>;
+  }
+
+  function abrirNuevo(){const x:Record<string,boolean>={};permisosConfig.forEach(p=>x[p.key]=false);setNuevoPermisos(x);setNuevoUsuario("");setNuevoNombre("");setNuevoRol(roles[0]||"");setNuevoPin("");setBuscarPermisoNuevo("");setMotivo("");setMensajeModal("");setNuevoAbierto(true)}
   async function crearUsuario(){if(!nuevoUsuario.trim()||!nuevoNombre.trim()||!nuevoRol.trim()||!nuevoPin.trim())return setMensajeModal("Completa usuario, nombre, rol y PIN.");if(!/^\d{4,8}$/.test(nuevoPin.trim()))return setMensajeModal("El PIN debe tener entre 4 y 8 números.");if(!motivo.trim())return setMensajeModal("Indique el motivo de creación.");const adminUsuario=obtenerAdminActual();if(!adminUsuario)return setMensajeModal("No se pudo identificar la sesión del administrador.");const permisos:Record<string,string>={};permisosConfig.forEach(p=>permisos[p.key]=nuevoPermisos[p.key]?"SI":"NO");setGuardando(true);try{const r=await adminApi("adminGuardarUsuario",{accion:"CREAR",adminUsuario,datos:{usuario:nuevoUsuario.trim(),nombre:nuevoNombre.trim(),rol:nuevoRol.trim(),pin:nuevoPin.trim(),activo:"SI",permisos,motivo:motivo.trim()}});setMensajeModal(texto(r?.message)||"Usuario creado correctamente.");await cargarUsuarios();setTimeout(()=>setNuevoAbierto(false),700)}catch(e:any){setMensajeModal(e?.message||"No se pudo crear el usuario.")}finally{setGuardando(false)}}
 
   async function guardarAccesos(){
@@ -409,23 +625,59 @@ export default function AdminPanel({section}:{section:AdminSection}) {
         <td style={{padding:10,borderTop:"1px solid #edf2f0"}}><button style={btn} onClick={()=>abrirEditor(u)}>Editar accesos</button></td></tr>})}</tbody>
     </table></div>
   </div></section>
-  {nuevoAbierto&&<div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(12,30,27,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:18}}><div style={{width:"min(760px,96vw)",maxHeight:"90vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:20}}><div style={{display:"flex",justifyContent:"space-between"}}><h2 style={{margin:0}}>Agregar usuario</h2><button style={btn} onClick={()=>setNuevoAbierto(false)}>×</button></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:16}}><label><b>Usuario</b><input value={nuevoUsuario} onChange={e=>setNuevoUsuario(e.target.value.toUpperCase())} style={{width:"100%",minHeight:42}}/></label><label><b>Nombre completo</b><input value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} style={{width:"100%",minHeight:42}}/></label><label><b>Rol</b><select value={nuevoRol} onChange={e=>setNuevoRol(e.target.value)} style={{width:"100%",minHeight:42}}>{roles.map(r=><option key={r}>{r}</option>)}</select></label><label><b>PIN (4 a 8 números)</b><input type="password" inputMode="numeric" value={nuevoPin} onChange={e=>setNuevoPin(e.target.value.replace(/\D/g,"").slice(0,8))} style={{width:"100%",minHeight:42}}/></label></div><h3>Accesos permitidos</h3>{Object.entries(grupos).map(([g,l])=><div key={g} style={{...card,marginBottom:10}}><b>{g}</b>{l.map(pp=><label key={pp.key} style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}><span>{etiquetaPermiso(pp.key)}</span><input type="checkbox" checked={!!nuevoPermisos[pp.key]} onChange={()=>setNuevoPermisos(v=>({...v,[pp.key]:!v[pp.key]}))}/></label>)}</div>)}<label><b>Motivo</b><textarea value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{width:"100%"}}/></label>{mensajeModal&&<div style={{padding:10,marginTop:10,background:"#f4f8f7"}}>{mensajeModal}</div>}<button style={{...btn,marginTop:12}} disabled={guardando} onClick={()=>void crearUsuario()}>{guardando?"Guardando...":"Crear usuario"}</button></div></div>}
+  {nuevoAbierto&&<div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(12,30,27,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:18}}>
+    <div style={{width:"min(820px,96vw)",maxHeight:"90vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+        <div><h2 style={{margin:0}}>Agregar usuario</h2><small>Configura el perfil y los accesos por módulo.</small></div>
+        <button style={btn} onClick={()=>setNuevoAbierto(false)}>×</button>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:16}}>
+        <label><b>Usuario</b><input value={nuevoUsuario} onChange={e=>setNuevoUsuario(e.target.value.toUpperCase())} style={{width:"100%",minHeight:42,marginTop:6}}/></label>
+        <label><b>Nombre completo</b><input value={nuevoNombre} onChange={e=>setNuevoNombre(e.target.value)} style={{width:"100%",minHeight:42,marginTop:6}}/></label>
+        <label><b>Rol</b><select value={nuevoRol} onChange={e=>setNuevoRol(e.target.value)} style={{width:"100%",minHeight:42,marginTop:6}}>{roles.map(r=><option key={r}>{r}</option>)}</select></label>
+        <label><b>PIN (4 a 8 números)</b><input type="password" inputMode="numeric" value={nuevoPin} onChange={e=>setNuevoPin(e.target.value.replace(/\D/g,"").slice(0,8))} style={{width:"100%",minHeight:42,marginTop:6}}/></label>
+      </div>
+
+      <h3 style={{marginBottom:6}}>Accesos permitidos</h3>
+      <div style={{fontSize:13,opacity:.72}}>Abre un módulo y habilita solo los submódulos que necesita el usuario.</div>
+      {renderSelectorPermisos("nuevo")}
+
+      <label style={{display:"block",marginTop:14}}><b>Motivo</b><textarea value={motivo} onChange={e=>setMotivo(e.target.value)} rows={2} style={{width:"100%",marginTop:6}}/></label>
+      {mensajeModal&&<div style={{padding:10,marginTop:10,background:"#f4f8f7",borderRadius:8}}>{mensajeModal}</div>}
+      <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:16}}>
+        <button style={btn} onClick={()=>setNuevoAbierto(false)} disabled={guardando}>Cancelar</button>
+        <button className="primary-action" disabled={guardando} onClick={()=>void crearUsuario()}>{guardando?"Guardando...":"Crear usuario"}</button>
+      </div>
+    </div>
+  </div>}
   {usuarioEditando&&<div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(12,30,27,.58)",display:"flex",alignItems:"center",justifyContent:"center",padding:18}}>
-    <div style={{width:"min(760px,96vw)",maxHeight:"90vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:20}}>
-      <div style={{display:"flex",justifyContent:"space-between"}}><div><h2 style={{margin:0}}>Editar accesos</h2><small>Usuario: <b>{texto(usuarioEditando.usuario)}</b></small></div><button style={btn} onClick={cerrarEditor}>×</button></div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginTop:18}}>
+    <div style={{width:"min(820px,96vw)",maxHeight:"90vh",overflowY:"auto",background:"#fff",borderRadius:16,padding:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+        <div><h2 style={{margin:0}}>Editar accesos</h2><small>Usuario: <b>{texto(usuarioEditando.usuario)}</b></small></div>
+        <button style={btn} onClick={cerrarEditor}>×</button>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14,marginTop:18}}>
         <label><b>Nombre completo</b><input value={editNombre} onChange={e=>setEditNombre(e.target.value)} style={{width:"100%",minHeight:42,marginTop:6}}/></label>
         <label><b>Rol</b><select value={editRol} onChange={e=>setEditRol(e.target.value)} style={{width:"100%",minHeight:42,marginTop:6}}>{!roles.includes(editRol)&&editRol&&<option value={editRol}>{editRol}</option>}{roles.map(r=><option key={r}>{r}</option>)}</select></label>
       </div>
-      <div style={{...card,marginTop:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}><div><b>Estado del usuario</b><div>{editActivo?"Puede iniciar sesión.":"Usuario bloqueado."}</div></div><button style={btn} onClick={()=>setEditActivo(!editActivo)}>{editActivo?"ACTIVO":"INACTIVO"}</button></div>
-      <h3>Permisos por módulo</h3>
-      {Object.entries(grupos).map(([g,l])=><div key={g} style={{...card,marginBottom:12}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><b>{g}</b><button style={btn} onClick={()=>cambiarGrupo(l,!l.every(p=>editPermisos[p.key]))}>{l.every(p=>editPermisos[p.key])?"Quitar todos":"Dar todos"}</button></div>
-        {l.map(p=><label key={p.key} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderTop:"1px solid #edf2f0"}}><span>{etiquetaPermiso(p.key)}</span><input type="checkbox" checked={!!editPermisos[p.key]} onChange={()=>cambiarPermiso(p.key)}/></label>)}
-      </div>)}
-      {!permisosConfig.length&&<div style={{padding:12,background:"#fff8e1"}}>No se recibieron permisos configurados desde USUARIOS.</div>}
+
+      <div style={{...card,marginTop:14,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12}}>
+        <div><b>Estado del usuario</b><div style={{fontSize:13,marginTop:3}}>{editActivo?"Puede iniciar sesión.":"Usuario bloqueado."}</div></div>
+        <button style={btn} onClick={()=>setEditActivo(!editActivo)}>{editActivo?"ACTIVO":"INACTIVO"}</button>
+      </div>
+
+      <h3 style={{marginBottom:6}}>Permisos por módulo</h3>
+      <div style={{fontSize:13,opacity:.72}}>Los permisos se muestran según el catálogo maestro y se completan con lo que devuelve el backend.</div>
+      {renderSelectorPermisos("editar")}
+
       <label style={{display:"block",marginTop:14}}><b>Motivo del cambio</b><textarea value={motivo} onChange={e=>setMotivo(e.target.value)} rows={3} style={{width:"100%",marginTop:6}}/></label>
       {mensajeModal&&<div style={{padding:12,marginTop:12,background:"#f4f8f7",borderRadius:8}}>{mensajeModal}</div>}
-      <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:18}}><button style={btn} onClick={cerrarEditor}>Cancelar</button><button className="primary-action" onClick={guardarAccesos} disabled={guardando}>{guardando?"Guardando...":"Guardar cambios"}</button></div>
+      <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:18}}>
+        <button style={btn} onClick={cerrarEditor}>Cancelar</button>
+        <button className="primary-action" onClick={guardarAccesos} disabled={guardando}>{guardando?"Guardando...":"Guardar cambios"}</button>
+      </div>
     </div>
   </div>}</>;
 
