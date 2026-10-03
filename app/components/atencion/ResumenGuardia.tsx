@@ -82,7 +82,7 @@ type Resumen={
   ingresosPorFecha?:{fecha:string;cantidad:number}[];
 };
 
-function Grafico({data=[]}:{data?:{fecha:string;cantidad:number}[]}){
+function Grafico({data=[],compact=false}:{data?:{fecha:string;cantidad:number}[];compact?:boolean}){
   if(!data.length){
     return <div style={{padding:22,textAlign:"center",color:"#60706d"}}>
       Sin ingresos para el periodo seleccionado.
@@ -90,8 +90,8 @@ function Grafico({data=[]}:{data?:{fecha:string;cantidad:number}[]}){
   }
 
   const w=900;
-  const h=230;
-  const pad=38;
+  const h=compact?150:230;
+  const pad=compact?30:38;
   const max=Math.max(1,...data.map(x=>x.cantidad));
   const pts=data.map((x,i)=>{
     const cx=pad+(data.length===1?0:i*(w-pad*2)/(data.length-1));
@@ -100,7 +100,11 @@ function Grafico({data=[]}:{data?:{fecha:string;cantidad:number}[]}){
   }).join(" ");
 
   return <div style={{overflowX:"auto"}}>
-    <svg viewBox={`0 0 ${w} ${h}`} style={{width:"100%",minWidth:620,height:240}}>
+    <svg viewBox={`0 0 ${w} ${h}`} style={{
+      width:"100%",
+      minWidth:compact?360:620,
+      height:compact?155:240
+    }}>
       <line x1={pad} y1={h-pad} x2={w-pad} y2={h-pad} stroke="currentColor" opacity=".25"/>
       <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="3"/>
       {data.map((x,i)=>{
@@ -187,6 +191,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
   const[msg,setMsg]=useState("");
   const[load,setLoad]=useState("");
   const[mov,setMov]=useState<"TODOS"|"RECIBIDOS"|"SALIERON"|"PERMANECEN">("TODOS");
+  const[vistaReporte,setVistaReporte]=useState(false);
 
   useEffect(()=>{
     setResp(responsable||"");
@@ -262,23 +267,108 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
 
   const totalPersonas=(r.personasPeriodo||r.presentes||[]).length;
 
-  return <section style={page}>
+  return <section style={{
+    ...page,
+    ...(vistaReporte?{
+      gap:10,
+      padding:"10px 12px",
+      fontSize:12
+    }:{})
+  }}>
     {load&&<Loader text={load}/>}
 
-    <div>
-      <h1 style={{margin:0}}>Resumen diario / guardia</h1>
-      <p>
-        {desde} – {hasta}
-        {" · "}
-        {guardia||"Todas las guardias"}
-        {" · "}
-        {turno||"Todos los turnos"}
-        {" · "}
-        {resp||"Todos los responsables"}
-      </p>
-    </div>
+    {!vistaReporte?(
+      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
+        <div>
+          <h1 style={{margin:0}}>Resumen diario / guardia</h1>
+          <p>
+            {desde} – {hasta}
+            {" · "}
+            {guardia||"Todas las guardias"}
+            {" · "}
+            {turno||"Todos los turnos"}
+            {" · "}
+            {resp||"Todos los responsables"}
+          </p>
+        </div>
 
-    <div style={{
+        <button
+          type="button"
+          onClick={()=>{
+            setMov("TODOS");
+            setVistaReporte(true);
+            window.scrollTo({top:0,behavior:"smooth"});
+          }}
+          style={{
+            border:"1px solid #b9c9d0",
+            background:"#fff",
+            color:"#0b4f75",
+            borderRadius:10,
+            padding:"10px 14px",
+            fontWeight:800,
+            cursor:"pointer",
+            whiteSpace:"nowrap"
+          }}
+        >
+          👁 Vista reporte
+        </button>
+      </div>
+    ):(
+      <div style={{
+        background:"#0b4f75",
+        color:"#fff",
+        borderRadius:12,
+        padding:"10px 14px",
+        display:"grid",
+        gridTemplateColumns:"minmax(260px,1.4fr) repeat(4,minmax(115px,.55fr)) auto",
+        gap:12,
+        alignItems:"center"
+      }}>
+        <div>
+          <div style={{fontSize:11,fontWeight:800,opacity:.85}}>AMS ACOPIO</div>
+          <div style={{fontSize:20,fontWeight:900,lineHeight:1.05}}>RESUMEN DIARIO / GUARDIA</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Fecha</small>
+          <div style={{fontWeight:800}}>{desde===hasta?desde:`${desde} – ${hasta}`}</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Guardia</small>
+          <div style={{fontWeight:800}}>{guardia||"Todas"}</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Turno</small>
+          <div style={{fontWeight:800}}>{turno||"Todos"}</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Responsable</small>
+          <div style={{fontWeight:800}}>{resp||"Todos"}</div>
+        </div>
+
+        <button
+          type="button"
+          onClick={()=>setVistaReporte(false)}
+          style={{
+            border:0,
+            background:"#fff3bf",
+            color:"#17333a",
+            borderRadius:9,
+            padding:"9px 12px",
+            fontWeight:900,
+            cursor:"pointer",
+            whiteSpace:"nowrap"
+          }}
+        >
+          👁 Vista normal
+        </button>
+      </div>
+    )}
+
+    {!vistaReporte&&<div style={{
       ...panel,
       display:"grid",
       gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",
@@ -323,13 +413,13 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
           {usuarios.map(x=><option key={x} value={x}>{x}</option>)}
         </select>
       </label>
-    </div>
+    </div>}
 
 
     <div style={{
       display:"grid",
       gridTemplateColumns:"minmax(310px,.9fr) minmax(520px,1.55fr) minmax(250px,.7fr)",
-      gap:14,
+      gap:vistaReporte?8:14,
       alignItems:"stretch",
       overflowX:"auto"
     }}>
@@ -338,12 +428,12 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         <div style={{
           display:"grid",
           gridTemplateColumns:"repeat(3,minmax(90px,1fr))",
-          gap:8
+          gap:vistaReporte?6:8
         }}>
-          {cards.map(c=><div key={c[1]} style={{...kpi(c[3],c[4]),padding:12}}>
-            <span style={{fontSize:20}}>{c[0]}</span>
+          {cards.map(c=><div key={c[1]} style={{...kpi(c[3],c[4]),padding:vistaReporte?9:12}}>
+            <span style={{fontSize:vistaReporte?17:20}}>{c[0]}</span>
             <small style={{display:"block"}}>{c[1]}</small>
-            <strong style={{fontSize:27}}>{c[2]}</strong>
+            <strong style={{fontSize:vistaReporte?23:27}}>{c[2]}</strong>
           </div>)}
         </div>
       </div>
@@ -353,7 +443,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         <div style={{
           display:"grid",
           gridTemplateColumns:"repeat(5,minmax(92px,1fr))",
-          gap:8
+          gap:vistaReporte?6:8
         }}>
           {[
             ["🛏️","Disponibles",r.habitaciones.disponibles,"#eaf8ef","#55b875"],
@@ -361,15 +451,21 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
             ["📅","Reservadas",r.habitaciones.reservadas,"#edf5ff","#5d9fe8"],
             ["🧹","Por limpiar",r.habitaciones.porLimpiar,"#fff7e3","#e9a72e"],
             ["🛠️","Fuera servicio",r.habitaciones.fueraServicio,"#eef1f3","#7c8790"]
-          ].map(x=><div key={String(x[1])} style={{...kpi(String(x[3]),String(x[4])),padding:12}}>
-            <span style={{fontSize:19}}>{x[0]}</span>
+          ].map(x=><div key={String(x[1])} style={{...kpi(String(x[3]),String(x[4])),padding:vistaReporte?9:12}}>
+            <span style={{fontSize:vistaReporte?16:19}}>{x[0]}</span>
             <small style={{display:"block"}}>{x[1]}</small>
-            <strong style={{fontSize:25}}>{x[2]}</strong>
+            <strong style={{fontSize:vistaReporte?22:25}}>{x[2]}</strong>
           </div>)}
         </div>
       </div>
 
-      <div style={{...panel,background:"#fff2f2",margin:0,height:"100%"}}>
+      <div style={{
+        ...panel,
+        background:"#fff2f2",
+        margin:0,
+        height:"100%",
+        padding:vistaReporte?10:undefined
+      }}>
         <h3 style={{color:"#c43b34",marginTop:0}}>⚠ Pendientes para la siguiente guardia</h3>
         <div style={{lineHeight:1.8}}>
           <b>{r.personasPresentes}</b> persona(s) permanecen
@@ -384,10 +480,10 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
     <div style={{
       display:"grid",
       gridTemplateColumns:"minmax(0,1.35fr) minmax(0,1fr)",
-      gap:14,
+      gap:vistaReporte?8:14,
       alignItems:"stretch"
     }}>
-      <div style={{...panel,background:"#fff8e8",margin:0}}>
+      <div style={{...panel,background:"#fff8e8",margin:0,padding:vistaReporte?10:undefined}}>
         <h3 style={{marginTop:0}}>🍽️ Alimentación</h3>
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
@@ -405,7 +501,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         </div>
       </div>
 
-      <div style={{...panel,background:"#eaf6ff",margin:0}}>
+      <div style={{...panel,background:"#eaf6ff",margin:0,padding:vistaReporte?10:undefined}}>
         <h3 style={{marginTop:0}}>🥤 Consumos entregados</h3>
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
@@ -426,10 +522,15 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
 
     </div>
 
-    <div style={panel}>
-      <h3>Personas del periodo seleccionado</h3>
+    <div style={{...panel,padding:vistaReporte?10:undefined}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+        <h3 style={{margin:vistaReporte?0:undefined}}>Personas del periodo seleccionado</h3>
+        {vistaReporte&&<div style={{fontSize:11,fontWeight:700,color:"#60706d"}}>
+          Todos: {totalPersonas} · Recibidos: {r.personasRecibidas} · Salieron: {r.personasSalieron} · Permanecen: {r.personasPresentes}
+        </div>}
+      </div>
 
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+      {!vistaReporte&&<div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
         {([
           ["TODOS","Todos",totalPersonas],
           ["RECIBIDOS","Recibidos",r.personasRecibidas],
@@ -451,10 +552,16 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         >
           {t} ({n})
         </button>)}
-      </div>
+      </div>}
 
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",minWidth:1320,fontSize:12,borderCollapse:"collapse"}}>
+      <div style={{overflowX:"auto",marginTop:vistaReporte?7:0}}>
+        <table style={{
+          width:"100%",
+          minWidth:vistaReporte?0:1320,
+          fontSize:vistaReporte?10.5:12,
+          borderCollapse:"collapse",
+          tableLayout:vistaReporte?"fixed":"auto"
+        }}>
           <thead>
             <tr>
               <th style={{textAlign:"left"}}>DNI</th>
@@ -479,7 +586,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
                 .join(" · ");
 
               return <tr key={`${x.idIngreso}-${x.dni}`}>
-                <td style={{padding:8,borderBottom:"1px solid #eee",fontWeight:700}}>
+                <td style={{padding:vistaReporte?5:8,borderBottom:"1px solid #eee",fontWeight:700}}>
                   {x.dni||"-"}
                 </td>
                 <td><b>{x.nombre}</b></td>
@@ -515,47 +622,62 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
       </div>
     </div>
 
-    {(r.reasignaciones||[]).length>0&&(
-      <div style={panel}>
-        <h3>↗ Comidas reasignadas</h3>
+    <div style={{
+      display:"grid",
+      gridTemplateColumns:(r.reasignaciones||[]).length
+        ?"minmax(0,1.35fr) minmax(320px,.75fr)"
+        :"1fr",
+      gap:vistaReporte?8:14,
+      alignItems:"stretch"
+    }}>
+      {(r.reasignaciones||[]).length>0&&(
+        <div style={{...panel,padding:vistaReporte?10:undefined,margin:0}}>
+          <h3 style={{marginTop:0}}>↗ Comidas reasignadas</h3>
 
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",minWidth:1100,fontSize:12,borderCollapse:"collapse"}}>
-            <thead>
-              <tr>
-                <th>Fecha / hora</th>
-                <th>Servicio</th>
-                <th>Solicitante original</th>
-                <th>DNI solicitante</th>
-                <th>Entregado a</th>
-                <th>DNI receptor</th>
-                <th>Usuario</th>
-                <th>Observación</th>
-              </tr>
-            </thead>
+          <div style={{overflowX:"auto"}}>
+            <table style={{
+              width:"100%",
+              minWidth:vistaReporte?0:1100,
+              fontSize:vistaReporte?10:12,
+              borderCollapse:"collapse",
+              tableLayout:vistaReporte?"fixed":"auto"
+            }}>
+              <thead>
+                <tr>
+                  <th>Fecha / hora</th>
+                  <th>Servicio</th>
+                  <th>Solicitante original</th>
+                  <th>DNI solicitante</th>
+                  <th>Entregado a</th>
+                  <th>DNI receptor</th>
+                  <th>Usuario</th>
+                  <th>Observación</th>
+                </tr>
+              </thead>
 
-            <tbody>
-              {(r.reasignaciones||[]).map((x,i)=><tr key={x.id||`${x.servicio}-${x.dniSolicitante}-${i}`}>
-                <td style={{padding:7,borderBottom:"1px solid #eee"}}>
-                  {x.fechaHora?fechaHora(x.fechaHora):x.fechaOperativa||"—"}
-                </td>
-                <td style={{textAlign:"center"}}>{x.servicio}</td>
-                <td>{x.original||"—"}</td>
-                <td style={{textAlign:"center"}}>{x.dniSolicitante||"—"}</td>
-                <td><b>{x.entregadoA||"—"}</b></td>
-                <td style={{textAlign:"center"}}>{x.dniDestino||"—"}</td>
-                <td>{x.usuario||"—"}</td>
-                <td>{x.observacion||"—"}</td>
-              </tr>)}
-            </tbody>
-          </table>
+              <tbody>
+                {(r.reasignaciones||[]).map((x,i)=><tr key={x.id||`${x.servicio}-${x.dniSolicitante}-${i}`}>
+                  <td style={{padding:vistaReporte?5:7,borderBottom:"1px solid #eee"}}>
+                    {x.fechaHora?fechaHora(x.fechaHora):x.fechaOperativa||"—"}
+                  </td>
+                  <td style={{textAlign:"center"}}>{x.servicio}</td>
+                  <td>{x.original||"—"}</td>
+                  <td style={{textAlign:"center"}}>{x.dniSolicitante||"—"}</td>
+                  <td><b>{x.entregadoA||"—"}</b></td>
+                  <td style={{textAlign:"center"}}>{x.dniDestino||"—"}</td>
+                  <td>{x.usuario||"—"}</td>
+                  <td>{x.observacion||"—"}</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-    )}
+      )}
 
-    <div style={panel}>
-      <h3>📈 Cantidad de personas que ingresaron por fecha</h3>
-      <Grafico data={r.ingresosPorFecha}/>
+      <div style={{...panel,padding:vistaReporte?10:undefined,margin:0}}>
+        <h3 style={{marginTop:0}}>📈 Cantidad de personas que ingresaron por fecha</h3>
+        <Grafico data={r.ingresosPorFecha} compact={vistaReporte}/>
+      </div>
     </div>
 
     {msg&&<div style={panel}>{msg}</div>}
