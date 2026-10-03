@@ -352,6 +352,17 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
         <div><b>FECHA Y HORA</b><span>{fechaHora.toLocaleString("es-PE")}</span></div>
       </div>
       <table className="cgt-print-table">
+        <colgroup>
+          <col style={{width:"5%"}} />
+          <col style={{width:"9%"}} />
+          <col style={{width:"8%"}} />
+          <col style={{width:"9%"}} />
+          <col style={{width:"8%"}} />
+          <col style={{width:"12%"}} />
+          <col style={{width:"14%"}} />
+          <col style={{width:"15%"}} />
+          <col style={{width:"20%"}} />
+        </colgroup>
         <thead>
           <tr><th rowSpan={2}>ITEM</th><th colSpan={2}>GRR</th><th colSpan={2}>GRT</th><th rowSpan={2}>LOTES</th><th rowSpan={2}>TICKET DE PESAJE</th><th rowSpan={2}>DOCUMENTOS ADJUNTOS</th><th rowSpan={2}>OBSERVACIÓN</th></tr>
           <tr><th>SERIE 1</th><th>N.º 1</th><th>SERIE 2</th><th>N.º 2</th></tr>
@@ -409,20 +420,107 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
         @media(max-width:600px){.cgt-headgrid{grid-template-columns:1fr}}
         .cgt-print-sheet{display:none}
         @media print{
-          @page{size:A4 portrait;margin:6mm}
+          @page{size:A4 portrait;margin:5mm}
+          html,body{margin:0!important;padding:0!important}
           body *{visibility:hidden!important}
           .cgt-print-sheet,.cgt-print-sheet *{visibility:visible!important}
-          .cgt-print-sheet{display:block!important;position:absolute;left:0;top:0;width:100%;color:#000;background:#fff}
-          .cgt-print-copy{width:100%;height:132mm;overflow:hidden;break-inside:avoid;page-break-inside:avoid;padding:1mm 0 0}
-          .cgt-print-cut{height:5mm;border-top:1px dashed #666;position:relative}
-          .cgt-print-cut span{position:absolute;top:-5px;left:50%;transform:translateX(-50%);background:#fff;padding:0 5px;font-size:7px}
-          .cgt-print-title{text-align:center;margin:0 0 3mm}.cgt-print-title h1{font-size:15px;margin:0}.cgt-print-title p{font-size:9px;margin:1mm 0 0}
-          .cgt-print-head{display:grid;grid-template-columns:90px 1fr;gap:18mm;margin-bottom:3mm}.cgt-print-head div{display:flex;flex-direction:column}.cgt-print-head b{font-size:7px}.cgt-print-head span{font-size:10px;font-weight:800}
-          .cgt-print-table{width:100%!important;table-layout:fixed!important;border-collapse:collapse!important;border:1px solid #000!important}
-          .cgt-print-table th,.cgt-print-table td{border:1px solid #000!important;text-align:center;vertical-align:middle;padding:1.7mm 1mm!important;line-height:1.1;overflow-wrap:anywhere}
-          .cgt-print-table th{font-size:7px!important}.cgt-print-table td{font-size:9px!important}
-          .cgt-print-docs{font-size:7px;line-height:1.25;margin-top:2.5mm}
-          .cgt-print-signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9mm;margin-top:9mm}.cgt-print-signatures div{text-align:center}.cgt-print-signatures span{display:block;border-top:1px solid #000;margin-bottom:1.5mm}.cgt-print-signatures b,.cgt-print-signatures small{display:block;font-size:7px}
+          .cgt-print-sheet{
+            display:block!important;
+            position:absolute;
+            left:0;
+            top:0;
+            width:100%;
+            color:#000;
+            background:#fff;
+          }
+          .cgt-print-copy{
+            width:100%;
+            height:133mm;
+            overflow:hidden;
+            break-inside:avoid;
+            page-break-inside:avoid;
+            padding:1mm 0 0;
+          }
+          .cgt-print-cut{
+            height:5mm;
+            border-top:1px dashed #666;
+            position:relative;
+          }
+          .cgt-print-cut span{
+            position:absolute;
+            top:-5px;
+            left:50%;
+            transform:translateX(-50%);
+            background:#fff;
+            padding:0 5px;
+            font-size:7px;
+          }
+          .cgt-print-title{text-align:center;margin:0 0 2.5mm}
+          .cgt-print-title h1{font-size:15px;margin:0;line-height:1.05}
+          .cgt-print-title p{font-size:8px;margin:1mm 0 0}
+          .cgt-print-head{
+            display:grid;
+            grid-template-columns:30mm 1fr;
+            gap:12mm;
+            margin-bottom:2.5mm;
+          }
+          .cgt-print-head div{display:flex;flex-direction:column}
+          .cgt-print-head b{font-size:7px}
+          .cgt-print-head span{font-size:9px;font-weight:800}
+          .cgt-print-table{
+            width:100%!important;
+            max-width:100%!important;
+            min-width:0!important;
+            table-layout:fixed!important;
+            border-collapse:collapse!important;
+            border-spacing:0!important;
+            border:1px solid #000!important;
+          }
+          .cgt-print-table th,.cgt-print-table td{
+            box-sizing:border-box!important;
+            border:1px solid #000!important;
+            text-align:center;
+            vertical-align:middle;
+            padding:1.25mm .55mm!important;
+            line-height:1.08;
+            white-space:normal!important;
+            overflow-wrap:anywhere!important;
+            word-break:break-word!important;
+            overflow:hidden!important;
+          }
+          .cgt-print-table th{
+            font-size:6.4px!important;
+            font-weight:800;
+          }
+          .cgt-print-table td{
+            font-size:8px!important;
+          }
+          .cgt-print-docs{
+            font-size:6.5px;
+            line-height:1.2;
+            margin-top:2.2mm;
+          }
+          .cgt-print-signatures{
+            display:grid;
+            grid-template-columns:1fr 1fr 1fr;
+            gap:9mm;
+            margin-top:17mm;
+          }
+          .cgt-print-signatures div{text-align:center}
+          .cgt-print-signatures span{
+            display:block;
+            border-top:1px solid #000;
+            margin-bottom:1.5mm;
+          }
+          .cgt-print-signatures b{
+            display:block;
+            font-size:7px;
+          }
+          .cgt-print-signatures small{
+            display:block;
+            font-size:7px;
+            margin-top:1mm;
+          }
         }
       `}</style>
 
