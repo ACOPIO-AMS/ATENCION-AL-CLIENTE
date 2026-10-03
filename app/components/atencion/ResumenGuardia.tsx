@@ -770,7 +770,7 @@ export default function ResumenGuardia({
     </div>
   )}
 </div>
-
+</div>
       {/* ==================================================
           PERSONAS DEL PERIODO
       ================================================== */}
