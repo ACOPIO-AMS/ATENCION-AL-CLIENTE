@@ -26,24 +26,165 @@ function obtener(o:AnyRow,...ks:string[]) {
 }
 const esSi=(v:any)=>v===true||["SI","SÍ","TRUE","1","ACTIVO"].includes(texto(v).toUpperCase());
 
-function etiquetaPermiso(key:string){
-  const m:Record<string,string>={
-    ATENCION_NUEVO:"Nuevo ingreso",ATENCION_REPORTE:"Reporte diario",ATENCION_REGULARIZAR:"Por regularizar",
-    ATENCION_BUSCAR:"Buscar",ATENCION_CLIENTES:"BD Clientes",ATENCION_ESTADIA:"Estadía, Servicios y Consumos",ATENCION_SALIDA_PROVEEDORES:"Salida de Proveedores",ATENCION_HABITACIONES:"Control de Habitaciones",ATENCION_RESUMEN_GUARDIA:"Resumen diario / guardia",CARGOS_REGISTRAR:"Registrar salida",
-    CARGOS_BUSCAR:"Buscar salidas",CARGOS_RECEPCION:"Pendientes de recepción",GUIAS_REGISTRAR:"Registrar",GUIAS_HISTORIAL:"Historial de registros",
-    GUIAS_INDICADORES:"Indicadores",GUIAS_SACOS:"Registro de Sacos Mineros",RI_RM:"Acceso Registro RI-RM",
-    PENDIENTES:"Pendientes","NUEVA SOLICITUD":"Nueva solicitud","MIS SOLICITUDES":"Mis solicitudes",
-    "HISTORIAL / BUSCAR":"Historial / Buscar"
-  };
-  const k=texto(key).toUpperCase();
-  return m[k]||texto(key).replaceAll("_"," ").toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+function normalizarPermiso(v: string) {
+  return texto(v)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
-function grupoPermiso(key:string){
-  const k=texto(key).toUpperCase();
-  if(k.startsWith("ATENCION")) return "1. ATENCIÓN AL CLIENTE";
-  if(k.startsWith("CARGO")||k.startsWith("SALIDA")) return "2. CARGOS Y SALIDAS";
-  if(k.startsWith("GUIA")) return "3. REGISTRO DE GUÍAS";
-  if(k.startsWith("RI")||k.includes("PENDIENT")||k.includes("SOLICITUD")||k.includes("HISTORIAL / BUSCAR")) return "4. REGISTRO RI-RM";
+
+function etiquetaPermiso(key: string) {
+  const k = normalizarPermiso(key);
+
+  const etiquetas: Record<string, string> = {
+    // ATENCIÓN AL CLIENTE
+    "ATENCION AL CLIENTE": "Acceso al módulo",
+    "ATENCION NUEVO": "Nuevo ingreso",
+    "NUEVO INGRESO": "Nuevo ingreso",
+    "ATENCION REPORTE": "Reporte diario",
+    "REPORTE DIARIO": "Reporte diario",
+    "ATENCION REGULARIZAR": "Por regularizar",
+    "POR REGULARIZAR": "Por regularizar",
+    "ATENCION BUSCAR": "Buscar",
+    "BUSCAR": "Buscar",
+    "ATENCION CLIENTES": "BD Clientes",
+    "B CLIENTES": "BD Clientes",
+    "BD CLIENTES": "BD Clientes",
+    "ATENCION ESTADIA": "Estadía, Servicios y Consumos",
+    "ESTADIA SERVICIOS Y CONSUMOS": "Estadía, Servicios y Consumos",
+    "ATENCION SALIDA PROVEEDORES": "Salida de Proveedores",
+    "SALIDA DE PROVEEDORES": "Salida de Proveedores",
+    "ATENCION HABITACIONES": "Control de Habitaciones",
+    "CONTROL DE HABITACIONES": "Control de Habitaciones",
+    "ATENCION RESUMEN GUARDIA": "Resumen diario / guardia",
+    "RESUMEN DIARIO / GUARDIA": "Resumen diario / guardia",
+
+    // CARGOS Y SALIDAS
+    "CARGOS Y SALIDAS": "Acceso al módulo",
+    "CARGOS REGISTRAR": "Registrar salida",
+    "REGISTRAR SALIDA": "Registrar salida",
+    "CARGOS BUSCAR": "Buscar salidas",
+    "BUSCAR SALIDAS": "Buscar salidas",
+    "CARGOS RECEPCION": "Pendientes de recepción",
+    "PENDIENTES DE RECEPCION": "Pendientes de recepción",
+
+    // REGISTRO DE GUÍAS
+    "REGISTRO DE GUIAS": "Acceso al módulo",
+    "GUIAS REGISTRAR": "Registrar",
+    "REGISTRAR": "Registrar",
+    "GUIAS HISTORIAL": "Historial de registros",
+    "HISTORIAL DE REGISTROS": "Historial de registros",
+    "GUIAS INDICADORES": "Indicadores",
+    "INDICADORES": "Indicadores",
+    "GUIAS SACOS": "Registro de Sacos Mineros",
+    "REGISTRO DE SACOS MINEROS": "Registro de Sacos Mineros",
+    "GUIAS CARGO": "Cargo - Guías y Tickets",
+    "CARGO GUIAS Y TICKETS": "Cargo - Guías y Tickets",
+
+    // RI-RM
+    "REGISTRO RI RM": "Acceso al módulo",
+    "RI RM": "Acceso al módulo",
+    "PENDIENTES": "Pendientes",
+    "NUEVA SOLICITUD": "Nueva solicitud",
+    "MIS SOLICITUDES": "Mis solicitudes",
+    "HISTORIAL / BUSCAR": "Historial / Buscar",
+
+    // ADMINISTRADOR
+    "ADMINISTRADOR": "Acceso al módulo",
+    "PANEL GENERAL": "Panel general",
+    "USUARIOS / ACCESOS": "Usuarios / accesos",
+    "MODIFICAR / ANULAR": "Modificar / Anular",
+    "CATALOGOS / CONFIG.": "Catálogos / Config.",
+    "CATALOGOS / CONFIG": "Catálogos / Config.",
+    "AUDITORIA": "Auditoría",
+  };
+
+  return etiquetas[k] || texto(key);
+}
+
+function grupoPermiso(key: string) {
+  const k = normalizarPermiso(key);
+
+  // 1. ATENCIÓN AL CLIENTE
+  if (
+    k === "ATENCION AL CLIENTE" ||
+    k.startsWith("ATENCION ") ||
+    [
+      "NUEVO INGRESO",
+      "REPORTE DIARIO",
+      "POR REGULARIZAR",
+      "BUSCAR",
+      "B CLIENTES",
+      "BD CLIENTES",
+      "ESTADIA SERVICIOS Y CONSUMOS",
+      "SALIDA DE PROVEEDORES",
+      "CONTROL DE HABITACIONES",
+      "RESUMEN DIARIO / GUARDIA",
+    ].includes(k)
+  ) {
+    return "1. ATENCIÓN AL CLIENTE";
+  }
+
+  // 2. CARGOS Y SALIDAS
+  if (
+    k === "CARGOS Y SALIDAS" ||
+    k.startsWith("CARGOS ") ||
+    [
+      "REGISTRAR SALIDA",
+      "BUSCAR SALIDAS",
+      "PENDIENTES DE RECEPCION",
+    ].includes(k)
+  ) {
+    return "2. CARGOS Y SALIDAS";
+  }
+
+  // 3. REGISTRO DE GUÍAS
+  if (
+    k === "REGISTRO DE GUIAS" ||
+    k.startsWith("GUIAS ") ||
+    [
+      "REGISTRAR",
+      "HISTORIAL DE REGISTROS",
+      "INDICADORES",
+      "REGISTRO DE SACOS MINEROS",
+      "CARGO GUIAS Y TICKETS",
+    ].includes(k)
+  ) {
+    return "3. REGISTRO DE GUÍAS";
+  }
+
+  // 4. REGISTRO RI-RM
+  if (
+    k === "REGISTRO RI RM" ||
+    k === "RI RM" ||
+    [
+      "PENDIENTES",
+      "NUEVA SOLICITUD",
+      "MIS SOLICITUDES",
+      "HISTORIAL / BUSCAR",
+    ].includes(k)
+  ) {
+    return "4. REGISTRO RI-RM";
+  }
+
+  // 5. ADMINISTRADOR
+  if (
+    k === "ADMINISTRADOR" ||
+    [
+      "PANEL GENERAL",
+      "USUARIOS / ACCESOS",
+      "MODIFICAR / ANULAR",
+      "CATALOGOS / CONFIG.",
+      "CATALOGOS / CONFIG",
+      "AUDITORIA",
+    ].includes(k)
+  ) {
+    return "5. ADMINISTRADOR";
+  }
+
   return "OTROS PERMISOS";
 }
 
