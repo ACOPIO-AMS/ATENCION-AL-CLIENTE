@@ -86,6 +86,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   const [filas, setFilas] = useState<FilaCargo[]>([nuevaFila()]);
   const [guardando, setGuardando] = useState(false);
   const [cargoGuardado, setCargoGuardado] = useState(false);
+  const [cargoImpreso, setCargoImpreso] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
   const [historial, setHistorial] = useState<HistorialCargo[]>([]);
@@ -120,6 +121,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
 
   function cambiarFila(id: string, campo: keyof FilaCargo, valor: string) {
     setCargoGuardado(false);
+    setCargoImpreso(false);
     setFilas((prev) =>
       prev.map((f) => (f.id === id ? { ...f, [campo]: valor, error: "" } : f))
     );
@@ -127,6 +129,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
 
   async function buscarGuia(id: string) {
     setCargoGuardado(false);
+    setCargoImpreso(false);
     const fila = filas.find((f) => f.id === id);
     if (!fila) return;
 
@@ -181,21 +184,38 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
 
   function agregarFila() {
     setCargoGuardado(false);
+    setCargoImpreso(false);
     setFilas((prev) => [...prev, nuevaFila()]);
   }
 
   function eliminarFila(id: string) {
     setCargoGuardado(false);
+    setCargoImpreso(false);
     setFilas((prev) => (prev.length === 1 ? prev : prev.filter((f) => f.id !== id)));
   }
 
   function limpiar() {
     setCargoGuardado(false);
+    setCargoImpreso(false);
     setAsistente(String(user?.name || "").trim());
     setConductor("");
     setFilas([nuevaFila()]);
     setMensaje("");
     setError("");
+    setFechaHora(new Date());
+    cargarInicial();
+  }
+
+  function nuevoCargo() {
+    setCargoGuardado(false);
+    setCargoImpreso(false);
+    setAsistente(String(user?.name || "").trim());
+    setConductor("");
+    setFilas([nuevaFila()]);
+    setMensaje("");
+    setError("");
+    setFechaHora(new Date());
+    setTab("nuevo");
     cargarInicial();
   }
 
@@ -238,6 +258,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
       const guardado = String(data?.numero ?? data?.numeroCargo ?? numero);
       setNumero(guardado);
       setCargoGuardado(true);
+      setCargoImpreso(false);
       setMensaje(`Cargo N.º ${guardado} guardado correctamente. Ya puedes imprimirlo.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo guardar el cargo.");
@@ -268,6 +289,8 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
       setError("Primero debes guardar el cargo antes de imprimir.");
       return;
     }
+    setCargoImpreso(true);
+    setMensaje(`Cargo N.º ${numero} enviado a impresión. Para continuar, pulsa Nuevo cargo.`);
     window.print();
   }
 
@@ -381,7 +404,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
           <p>Registro, control e impresión de guías y tickets de pesaje.</p>
         </div>
         <div className="cgt-actions">
-          <button className={tab === "nuevo" ? "primary" : "secondary"} onClick={() => setTab("nuevo")}>Nuevo cargo</button>
+          <button className={tab === "nuevo" ? "primary" : "secondary"} onClick={nuevoCargo}>Nuevo cargo</button>
           <button className={tab === "historial" ? "primary" : "secondary"} onClick={cargarHistorial}>Historial</button>
         </div>
       </div>
@@ -412,7 +435,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
               </div>
               <div className="hide-on-print">
                 <label>CONDUCTOR DE RUTINA</label>
-                <select value={conductor} onChange={(e) => { setConductor(e.target.value); setCargoGuardado(false); }}>
+                <select value={conductor} onChange={(e) => { setConductor(e.target.value); setCargoGuardado(false); setCargoImpreso(false); }}>
                   <option value="">Seleccionar...</option>
                   {conductores.map((x) => <option key={x} value={x}>{x}</option>)}
                 </select>
@@ -470,9 +493,18 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
             <div className="no-print" style={{display:"flex",justifyContent:"space-between",gap:10,marginTop:14,flexWrap:"wrap"}}>
               <button className="secondary" onClick={agregarFila}>＋ Agregar fila</button>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                <button className="ghost" onClick={limpiar}>Limpiar</button>
-                <button className="secondary" disabled={!cargoGuardado || guardando} onClick={imprimir} title={!cargoGuardado ? "Primero guarda el cargo" : "Imprimir cargo guardado"}>Imprimir cargo</button>
-                <button className="primary" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar cargo"}</button>
+                <button className="ghost" onClick={limpiar} disabled={cargoImpreso}>Limpiar</button>
+                <button className="primary" disabled={guardando || cargoGuardado || cargoImpreso} onClick={guardar}>
+                  {guardando ? "Guardando..." : cargoGuardado ? "Cargo guardado" : "Guardar cargo"}
+                </button>
+                <button
+                  className="secondary"
+                  disabled={!cargoGuardado || guardando || cargoImpreso}
+                  onClick={imprimir}
+                  title={cargoImpreso ? "Cargo ya impreso" : !cargoGuardado ? "Primero guarda el cargo" : "Imprimir cargo guardado"}
+                >
+                  {cargoImpreso ? "Cargo impreso" : "Imprimir cargo"}
+                </button>
               </div>
             </div>
 
