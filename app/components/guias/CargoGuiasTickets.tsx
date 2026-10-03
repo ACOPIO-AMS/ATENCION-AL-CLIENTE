@@ -322,13 +322,53 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
           .cgt-title p{text-align:center;color:#000}
           .cgt-headgrid{grid-template-columns:180px 1fr;margin:18px 0;gap:28px}
           .hide-on-print{display:none!important}
-          .cgt input,.cgt select,.cgt textarea{border:0;padding:2px;background:white;appearance:none;font-size:12px!important;line-height:1.25}
+          .cgt input,.cgt select,.cgt textarea{
+            border:0!important;
+            outline:0!important;
+            box-shadow:none!important;
+            padding:0!important;
+            margin:0!important;
+            background:transparent!important;
+            appearance:none;
+            font-size:12px!important;
+            line-height:1.25;
+          }
           .cgt-table-wrap{overflow:visible!important}
-          .cgt table{width:100%!important;min-width:0!important;table-layout:fixed;font-size:12px!important}
-          .cgt th{font-size:10.5px!important;line-height:1.2}
-          .cgt td{font-size:12px!important;line-height:1.25}
-          .cgt th,.cgt td{border:1px solid #000;padding:7px 5px;overflow-wrap:anywhere;word-break:normal}
-          .cgt td textarea{resize:none;overflow:hidden}
+          .cgt table{
+            width:100%!important;
+            min-width:0!important;
+            table-layout:fixed;
+            border-collapse:collapse!important;
+            border-spacing:0!important;
+            font-size:12px!important;
+            border:1px solid #000!important;
+          }
+          .cgt thead,.cgt tbody,.cgt tr{break-inside:avoid}
+          .cgt th{
+            font-size:10.5px!important;
+            line-height:1.2;
+            background:#fff!important;
+          }
+          .cgt td{
+            font-size:12px!important;
+            line-height:1.25;
+            height:42px;
+            vertical-align:middle!important;
+          }
+          .cgt th,.cgt td{
+            border:1px solid #000!important;
+            padding:7px 5px!important;
+            overflow-wrap:anywhere;
+            word-break:normal;
+            background-clip:padding-box!important;
+          }
+          .cgt td input,.cgt td select,.cgt td textarea{
+            display:block!important;
+            width:100%!important;
+            min-width:0!important;
+            height:auto!important;
+          }
+          .cgt td textarea{resize:none!important;overflow:hidden!important}
           .cgt .row-error{display:none}
           .signatures{display:grid!important;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:65px}
           .signature{border-top:1px solid #000;text-align:center;padding-top:8px;min-height:55px;font-size:11px}
