@@ -21,7 +21,8 @@ export type GuiasSection =
   | "registrar"
   | "historial"
   | "indicadores"
-  | "sacos";
+  | "sacos"
+  | "cargo-guias";
 
 export type RirmSection =
   | "pendientes"
@@ -281,6 +282,11 @@ export default function SidebarMenu(p: Props) {
     "Registro de Sacos Mineros"
   );
 
+  const gCargoGuias = can(
+    "Cargo - Guías y Tickets",
+    "Cargo - Guias y Tickets"
+  );
+
   const mGuias = can(
     "REGISTRO DE GUIAS",
     "REGISTRO DE GUÍAS"
@@ -291,7 +297,8 @@ export default function SidebarMenu(p: Props) {
     gRegistrar ||
     gHistorial ||
     gIndicadores ||
-    gSacos;
+    gSacos ||
+    gCargoGuias;
 
   // ====================================================
   // 4. REGISTRO RI-RM
@@ -676,6 +683,23 @@ export default function SidebarMenu(p: Props) {
                   <span>
                     Registro de Sacos Mineros
                   </span>
+                </button>
+              )}
+
+              {gCargoGuias && (
+                <button
+                  className={
+                    p.activeView === "guias" &&
+                    p.guiasSection === "cargo-guias"
+                      ? "nav-item active"
+                      : "nav-item"
+                  }
+                  onClick={() =>
+                    p.abrirGuias("cargo-guias")
+                  }
+                >
+                  <Icon tone="cyan">🧾</Icon>
+                  <span>Cargo - Guías y Tickets</span>
                 </button>
               )}
 
