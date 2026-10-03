@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import SidebarMenu from "./components/layout/Sidebar";
 import LoginScreen from "./components/login/LoginScreen";
-import RiRmFrame, { type RirmSection } from "./components/registro-ri-rm/RiRmFrame";
-import AdminPanel, { type AdminSection } from "./components/admin/AdminPanel";
-import { GUIAS_HTML_INTEGRADO } from "./lib/guias-html";
-import EstadiaServicios from "./components/atencion/EstadiaServicios";
-import SalidaProveedores from "./components/atencion/SalidaProveedores";
-import ControlHabitaciones from "./components/atencion/ControlHabitaciones";
-import ResumenGuardia from "./components/atencion/ResumenGuardia";
-import CargoGuiasTickets from "./components/guias/CargoGuiasTickets";
+import type { RirmSection } from "./components/registro-ri-rm/RiRmFrame";
+import type { AdminSection } from "./components/admin/AdminPanel";
+
+// Módulos pesados: se descargan únicamente cuando el usuario los abre.
+const RiRmFrame = lazy(() => import("./components/registro-ri-rm/RiRmFrame"));
+const AdminPanel = lazy(() => import("./components/admin/AdminPanel"));
+const EstadiaServicios = lazy(() => import("./components/atencion/EstadiaServicios"));
+const SalidaProveedores = lazy(() => import("./components/atencion/SalidaProveedores"));
+const ControlHabitaciones = lazy(() => import("./components/atencion/ControlHabitaciones"));
+const ResumenGuardia = lazy(() => import("./components/atencion/ResumenGuardia"));
+const CargoGuiasTickets = lazy(() => import("./components/guias/CargoGuiasTickets"));
+
+function ModuleLoader() {
+  return <section style={{ minHeight: 240, display: "grid", placeItems: "center", color: "#52706a", fontWeight: 700 }}>Cargando módulo…</section>;
+}
 
 type Role = "CONDUCTOR" | "PROVEEDOR" | "ACOMPAÑANTE";
 type View = "registro" | "hoy" | "pendientes" | "buscar" | "personas" | "estadia" | "salidaProveedores" | "habitaciones" | "resumenGuardia" | "cargos" | "buscarSalidas" | "recepcionCargos" | "guias" | "rirm" | "admin";
@@ -374,6 +381,7 @@ export default function Home() {
   const [rirmSection, setRirmSection] = useState<RirmSection>("pendientes");
   const [adminSection, setAdminSection] = useState<AdminSection>("panel");
   const guiasFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [guiasHtml, setGuiasHtml] = useState<string>("");
 
   function openFirstAuthorized(user: AppUser) {
     if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Nuevo ingreso")) {
@@ -426,6 +434,17 @@ export default function Home() {
     }
     setOpenModule(null);
   }
+
+  useEffect(() => {
+    if (activeView !== "guias" || guiasSection === "cargo-guias" || guiasHtml) return;
+    let active = true;
+    void import("./lib/guias-html").then((module) => {
+      if (active) setGuiasHtml(module.GUIAS_HTML_INTEGRADO);
+    }).catch(() => {
+      if (active) setGuiasHtml("");
+    });
+    return () => { active = false; };
+  }, [activeView, guiasSection, guiasHtml]);
 
   function openGuiasSection(section: "registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias") {
     setGuiasSection(section);
@@ -815,7 +834,7 @@ export default function Home() {
       if (!navigator.onLine) return;
       if (queueRef.current.length) void syncQueue();
       else void checkConnection(false);
-    }, 5_000);
+    }, 30_000);
     return () => {
       active = false;
       window.removeEventListener("online", online);
@@ -1778,35 +1797,35 @@ ${documentBody}
         </div>
       </section>}
       {activeView === "recepcionCargos" && <section className="empty-view data-view"><div className="view-heading"><div><span>✓</span><div><h2>Pendientes de recepción</h2><p>Solo se muestran salidas TIPO CH pendientes de confirmación.</p></div></div><button className="secondary-action" onClick={()=>void loadCargoReceipts()} disabled={cargoReceiptBusy}>{cargoReceiptBusy?"Actualizando…":"Actualizar"}</button></div><div style={{display:"flex",gap:10,margin:"14px 0",flexWrap:"wrap"}}><button className="secondary-action" onClick={()=>setCargoReceiptSel(cargoReceiptSel.length===cargoReceipts.length?[]:cargoReceipts.map(cargoReceiptKey))}>{cargoReceiptSel.length===cargoReceipts.length&&cargoReceipts.length?"Deseleccionar todo":"Seleccionar todo"}</button><button className="primary-action" disabled={!cargoReceiptSel.length||cargoReceiptBusy} onClick={()=>void confirmCargoReceipts()}>Marcar recibido ({cargoReceiptSel.length})</button></div><div style={{overflowX:"auto",border:"1px solid #d9e4e1",borderRadius:12}}><table style={{width:"100%",minWidth:760,borderCollapse:"collapse",background:"#fff"}}><thead><tr style={{background:"#eef7f5"}}><th></th><th>N° salida</th><th>Tipo</th><th>Código</th><th>Fecha y hora de envío</th><th>Responsable</th><th>Turno</th></tr></thead><tbody>{cargoReceipts.map(x=>{const k=cargoReceiptKey(x);return <tr key={k}><td style={{padding:10}}><input type="checkbox" checked={cargoReceiptSel.includes(k)} onChange={e=>setCargoReceiptSel(v=>e.target.checked?[...v,k]:v.filter(y=>y!==k))}/></td><td><b>{x.correlative}</b></td><td><b>{x.type}</b></td><td>{x.code}</td><td>{x.dateTime?new Date(x.dateTime).toLocaleString("es-PE",{timeZone:"America/Lima"}):"—"}</td><td>{x.responsible||"—"}</td><td>{x.shift||"—"}</td></tr>})}{!cargoReceipts.length&&<tr><td colSpan={7} style={{padding:24,textAlign:"center",color:"#6b7d78"}}>No hay salidas CH pendientes de recepción.</td></tr>}</tbody></table></div></section>}
-      {activeView === "estadia" && <EstadiaServicios responsable={currentUser.name} />}
-      {activeView === "salidaProveedores" && <SalidaProveedores responsable={currentUser.name} />}
-      {activeView === "habitaciones" && <ControlHabitaciones responsable={currentUser.name} />}
-      {activeView === "resumenGuardia" && <ResumenGuardia responsable={currentUser.name} />}
+      {activeView === "estadia" && <Suspense fallback={<ModuleLoader />}><EstadiaServicios responsable={currentUser.name} /></Suspense>}
+      {activeView === "salidaProveedores" && <Suspense fallback={<ModuleLoader />}><SalidaProveedores responsable={currentUser.name} /></Suspense>}
+      {activeView === "habitaciones" && <Suspense fallback={<ModuleLoader />}><ControlHabitaciones responsable={currentUser.name} /></Suspense>}
+      {activeView === "resumenGuardia" && <Suspense fallback={<ModuleLoader />}><ResumenGuardia responsable={currentUser.name} /></Suspense>}
 
       {activeView === "guias" && (
         guiasSection === "cargo-guias" ? (
           <section style={{ padding: 18, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
-            <CargoGuiasTickets user={currentUser} />
+            <Suspense fallback={<ModuleLoader />}><CargoGuiasTickets user={currentUser} /></Suspense>
           </section>
         ) : (
           <section style={{ padding: 0, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
-            <iframe
+            {!guiasHtml ? <ModuleLoader /> : <iframe
               ref={guiasFrameRef}
               title="Registro de Guías"
-              srcDoc={GUIAS_HTML_INTEGRADO}
+              srcDoc={guiasHtml}
               onLoad={() => {
                 const frameWindow = guiasFrameRef.current?.contentWindow as (Window & { mostrarPagina?: (pagina: string) => void }) | null;
                 frameWindow?.mostrarPagina?.(guiasSection);
               }}
               style={{ width: "100%", height: "calc(100vh - 92px)", minHeight: 760, border: 0, display: "block", background: "white" }}
               allow="clipboard-read; clipboard-write"
-            />
+            />}
           </section>
         )
       )}
 
-      {activeView === "rirm" && <RiRmFrame section={rirmSection} user={currentUser} />}
-      {activeView === "admin" && ["ADMIN", "ADMINISTRADOR"].includes(String(currentUser.role || "").toUpperCase()) && <AdminPanel section={adminSection} />}
+      {activeView === "rirm" && <Suspense fallback={<ModuleLoader />}><RiRmFrame section={rirmSection} user={currentUser} /></Suspense>}
+      {activeView === "admin" && ["ADMIN", "ADMINISTRADOR"].includes(String(currentUser.role || "").toUpperCase()) && <Suspense fallback={<ModuleLoader />}><AdminPanel section={adminSection} /></Suspense>}
 
       {activeView === "personas" && <section className="empty-view data-view"><div className="people-toolbar"><div><h2>BD CLIENTES</h2><p>Fuente maestra para autocompletar por DNI.</p></div><button onClick={loadClients} disabled={busy}>Actualizar</button></div><div className="people-table"><div className="table-head"><span>DNI</span><span>Nombres y apellidos</span><span>Celular</span><span>Licencia</span><span>Estado</span></div>{clients.map(person => <div className="table-row" key={person.dni}><span>{person.dni}</span><strong>{person.name}</strong><span>{person.phone}</span><span>{person.license ? `${person.license} · ${person.category}` : "—"}</span><em>{person.role || "ACTIVO"}</em></div>)}</div>{!clients.length && <p className="empty-message">Pulsa Actualizar para consultar BD CLIENTES.</p>}</section>}
     </section>
