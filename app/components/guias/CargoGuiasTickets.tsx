@@ -85,6 +85,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   const [conductor, setConductor] = useState("");
   const [filas, setFilas] = useState<FilaCargo[]>([nuevaFila()]);
   const [guardando, setGuardando] = useState(false);
+  const [cargoGuardado, setCargoGuardado] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [error, setError] = useState("");
   const [historial, setHistorial] = useState<HistorialCargo[]>([]);
@@ -118,12 +119,14 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   }, [user?.name]);
 
   function cambiarFila(id: string, campo: keyof FilaCargo, valor: string) {
+    setCargoGuardado(false);
     setFilas((prev) =>
       prev.map((f) => (f.id === id ? { ...f, [campo]: valor, error: "" } : f))
     );
   }
 
   async function buscarGuia(id: string) {
+    setCargoGuardado(false);
     const fila = filas.find((f) => f.id === id);
     if (!fila) return;
 
@@ -177,14 +180,17 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   }
 
   function agregarFila() {
+    setCargoGuardado(false);
     setFilas((prev) => [...prev, nuevaFila()]);
   }
 
   function eliminarFila(id: string) {
+    setCargoGuardado(false);
     setFilas((prev) => (prev.length === 1 ? prev : prev.filter((f) => f.id !== id)));
   }
 
   function limpiar() {
+    setCargoGuardado(false);
     setAsistente(String(user?.name || "").trim());
     setConductor("");
     setFilas([nuevaFila()]);
@@ -231,7 +237,8 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
 
       const guardado = String(data?.numero ?? data?.numeroCargo ?? numero);
       setNumero(guardado);
-      setMensaje(`Cargo N.º ${guardado} guardado correctamente.`);
+      setCargoGuardado(true);
+      setMensaje(`Cargo N.º ${guardado} guardado correctamente. Ya puedes imprimirlo.`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo guardar el cargo.");
     } finally {
@@ -257,6 +264,10 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
   }, [historial, busqueda]);
 
   function imprimir() {
+    if (!cargoGuardado) {
+      setError("Primero debes guardar el cargo antes de imprimir.");
+      return;
+    }
     window.print();
   }
 
@@ -311,9 +322,13 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
           .cgt-title p{text-align:center;color:#000}
           .cgt-headgrid{grid-template-columns:180px 1fr;margin:18px 0;gap:28px}
           .hide-on-print{display:none!important}
-          .cgt input,.cgt select,.cgt textarea{border:0;padding:2px;background:white;appearance:none}
-          .cgt table{min-width:0;font-size:9px}
-          .cgt th,.cgt td{border:1px solid #000;padding:5px}
+          .cgt input,.cgt select,.cgt textarea{border:0;padding:2px;background:white;appearance:none;font-size:12px!important;line-height:1.25}
+          .cgt-table-wrap{overflow:visible!important}
+          .cgt table{width:100%!important;min-width:0!important;table-layout:fixed;font-size:12px!important}
+          .cgt th{font-size:10.5px!important;line-height:1.2}
+          .cgt td{font-size:12px!important;line-height:1.25}
+          .cgt th,.cgt td{border:1px solid #000;padding:7px 5px;overflow-wrap:anywhere;word-break:normal}
+          .cgt td textarea{resize:none;overflow:hidden}
           .cgt .row-error{display:none}
           .signatures{display:grid!important;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:65px}
           .signature{border-top:1px solid #000;text-align:center;padding-top:8px;min-height:55px;font-size:11px}
@@ -357,7 +372,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
               </div>
               <div className="hide-on-print">
                 <label>CONDUCTOR DE RUTINA</label>
-                <select value={conductor} onChange={(e) => setConductor(e.target.value)}>
+                <select value={conductor} onChange={(e) => { setConductor(e.target.value); setCargoGuardado(false); }}>
                   <option value="">Seleccionar...</option>
                   {conductores.map((x) => <option key={x} value={x}>{x}</option>)}
                 </select>
@@ -416,7 +431,7 @@ export default function CargoGuiasTickets({ user }: { user: AppUser }) {
               <button className="secondary" onClick={agregarFila}>＋ Agregar fila</button>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <button className="ghost" onClick={limpiar}>Limpiar</button>
-                <button className="secondary" onClick={imprimir}>Imprimir cargo</button>
+                <button className="secondary" disabled={!cargoGuardado || guardando} onClick={imprimir} title={!cargoGuardado ? "Primero guarda el cargo" : "Imprimir cargo guardado"}>Imprimir cargo</button>
                 <button className="primary" disabled={guardando} onClick={guardar}>{guardando ? "Guardando..." : "Guardar cargo"}</button>
               </div>
             </div>
