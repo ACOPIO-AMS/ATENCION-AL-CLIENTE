@@ -1,34 +1,727 @@
 "use client";
+
 import {useEffect,useMemo,useState} from "react";
-import {duracionDesde,estadiaApi,fechaHora,input,Loader,page,panel} from "./estadiaApi";
-type E={solicitados:number;entregados:number;pendientes:number;reasignados:number};
-type R={desde:string;hasta:string;personasRecibidas:number;personasSalieron:number;personasPresentes:number;desayunos:number;almuerzos:number;cenas:number;agua:number;gaseosa:number;galletas:number;papel:number;shampoo:number;jabon:number;alimentacion:Record<"DESAYUNO"|"ALMUERZO"|"CENA",E>;reasignaciones?:{servicio:string;original:string;entregadoA:string;dniDestino:string;observacion:string}[];habitaciones:{disponibles:number;ocupadas:number;reservadas:number;porLimpiar:number;fueraServicio:number};presentes:any[];personasPeriodo?:any[];ingresosPorFecha?:{fecha:string;cantidad:number}[]};
-function Grafico({data=[]}:{data?:{fecha:string;cantidad:number}[]}){if(!data.length)return <div style={{padding:22,textAlign:"center",color:"#60706d"}}>Sin ingresos para el periodo seleccionado.</div>;const w=900,h=230,pad=38,max=Math.max(1,...data.map(x=>x.cantidad));const pts=data.map((x,i)=>`${pad+(data.length===1?0:i*(w-pad*2)/(data.length-1))},${h-pad-x.cantidad*(h-pad*2)/max}`).join(" ");return <div style={{overflowX:"auto"}}><svg viewBox={`0 0 ${w} ${h}`} style={{width:"100%",minWidth:620,height:240}}><line x1={pad} y1={h-pad} x2={w-pad} y2={h-pad} stroke="currentColor" opacity=".25"/><polyline points={pts} fill="none" stroke="currentColor" strokeWidth="3"/>{data.map((x,i)=>{const cx=pad+(data.length===1?0:i*(w-pad*2)/(data.length-1)),cy=h-pad-x.cantidad*(h-pad*2)/max;return <g key={x.fecha}><circle cx={cx} cy={cy} r="5" fill="currentColor"/><text x={cx} y={cy-10} textAnchor="middle" fontSize="12">{x.cantidad}</text><text x={cx} y={h-12} textAnchor="middle" fontSize="11">{x.fecha.slice(5)}</text></g>})}</svg></div>}
+import {estadiaApi,fechaHora,input,kpi,Loader,page,panel} from "./estadiaApi";
+
+type Comida="DESAYUNO"|"ALMUERZO"|"CENA";
+
+type EstadoAlimentacion={
+  solicitados:number;
+  entregados:number;
+  pendientes:number;
+  reasignados:number;
+  retiro?:number;
+  fueraHorario?:number;
+};
+
+type PersonaPeriodo={
+  idIngreso:string;
+  dni:string;
+  nombre:string;
+  placa?:string;
+  proveedor?:string;
+  habitacion?:string;
+  fechaIngreso:string;
+  fechaSalida?:string;
+  salidaPrevista?:string;
+  zona?:string;
+  estado?:string;
+  estadoPeriodo?:string;
+  ingresoPeriodo?:boolean;
+  salidaPeriodo?:boolean;
+  permanece?:boolean;
+  alimentacion?:Partial<Record<Comida,string>>;
+  consumos?:Record<string,number>;
+};
+
+type Reasignacion={
+  id?:string;
+  fechaHora?:string;
+  fechaOperativa?:string;
+  turno?:string;
+  guardia?:string;
+  servicio:string;
+  idIngreso?:string;
+  dniSolicitante?:string;
+  original:string;
+  dniDestino:string;
+  entregadoA:string;
+  observacion?:string;
+  usuario?:string;
+  zona?:string;
+  placa?:string;
+  proveedor?:string;
+};
+
+type Resumen={
+  desde:string;
+  hasta:string;
+  personasRecibidas:number;
+  personasSalieron:number;
+  personasPresentes:number;
+  desayunos:number;
+  almuerzos:number;
+  cenas:number;
+  agua:number;
+  gaseosa:number;
+  galletas:number;
+  papel:number;
+  shampoo:number;
+  jabon:number;
+  alimentacion:Record<Comida,EstadoAlimentacion>;
+  reasignaciones?:Reasignacion[];
+  habitaciones:{
+    disponibles:number;
+    ocupadas:number;
+    reservadas:number;
+    porLimpiar:number;
+    fueraServicio:number;
+  };
+  presentes:PersonaPeriodo[];
+  personasPeriodo?:PersonaPeriodo[];
+  ingresosPorFecha?:{fecha:string;cantidad:number}[];
+};
+
+function Grafico({data=[],compact=false}:{data?:{fecha:string;cantidad:number}[];compact?:boolean}){
+  if(!data.length){
+    return <div style={{padding:22,textAlign:"center",color:"#60706d"}}>
+      Sin ingresos para el periodo seleccionado.
+    </div>;
+  }
+
+  const w=900;
+  const h=compact?150:230;
+  const pad=compact?30:38;
+  const max=Math.max(1,...data.map(x=>x.cantidad));
+  const pts=data.map((x,i)=>{
+    const cx=pad+(data.length===1?0:i*(w-pad*2)/(data.length-1));
+    const cy=h-pad-x.cantidad*(h-pad*2)/max;
+    return `${cx},${cy}`;
+  }).join(" ");
+
+  return <div style={{overflowX:"auto"}}>
+    <svg viewBox={`0 0 ${w} ${h}`} style={{
+      width:"100%",
+      minWidth:compact?360:620,
+      height:compact?155:240
+    }}>
+      <line x1={pad} y1={h-pad} x2={w-pad} y2={h-pad} stroke="currentColor" opacity=".25"/>
+      <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="3"/>
+      {data.map((x,i)=>{
+        const cx=pad+(data.length===1?0:i*(w-pad*2)/(data.length-1));
+        const cy=h-pad-x.cantidad*(h-pad*2)/max;
+        return <g key={x.fecha}>
+          <circle cx={cx} cy={cy} r="5" fill="currentColor"/>
+          <text x={cx} y={cy-10} textAnchor="middle" fontSize="12">{x.cantidad}</text>
+          <text x={cx} y={h-12} textAnchor="middle" fontSize="11">{x.fecha.slice(5)}</text>
+        </g>;
+      })}
+    </svg>
+  </div>;
+}
+
+function duracionPeriodo(x:PersonaPeriodo,hasta:string){
+  const inicio=new Date(x.fechaIngreso).getTime();
+  if(Number.isNaN(inicio))return "—";
+
+  let fin:number;
+
+  if(x.fechaSalida){
+    fin=new Date(x.fechaSalida).getTime();
+  }else{
+    const limite=new Date(`${hasta}T23:59:59`).getTime();
+    fin=Math.min(Date.now(),limite);
+  }
+
+  if(Number.isNaN(fin))return "—";
+
+  const m=Math.max(0,Math.floor((fin-inicio)/60000));
+  return `${Math.floor(m/60)} h ${m%60} min`;
+}
+
+function etiquetaConsumo(k:string){
+  return k
+    .replace("PAPEL HIGIÉNICO","Papel")
+    .replace("SHAMPOO","Shampoo")
+    .replace("JABÓN","Jabón")
+    .replace("GASEOSA","Gaseosa")
+    .replace("GALLETAS","Galletas")
+    .replace("AGUA","Agua");
+}
+
+function BadgeEstado({value}:{value?:string}){
+  const v=String(value||"").trim();
+  if(!v)return <>—</>;
+
+  const upper=v.toUpperCase();
+  const bg=
+    upper.includes("PENDIENTE")?"#fff2d8":
+    upper.includes("REASIGNADO")?"#eee7ff":
+    upper.includes("RETIRO")?"#f5eeee":
+    "#e8f8ee";
+  const fg=
+    upper.includes("PENDIENTE")?"#b66b00":
+    upper.includes("REASIGNADO")?"#7251b5":
+    upper.includes("RETIRO")?"#a33c3c":
+    "#25834a";
+
+  return <span style={{
+    display:"inline-block",
+    padding:"3px 7px",
+    borderRadius:7,
+    fontWeight:800,
+    background:bg,
+    color:fg,
+    whiteSpace:"nowrap"
+  }}>
+    {v}
+  </span>;
+}
+
 export default function ResumenGuardia({responsable}:{responsable:string}){
-const hoy=new Date().toLocaleDateString("en-CA",{timeZone:"America/Lima"});
-const[r,setR]=useState<R|null>(null),[desde,setDesde]=useState(hoy),[hasta,setHasta]=useState(hoy),[guardia,setGuardia]=useState(""),[turno,setTurno]=useState(""),[resp,setResp]=useState(responsable||""),[usuarios,setUsuarios]=useState<string[]>([]),[msg,setMsg]=useState(""),[load,setLoad]=useState(""),[q,setQ]=useState(""),[mov,setMov]=useState<"TODOS"|"RECIBIDOS"|"SALIERON"|"PERMANECEN">("TODOS");
-useEffect(()=>{setResp(responsable||"")},[responsable]);
-useEffect(()=>{void estadiaApi<string[]>("estadiaListarResponsablesAtencion").then(setUsuarios).catch(()=>setUsuarios([]))},[]);
-useEffect(()=>{let vivo=true;const t=setTimeout(async()=>{setLoad("Actualizando resumen...");try{const a=await estadiaApi<R>("estadiaResumenGuardia",{desde,hasta,guardia,turno,responsableFiltro:resp});if(vivo){setR(a);setMsg("")}}catch(e){if(vivo)setMsg(e instanceof Error?e.message:"Error")}finally{if(vivo)setLoad("")}},180);return()=>{vivo=false;clearTimeout(t)}},[desde,hasta,guardia,turno,resp]);
-const personasFiltradas=useMemo(()=>{
-  if(!r)return [];
-  const texto=q.trim().toUpperCase();
-  return (r.personasPeriodo||r.presentes).filter((x:any)=>{
-    if(mov==="RECIBIDOS"&&!x.ingresoPeriodo)return false;
-    if(mov==="SALIERON"&&!x.salidaPeriodo)return false;
-    if(mov==="PERMANECEN"&&!x.permanece)return false;
-    if(texto&&!`${x.dni||""} ${x.nombre||""}`.toUpperCase().includes(texto))return false;
-    return true;
-  });
-},[r,q,mov]);
-if(!r)return <section style={page}>{load&&<Loader text={load}/>}<h1>Resumen diario / guardia</h1>{msg&&<div style={panel}>{msg}</div>}</section>;
-return <section style={page}>{load&&<Loader text={load}/>}<div><h1 style={{margin:0}}>Resumen diario / guardia</h1><p>{desde} – {hasta} · {guardia||"Todas las guardias"} · {turno||"Todos los turnos"} · {resp||"Todos los responsables"}</p></div>
-<div style={{...panel,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12}}><label>Desde<input style={input} type="date" value={desde} onChange={e=>setDesde(e.target.value)}/></label><label>Hasta<input style={input} type="date" value={hasta} onChange={e=>setHasta(e.target.value)}/></label><label>Guardia<select style={input} value={guardia} onChange={e=>setGuardia(e.target.value)}><option value="">Todas</option><option>A</option><option>B</option><option>C</option></select></label><label>Turno<select style={input} value={turno} onChange={e=>setTurno(e.target.value)}><option value="">Todos</option><option>DÍA</option><option>NOCHE</option></select></label><label>Responsable<select style={input} value={resp} onChange={e=>setResp(e.target.value)}><option value="">Todos</option>{responsable&&!usuarios.includes(responsable)&&<option value={responsable}>{responsable}</option>}{usuarios.map(x=><option key={x} value={x}>{x}</option>)}</select></label></div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(480px,1fr))",gap:14,marginTop:12}}>
-<div style={{...panel,margin:0,padding:0,overflow:"hidden",border:"1px solid #b8d8cc"}}><div style={{padding:"10px 14px",background:"#eef9f4",color:"#0b5d8d",fontWeight:800,fontSize:14,borderBottom:"1px solid #d7e6e0"}}>👥 Movimiento de personas</div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",alignItems:"stretch"}}>{[["👥","Recibidas",r.personasRecibidas],["↪","Salieron",r.personasSalieron],["👤","Permanecen",r.personasPresentes]].map((x,i)=><div key={String(x[1])} style={{padding:"14px 12px",textAlign:"center",borderRight:i<2?"1px solid #d8e4df":"none"}}><div style={{fontSize:19}}>{x[0]}</div><div style={{fontSize:12,color:"#45615a",marginTop:4}}>{x[1]}</div><strong style={{display:"block",fontSize:28,marginTop:3,color:"#173c34"}}>{x[2]}</strong></div>)}</div></div>
-<div style={{...panel,margin:0,padding:0,overflow:"hidden",border:"1px solid #e3c7c4"}}><div style={{padding:"10px 14px",background:"#fff4f3",color:"#c8473d",fontWeight:800,fontSize:14,borderBottom:"1px solid #ead9d7"}}>🛏️ Habitaciones</div><div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(90px,1fr))",alignItems:"stretch"}}>{[["🛏️","Disponibles",r.habitaciones.disponibles],["🏨","Ocupadas",r.habitaciones.ocupadas],["📅","Reservadas",r.habitaciones.reservadas],["🧹","Por limpiar",r.habitaciones.porLimpiar],["🛠️","Fuera servicio",r.habitaciones.fueraServicio]].map((x,i)=><div key={String(x[1])} style={{padding:"14px 8px",textAlign:"center",borderRight:i<4?"1px solid #eadfdd":"none"}}><div style={{fontSize:18}}>{x[0]}</div><div style={{fontSize:11,color:"#654d4b",marginTop:4,minHeight:28}}>{x[1]}</div><strong style={{display:"block",fontSize:26,marginTop:2,color:"#3c2725"}}>{x[2]}</strong></div>)}</div></div>
-</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(420px,1fr))",gap:14}}><div style={{...panel,background:"#fff8e8"}}><h3>🍽️ Alimentación</h3><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>{(["DESAYUNO","ALMUERZO","CENA"] as const).map(c=>{const z=r.alimentacion[c];return <div key={c} style={{background:"#fff",padding:12,borderRadius:10}}><b>{c[0]+c.slice(1).toLowerCase()}</b><div>Solicitados: <b>{z.solicitados}</b></div><div>Entregados: <b>{z.entregados}</b></div><div style={{color:"#c43b34"}}>Pendientes: <b>{z.pendientes}</b></div><div>Reasignados: <b>{z.reasignados}</b></div></div>})}</div></div><div style={{...panel,background:"#eaf6ff"}}><h3>🥤 Consumos entregados</h3><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>{[["💧","Agua",r.agua],["🥤","Gaseosa",r.gaseosa],["🍪","Galletas",r.galletas],["🧻","Papel",r.papel],["🧴","Shampoo",r.shampoo],["🧼","Jabón",r.jabon]].map(x=><div key={String(x[1])}><span>{x[0]}</span><small style={{display:"block"}}>{x[1]}</small><strong style={{fontSize:24}}>{x[2]}</strong></div>)}</div></div></div>
-<div style={panel}><h3>Personas del periodo seleccionado</h3><div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar DNI o nombre..." style={{...input,maxWidth:360,margin:0}}/>{([ ["TODOS","Todos",(r.personasPeriodo||r.presentes).length], ["RECIBIDOS","Recibidos",r.personasRecibidas], ["SALIERON","Salieron",r.personasSalieron], ["PERMANECEN","Permanecen",r.personasPresentes] ] as const).map(([k,t,n])=><button key={k} type="button" onClick={()=>setMov(k)} style={{border:0,borderRadius:9,padding:"9px 13px",fontWeight:800,cursor:"pointer",background:mov===k?"#1677d2":"#e8eef2",color:mov===k?"#fff":"#18343c"}}>{t} ({n})</button>)}</div><div style={{overflowX:"auto"}}><table style={{width:"100%",minWidth:1280,fontSize:12,borderCollapse:"collapse"}}><thead><tr><th style={{textAlign:"left"}}>DNI</th><th style={{textAlign:"left"}}>Persona</th><th>Hab.</th><th>Hora de ingreso</th><th>Hora de salida</th><th>Permanencia</th><th>Zona</th><th>Desayuno</th><th>Almuerzo</th><th>Cena</th><th style={{textAlign:"left"}}>Consumos / Kits</th></tr></thead><tbody>{personasFiltradas.map((x:any)=>{const cons=Object.entries(x.consumos||{}).filter(([,v])=>Number(v)>0).map(([k,v])=>`${k.replace("PAPEL HIGIÉNICO","Papel").replace("SHAMPOO","Shampoo").replace("JABÓN","Jabón").replace("GASEOSA","Gaseosa").replace("GALLETAS","Galletas").replace("AGUA","Agua")} ×${v}`).join(" · ");const estado=(v:string)=>v?<span style={{display:"inline-block",padding:"3px 7px",borderRadius:7,fontWeight:800,background:v.includes("PENDIENTE")?"#fff2d8":v.includes("REASIGNADO")?"#eee7ff":"#e8f8ee",color:v.includes("PENDIENTE")?"#b66b00":v.includes("REASIGNADO")?"#7251b5":"#25834a"}}>{v}</span>:"—";return <tr key={`${x.idIngreso}-${x.dni}`}><td style={{padding:8,borderBottom:"1px solid #eee",fontWeight:700}}>{x.dni||"-"}</td><td><b>{x.nombre}</b></td><td style={{textAlign:"center"}}>{x.habitacion||"-"}</td><td style={{textAlign:"center"}}>{fechaHora(x.fechaIngreso)}</td><td style={{textAlign:"center"}}>{x.fechaSalida?fechaHora(x.fechaSalida):"—"}</td><td style={{textAlign:"center",fontWeight:700}}>{x.fechaSalida?(()=>{const ms=new Date(x.fechaSalida).getTime()-new Date(x.fechaIngreso).getTime();const m=Math.max(0,Math.floor(ms/60000));return `${Math.floor(m/60)} h ${m%60} min`})():duracionDesde(x.fechaIngreso)}</td><td style={{textAlign:"center"}}>{x.zona||"-"}</td><td style={{textAlign:"center"}}>{estado(x.alimentacion?.DESAYUNO||"")}</td><td style={{textAlign:"center"}}>{estado(x.alimentacion?.ALMUERZO||"")}</td><td style={{textAlign:"center"}}>{estado(x.alimentacion?.CENA||"")}</td><td>{cons||"—"}</td></tr>})}</tbody></table></div></div>
-{(r.reasignaciones||[]).length>0&&<div style={panel}><h3>↗ Comidas reasignadas</h3><div style={{overflowX:"auto"}}><table style={{width:"100%",fontSize:12}}><thead><tr><th>Servicio</th><th>Cliente original</th><th>Entregado a</th><th>DNI</th><th>Observación</th></tr></thead><tbody>{(r.reasignaciones||[]).map((x,i)=><tr key={i}><td>{x.servicio}</td><td>{x.original}</td><td><b>{x.entregadoA||"-"}</b></td><td>{x.dniDestino||"-"}</td><td>{x.observacion||"-"}</td></tr>)}</tbody></table></div></div>}
-<div style={panel}><h3>📈 Cantidad de personas que ingresaron por fecha</h3><Grafico data={r.ingresosPorFecha}/></div><div style={{...panel,background:"#fff2f2"}}><h3 style={{color:"#c43b34"}}>⚠ Pendientes para la siguiente guardia</h3><b>{r.personasPresentes}</b> persona(s) permanecen · <b>{r.habitaciones.ocupadas}</b> habitación(es) ocupadas · <b>{r.habitaciones.porLimpiar}</b> por limpiar.</div>{msg&&<div style={panel}>{msg}</div>}</section>}
+  const hoy=new Date().toLocaleDateString("en-CA",{timeZone:"America/Lima"});
+
+  const[r,setR]=useState<Resumen|null>(null);
+  const[desde,setDesde]=useState(hoy);
+  const[hasta,setHasta]=useState(hoy);
+  const[guardia,setGuardia]=useState("");
+  const[turno,setTurno]=useState("");
+  const[resp,setResp]=useState(responsable||"");
+  const[usuarios,setUsuarios]=useState<string[]>([]);
+  const[msg,setMsg]=useState("");
+  const[load,setLoad]=useState("");
+  const[mov,setMov]=useState<"TODOS"|"RECIBIDOS"|"SALIERON"|"PERMANECEN">("TODOS");
+  const[vistaReporte,setVistaReporte]=useState(false);
+
+  useEffect(()=>{
+    setResp(responsable||"");
+  },[responsable]);
+
+  useEffect(()=>{
+    void estadiaApi<string[]>("estadiaListarResponsablesAtencion")
+      .then(setUsuarios)
+      .catch(()=>setUsuarios([]));
+  },[]);
+
+  useEffect(()=>{
+    let vivo=true;
+
+    const t=window.setTimeout(async()=>{
+      setLoad("Actualizando resumen...");
+
+      try{
+        const data=await estadiaApi<Resumen>("estadiaResumenGuardia",{
+          desde,
+          hasta,
+          guardia,
+          turno,
+          responsableFiltro:resp
+        });
+
+        if(vivo){
+          setR(data);
+          setMsg("");
+        }
+
+      }catch(e){
+        if(vivo){
+          setMsg(e instanceof Error?e.message:"Error al cargar el resumen");
+        }
+      }finally{
+        if(vivo)setLoad("");
+      }
+    },250);
+
+    return()=>{
+      vivo=false;
+      window.clearTimeout(t);
+    };
+  },[desde,hasta,guardia,turno,resp]);
+
+  const personasFiltradas=useMemo(()=>{
+    if(!r)return [];
+
+    const base=r.personasPeriodo||r.presentes||[];
+
+    return base.filter(x=>{
+      if(mov==="RECIBIDOS"&&!x.ingresoPeriodo)return false;
+      if(mov==="SALIERON"&&!x.salidaPeriodo)return false;
+      if(mov==="PERMANECEN"&&!x.permanece)return false;
+      return true;
+    });
+  },[r,mov]);
+
+  if(!r){
+    return <section style={page}>
+      {load&&<Loader text={load}/>}
+      <h1>Resumen diario / guardia</h1>
+      {msg&&<div style={panel}>{msg}</div>}
+    </section>;
+  }
+
+  const cards=[
+    ["👥","Recibidas",r.personasRecibidas,"#eaf8ef","#55b875"],
+    ["↪","Salieron",r.personasSalieron,"#e8f5ff","#5d9fe8"],
+    ["👤","Permanecen",r.personasPresentes,"#f0ecff","#9a84e8"]
+  ] as const;
+
+  const totalPersonas=(r.personasPeriodo||r.presentes||[]).length;
+
+  return <section style={{
+    ...page,
+    ...(vistaReporte?{
+      gap:10,
+      padding:"10px 12px",
+      fontSize:12
+    }:{})
+  }}>
+    {load&&<Loader text={load}/>}
+
+    {!vistaReporte?(
+      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",flexWrap:"wrap"}}>
+        <div>
+          <h1 style={{margin:0}}>Resumen diario / guardia</h1>
+          <p>
+            {desde} – {hasta}
+            {" · "}
+            {guardia||"Todas las guardias"}
+            {" · "}
+            {turno||"Todos los turnos"}
+            {" · "}
+            {resp||"Todos los responsables"}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={()=>{
+            setMov("TODOS");
+            setVistaReporte(true);
+            window.scrollTo({top:0,behavior:"smooth"});
+          }}
+          style={{
+            border:"1px solid #b9c9d0",
+            background:"#fff",
+            color:"#0b4f75",
+            borderRadius:10,
+            padding:"10px 14px",
+            fontWeight:800,
+            cursor:"pointer",
+            whiteSpace:"nowrap"
+          }}
+        >
+          👁 Vista reporte
+        </button>
+      </div>
+    ):(
+      <div style={{
+        background:"#0b4f75",
+        color:"#fff",
+        borderRadius:12,
+        padding:"10px 14px",
+        display:"grid",
+        gridTemplateColumns:"minmax(260px,1.4fr) repeat(4,minmax(115px,.55fr)) auto",
+        gap:12,
+        alignItems:"center"
+      }}>
+        <div>
+          <div style={{fontSize:11,fontWeight:800,opacity:.85}}>AMS ACOPIO</div>
+          <div style={{fontSize:20,fontWeight:900,lineHeight:1.05}}>RESUMEN DIARIO / GUARDIA</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Fecha</small>
+          <div style={{fontWeight:800}}>{desde===hasta?desde:`${desde} – ${hasta}`}</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Guardia</small>
+          <div style={{fontWeight:800}}>{guardia||"Todas"}</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Turno</small>
+          <div style={{fontWeight:800}}>{turno||"Todos"}</div>
+        </div>
+
+        <div>
+          <small style={{opacity:.82}}>Responsable</small>
+          <div style={{fontWeight:800}}>{resp||"Todos"}</div>
+        </div>
+
+        <button
+          type="button"
+          onClick={()=>setVistaReporte(false)}
+          style={{
+            border:0,
+            background:"#fff3bf",
+            color:"#17333a",
+            borderRadius:9,
+            padding:"9px 12px",
+            fontWeight:900,
+            cursor:"pointer",
+            whiteSpace:"nowrap"
+          }}
+        >
+          👁 Vista normal
+        </button>
+      </div>
+    )}
+
+    {!vistaReporte&&<div style={{
+      ...panel,
+      display:"grid",
+      gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",
+      gap:12
+    }}>
+      <label>
+        Desde
+        <input style={input} type="date" value={desde} onChange={e=>setDesde(e.target.value)}/>
+      </label>
+
+      <label>
+        Hasta
+        <input style={input} type="date" value={hasta} onChange={e=>setHasta(e.target.value)}/>
+      </label>
+
+      <label>
+        Guardia
+        <select style={input} value={guardia} onChange={e=>setGuardia(e.target.value)}>
+          <option value="">Todas</option>
+          <option>A</option>
+          <option>B</option>
+          <option>C</option>
+        </select>
+      </label>
+
+      <label>
+        Turno
+        <select style={input} value={turno} onChange={e=>setTurno(e.target.value)}>
+          <option value="">Todos</option>
+          <option>DÍA</option>
+          <option>NOCHE</option>
+        </select>
+      </label>
+
+      <label>
+        Responsable
+        <select style={input} value={resp} onChange={e=>setResp(e.target.value)}>
+          <option value="">Todos</option>
+          {responsable&&!usuarios.includes(responsable)&&(
+            <option value={responsable}>{responsable}</option>
+          )}
+          {usuarios.map(x=><option key={x} value={x}>{x}</option>)}
+        </select>
+      </label>
+    </div>}
+
+
+    <div style={{
+      display:"grid",
+      gridTemplateColumns:"minmax(310px,.9fr) minmax(520px,1.55fr) minmax(250px,.7fr)",
+      gap:vistaReporte?8:14,
+      alignItems:"stretch",
+      overflowX:"auto"
+    }}>
+      <div style={{
+        ...panel,
+        margin:0,
+        padding:0,
+        overflow:"hidden",
+        border:"1px solid #b8d8cc",
+        height:"100%"
+      }}>
+        <div style={{
+          padding:vistaReporte?"7px 10px":"9px 12px",
+          background:"#eef9f4",
+          color:"#0b5d8d",
+          fontWeight:800,
+          fontSize:vistaReporte?12:13,
+          borderBottom:"1px solid #d7e6e0"
+        }}>
+          👥 Movimiento de personas
+        </div>
+
+        <div style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(3,minmax(90px,1fr))",
+          alignItems:"stretch"
+        }}>
+          {cards.map((c,i)=><div key={c[1]} style={{
+            padding:vistaReporte?"8px 6px":"11px 8px",
+            textAlign:"center",
+            borderRight:i<2?"1px solid #d8e4df":"none"
+          }}>
+            <span style={{fontSize:vistaReporte?16:18}}>{c[0]}</span>
+            <small style={{display:"block",marginTop:2,color:"#45615a"}}>{c[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?22:25,marginTop:2,color:"#173c34"}}>{c[2]}</strong>
+          </div>)}
+        </div>
+      </div>
+
+      <div style={{
+        ...panel,
+        margin:0,
+        padding:0,
+        overflow:"hidden",
+        border:"1px solid #e3c7c4",
+        height:"100%"
+      }}>
+        <div style={{
+          padding:vistaReporte?"7px 10px":"9px 12px",
+          background:"#fff4f3",
+          color:"#c8473d",
+          fontWeight:800,
+          fontSize:vistaReporte?12:13,
+          borderBottom:"1px solid #ead9d7"
+        }}>
+          🛏️ Habitaciones
+        </div>
+
+        <div style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(5,minmax(92px,1fr))",
+          alignItems:"stretch"
+        }}>
+          {[
+            ["🛏️","Disponibles",r.habitaciones.disponibles],
+            ["🏨","Ocupadas",r.habitaciones.ocupadas],
+            ["📅","Reservadas",r.habitaciones.reservadas],
+            ["🧹","Por limpiar",r.habitaciones.porLimpiar],
+            ["🛠️","Fuera servicio",r.habitaciones.fueraServicio]
+          ].map((x,i)=><div key={String(x[1])} style={{
+            padding:vistaReporte?"8px 5px":"11px 6px",
+            textAlign:"center",
+            borderRight:i<4?"1px solid #eadfdd":"none"
+          }}>
+            <span style={{fontSize:vistaReporte?15:17}}>{x[0]}</span>
+            <small style={{display:"block",marginTop:2,color:"#654d4b"}}>{x[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?21:24,marginTop:2,color:"#3c2725"}}>{x[2]}</strong>
+          </div>)}
+        </div>
+      </div>
+
+      <div style={{
+        ...panel,
+        background:"#fff2f2",
+        margin:0,
+        height:"100%",
+        padding:vistaReporte?10:undefined
+      }}>
+        <h3 style={{color:"#c43b34",marginTop:0}}>⚠ Pendientes para la siguiente guardia</h3>
+        <div style={{lineHeight:1.8}}>
+          <b>{r.personasPresentes}</b> persona(s) permanecen
+          <br/>
+          <b>{r.habitaciones.ocupadas}</b> habitación(es) ocupadas
+          <br/>
+          <b>{r.habitaciones.porLimpiar}</b> por limpiar.
+        </div>
+      </div>
+    </div>
+
+    <div style={{
+      display:"grid",
+      gridTemplateColumns:"minmax(0,1.35fr) minmax(0,1fr)",
+      gap:vistaReporte?8:14,
+      alignItems:"stretch"
+    }}>
+      <div style={{...panel,background:"#fff8e8",margin:0,padding:vistaReporte?10:undefined}}>
+        <h3 style={{marginTop:0}}>🍽️ Alimentación</h3>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+          {(["DESAYUNO","ALMUERZO","CENA"] as const).map(c=>{
+            const z=r.alimentacion[c];
+
+            return <div key={c} style={{background:"#fff",padding:10,borderRadius:10}}>
+              <b>{c[0]+c.slice(1).toLowerCase()}</b>
+              <div>Solicitados: <b>{z.solicitados}</b></div>
+              <div>Entregados: <b>{z.entregados}</b></div>
+              <div style={{color:"#c43b34"}}>Pendientes: <b>{z.pendientes}</b></div>
+              <div>Reasignados: <b>{z.reasignados}</b></div>
+            </div>;
+          })}
+        </div>
+      </div>
+
+      <div style={{...panel,background:"#eaf6ff",margin:0,padding:vistaReporte?10:undefined}}>
+        <h3 style={{marginTop:0}}>🥤 Consumos entregados</h3>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+          {[
+            ["💧","Agua",r.agua],
+            ["🥤","Gaseosa",r.gaseosa],
+            ["🍪","Galletas",r.galletas],
+            ["🧻","Papel",r.papel],
+            ["🧴","Shampoo",r.shampoo],
+            ["🧼","Jabón",r.jabon]
+          ].map(x=><div key={String(x[1])}>
+            <span>{x[0]}</span>
+            <small style={{display:"block"}}>{x[1]}</small>
+            <strong style={{fontSize:21}}>{x[2]}</strong>
+          </div>)}
+        </div>
+      </div>
+
+    </div>
+
+    <div style={{...panel,padding:vistaReporte?10:undefined}}>
+      <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+        <h3 style={{margin:vistaReporte?0:undefined}}>Personas del periodo seleccionado</h3>
+        {vistaReporte&&<div style={{fontSize:11,fontWeight:700,color:"#60706d"}}>
+          Todos: {totalPersonas} · Recibidos: {r.personasRecibidas} · Salieron: {r.personasSalieron} · Permanecen: {r.personasPresentes}
+        </div>}
+      </div>
+
+      {!vistaReporte&&<div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+        {([
+          ["TODOS","Todos",totalPersonas],
+          ["RECIBIDOS","Recibidos",r.personasRecibidas],
+          ["SALIERON","Salieron",r.personasSalieron],
+          ["PERMANECEN","Permanecen",r.personasPresentes]
+        ] as const).map(([k,t,n])=><button
+          key={k}
+          type="button"
+          onClick={()=>setMov(k)}
+          style={{
+            border:0,
+            borderRadius:9,
+            padding:"9px 13px",
+            fontWeight:800,
+            cursor:"pointer",
+            background:mov===k?"#1677d2":"#e8eef2",
+            color:mov===k?"#fff":"#18343c"
+          }}
+        >
+          {t} ({n})
+        </button>)}
+      </div>}
+
+      <div style={{overflowX:"auto",marginTop:vistaReporte?7:0}}>
+        <table style={{
+          width:"100%",
+          minWidth:vistaReporte?0:1320,
+          fontSize:vistaReporte?10.5:12,
+          borderCollapse:"collapse",
+          tableLayout:vistaReporte?"fixed":"auto"
+        }}>
+          <thead>
+            <tr>
+              <th style={{textAlign:"left"}}>DNI</th>
+              <th style={{textAlign:"left"}}>Persona</th>
+              <th>Hab.</th>
+              <th>Hora de ingreso</th>
+              <th>Hora de salida</th>
+              <th>Permanencia</th>
+              <th>Zona</th>
+              <th>Desayuno</th>
+              <th>Almuerzo</th>
+              <th>Cena</th>
+              <th style={{textAlign:"left"}}>Consumos / Kits</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {personasFiltradas.map(x=>{
+              const cons=Object.entries(x.consumos||{})
+                .filter(([,v])=>Number(v)>0)
+                .map(([k,v])=>`${etiquetaConsumo(k)} ×${v}`)
+                .join(" · ");
+
+              return <tr key={`${x.idIngreso}-${x.dni}`}>
+                <td style={{padding:vistaReporte?5:8,borderBottom:"1px solid #eee",fontWeight:700}}>
+                  {x.dni||"-"}
+                </td>
+                <td><b>{x.nombre}</b></td>
+                <td style={{textAlign:"center"}}>{x.habitacion||"-"}</td>
+                <td style={{textAlign:"center"}}>{fechaHora(x.fechaIngreso)}</td>
+                <td style={{textAlign:"center"}}>{x.fechaSalida?fechaHora(x.fechaSalida):"—"}</td>
+                <td style={{textAlign:"center",fontWeight:700}}>
+                  {duracionPeriodo(x,hasta)}
+                </td>
+                <td style={{textAlign:"center"}}>{x.zona||"-"}</td>
+                <td style={{textAlign:"center"}}>
+                  <BadgeEstado value={x.alimentacion?.DESAYUNO}/>
+                </td>
+                <td style={{textAlign:"center"}}>
+                  <BadgeEstado value={x.alimentacion?.ALMUERZO}/>
+                </td>
+                <td style={{textAlign:"center"}}>
+                  <BadgeEstado value={x.alimentacion?.CENA}/>
+                </td>
+                <td>{cons||"—"}</td>
+              </tr>;
+            })}
+
+            {!personasFiltradas.length&&(
+              <tr>
+                <td colSpan={11} style={{padding:22,textAlign:"center",color:"#60706d"}}>
+                  No hay personas que coincidan con los filtros seleccionados.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style={{
+      display:"grid",
+      gridTemplateColumns:(r.reasignaciones||[]).length
+        ?"minmax(0,1.35fr) minmax(320px,.75fr)"
+        :"1fr",
+      gap:vistaReporte?8:14,
+      alignItems:"stretch"
+    }}>
+      {(r.reasignaciones||[]).length>0&&(
+        <div style={{...panel,padding:vistaReporte?10:undefined,margin:0}}>
+          <h3 style={{marginTop:0}}>↗ Comidas reasignadas</h3>
+
+          <div style={{overflowX:"auto"}}>
+            <table style={{
+              width:"100%",
+              minWidth:vistaReporte?0:1100,
+              fontSize:vistaReporte?10:12,
+              borderCollapse:"collapse",
+              tableLayout:vistaReporte?"fixed":"auto"
+            }}>
+              <thead>
+                <tr>
+                  <th>Fecha / hora</th>
+                  <th>Servicio</th>
+                  <th>Solicitante original</th>
+                  <th>DNI solicitante</th>
+                  <th>Entregado a</th>
+                  <th>DNI receptor</th>
+                  <th>Usuario</th>
+                  <th>Observación</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {(r.reasignaciones||[]).map((x,i)=><tr key={x.id||`${x.servicio}-${x.dniSolicitante}-${i}`}>
+                  <td style={{padding:vistaReporte?5:7,borderBottom:"1px solid #eee"}}>
+                    {x.fechaHora?fechaHora(x.fechaHora):x.fechaOperativa||"—"}
+                  </td>
+                  <td style={{textAlign:"center"}}>{x.servicio}</td>
+                  <td>{x.original||"—"}</td>
+                  <td style={{textAlign:"center"}}>{x.dniSolicitante||"—"}</td>
+                  <td><b>{x.entregadoA||"—"}</b></td>
+                  <td style={{textAlign:"center"}}>{x.dniDestino||"—"}</td>
+                  <td>{x.usuario||"—"}</td>
+                  <td>{x.observacion||"—"}</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div style={{...panel,padding:vistaReporte?10:undefined,margin:0}}>
+        <h3 style={{marginTop:0}}>📈 Cantidad de personas que ingresaron por fecha</h3>
+        <Grafico data={r.ingresosPorFecha} compact={vistaReporte}/>
+      </div>
+    </div>
+
+    {msg&&<div style={panel}>{msg}</div>}
+  </section>;
+}
