@@ -90,6 +90,9 @@ function etiquetaPermiso(key: string) {
     "GUIAS CARGO": "Cargo - Guías y Tickets",
     "GUIA CARGO": "Cargo - Guías y Tickets",
     "CARGO GUIAS Y TICKETS": "Cargo - Guías y Tickets",
+    "REPORTE DE GUIAS": "Reporte de guías",
+    "GUIAS REPORTE": "Reporte de guías",
+    "GUIA REPORTE": "Reporte de guías",
 
     // RI-RM
     "REGISTRO RI RM": "Acceso al módulo",
@@ -160,6 +163,7 @@ function grupoPermiso(key: string) {
       "INDICADORES",
       "REGISTRO DE SACOS MINEROS",
       "CARGO GUIAS Y TICKETS",
+      "REPORTE DE GUIAS",
     ].includes(k)
   ) {
     return "3. REGISTRO DE GUÍAS";
@@ -240,6 +244,7 @@ const CATALOGO_MODULOS: Array<{ grupo: string; permisos: string[] }> = [
       "Indicadores",
       "Registro de Sacos Mineros",
       "Cargo - Guías y Tickets",
+      "Reporte de guías",
     ],
   },
   {
