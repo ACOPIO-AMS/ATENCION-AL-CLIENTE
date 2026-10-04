@@ -106,6 +106,43 @@ function norm(v: string) {
     .replace(/^_+|_+$/g, "");
 }
 
+const PERMISSION_ALIAS_GROUPS: string[][] = [
+  ["ATENCION_AL_CLIENTE"],
+  ["NUEVO_INGRESO", "ATENCION_NUEVO", "ATENCION_NUEVO_INGRESO"],
+  ["REPORTE_DIARIO", "ATENCION_REPORTE", "ATENCION_REPORTE_DIARIO"],
+  ["POR_REGULARIZAR", "ATENCION_REGULARIZAR", "ATENCION_POR_REGULARIZAR"],
+  ["BUSCAR", "ATENCION_BUSCAR"],
+  ["BD_CLIENTES", "B_CLIENTES", "ATENCION_CLIENTES", "ATENCION_BD_CLIENTES"],
+  ["ESTADIA_SERVICIOS_Y_CONSUMOS", "ATENCION_ESTADIA", "ATENCION_ESTADIA_SERVICIOS_Y_CONSUMOS", "ESTADIA"],
+  ["SALIDA_DE_PROVEEDORES", "ATENCION_SALIDA", "ATENCION_SALIDA_PROVEEDORES", "SALIDA_PROVEEDORES"],
+  ["CONTROL_DE_HABITACIONES", "ATENCION_HABITACIONES", "HABITACIONES"],
+  ["RESUMEN_DIARIO_GUARDIA", "ATENCION_RESUMEN_GUARDIA", "RESUMEN_GUARDIA"],
+
+  ["CARGOS_Y_SALIDAS"],
+  ["REGISTRAR_SALIDA", "CARGOS_REGISTRAR", "SALIDA_REGISTRAR"],
+  ["BUSCAR_SALIDAS", "CARGOS_BUSCAR", "SALIDA_BUSCAR"],
+  ["PENDIENTES_DE_RECEPCION", "CARGOS_RECEPCION"],
+
+  ["REGISTRO_DE_GUIAS"],
+  ["REGISTRAR", "GUIAS_REGISTRAR", "GUIA_REGISTRAR"],
+  ["HISTORIAL_DE_REGISTROS", "GUIAS_HISTORIAL", "GUIA_HISTORIAL"],
+  ["INDICADORES", "GUIAS_INDICADORES", "GUIA_INDICADORES"],
+  ["REGISTRO_DE_SACOS_MINEROS", "GUIAS_SACOS", "GUIA_SACOS"],
+  ["CARGO_GUIAS_Y_TICKETS", "GUIAS_CARGO", "GUIA_CARGO"],
+  ["REPORTE_DE_GUIAS", "GUIAS_REPORTE", "GUIA_REPORTE"],
+
+  ["REGISTRO_RI_RM", "RI_RM"],
+  ["PENDIENTES"],
+  ["NUEVA_SOLICITUD"],
+  ["HISTORIAL_BUSCAR", "MIS_SOLICITUDES"],
+];
+
+function permissionAliases(key: string) {
+  const normalized = norm(key);
+  const group = PERMISSION_ALIAS_GROUPS.find(items => items.includes(normalized));
+  return group || [normalized];
+}
+
 // ======================================================
 // INTERPRETAR VALOR DEL PERMISO
 // ======================================================
@@ -162,9 +199,8 @@ export default function SidebarMenu(p: Props) {
     // Administrador ve todo
     if (p.isAdmin) return true;
 
-    return keys.some(
-      (key) =>
-        normalized[norm(key)] === true
+    return keys.some((key) =>
+      permissionAliases(key).some(alias => normalized[alias] === true)
     );
   };
 
@@ -173,43 +209,53 @@ export default function SidebarMenu(p: Props) {
   // ====================================================
 
   const aNuevo = can(
-    "Nuevo ingreso"
+    "Nuevo ingreso",
+    "ATENCION NUEVO"
   );
 
   const aReporte = can(
-    "Reporte diario"
+    "Reporte diario",
+    "ATENCION REPORTE"
   );
 
   const aRegularizar = can(
-    "Por regularizar"
+    "Por regularizar",
+    "ATENCION REGULARIZAR"
   );
 
   const aBuscar = can(
-    "Buscar"
+    "Buscar",
+    "ATENCION BUSCAR"
   );
 
   const aClientes = can(
     "B CLIENTES",
     "BD CLIENTES",
-    "BD Clientes"
+    "BD Clientes",
+    "ATENCION CLIENTES"
   );
 
   const aEstadia = can(
     "Estadía, Servicios y Consumos",
-    "Estadia, Servicios y Consumos"
+    "Estadia, Servicios y Consumos",
+    "ATENCION ESTADIA"
   );
 
   const aSalidaProveedores = can(
-    "Salida de Proveedores"
+    "Salida de Proveedores",
+    "ATENCION SALIDA",
+    "ATENCION SALIDA PROVEEDORES"
   );
 
   const aHabitaciones = can(
-    "Control de Habitaciones"
+    "Control de Habitaciones",
+    "ATENCION HABITACIONES"
   );
 
   const aResumenGuardia = can(
     "Resumen diario / guardia",
-    "Resumen diario/guardia"
+    "Resumen diario/guardia",
+    "ATENCION RESUMEN GUARDIA"
   );
 
   const mAtencion = can(
@@ -333,7 +379,6 @@ export default function SidebarMenu(p: Props) {
     rModulo ||
     rPendientes ||
     rNueva ||
-    rMis ||
     rHistorial;
 
   // ====================================================
