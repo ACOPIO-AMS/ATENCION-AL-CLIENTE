@@ -418,71 +418,66 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
 
     <div style={{
       display:"grid",
-      gridTemplateColumns:"minmax(310px,.9fr) minmax(520px,1.55fr) minmax(250px,.7fr)",
-      gap:vistaReporte?8:14,
+      gridTemplateColumns:"minmax(0,.9fr) minmax(0,1.45fr) minmax(0,1.2fr) minmax(0,.9fr) minmax(0,.85fr)",
+      gap:vistaReporte?8:12,
       alignItems:"stretch",
       overflowX:"auto"
     }}>
+      {/* MOVIMIENTO DE PERSONAS */}
       <div style={{
         ...panel,
         margin:0,
         padding:0,
         overflow:"hidden",
         border:"1px solid #b8d8cc",
-        height:"100%"
+        minWidth:0
       }}>
         <div style={{
-          padding:vistaReporte?"7px 10px":"9px 12px",
+          padding:vistaReporte?"7px 9px":"8px 10px",
           background:"#eef9f4",
           color:"#0b5d8d",
           fontWeight:800,
-          fontSize:vistaReporte?12:13,
+          fontSize:vistaReporte?11.5:12.5,
           borderBottom:"1px solid #d7e6e0"
         }}>
           👥 Movimiento de personas
         </div>
 
-        <div style={{
-          display:"grid",
-          gridTemplateColumns:"repeat(3,minmax(90px,1fr))",
-          alignItems:"stretch"
-        }}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))"}}>
           {cards.map((c,i)=><div key={c[1]} style={{
-            padding:vistaReporte?"8px 6px":"11px 8px",
+            padding:vistaReporte?"7px 4px":"9px 5px",
             textAlign:"center",
-            borderRight:i<2?"1px solid #d8e4df":"none"
+            borderRight:i<2?"1px solid #d8e4df":"none",
+            minWidth:0
           }}>
-            <span style={{fontSize:vistaReporte?16:18}}>{c[0]}</span>
-            <small style={{display:"block",marginTop:2,color:"#45615a"}}>{c[1]}</small>
-            <strong style={{display:"block",fontSize:vistaReporte?22:25,marginTop:2,color:"#173c34"}}>{c[2]}</strong>
+            <span style={{fontSize:vistaReporte?14:16}}>{c[0]}</span>
+            <small style={{display:"block",marginTop:2,color:"#45615a",fontSize:vistaReporte?9.5:10.5}}>{c[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?20:23,marginTop:2,color:"#173c34"}}>{c[2]}</strong>
           </div>)}
         </div>
       </div>
 
+      {/* HABITACIONES */}
       <div style={{
         ...panel,
         margin:0,
         padding:0,
         overflow:"hidden",
         border:"1px solid #e3c7c4",
-        height:"100%"
+        minWidth:0
       }}>
         <div style={{
-          padding:vistaReporte?"7px 10px":"9px 12px",
+          padding:vistaReporte?"7px 9px":"8px 10px",
           background:"#fff4f3",
           color:"#c8473d",
           fontWeight:800,
-          fontSize:vistaReporte?12:13,
+          fontSize:vistaReporte?11.5:12.5,
           borderBottom:"1px solid #ead9d7"
         }}>
           🛏️ Habitaciones
         </div>
 
-        <div style={{
-          display:"grid",
-          gridTemplateColumns:"repeat(5,minmax(92px,1fr))",
-          alignItems:"stretch"
-        }}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))"}}>
           {[
             ["🛏️","Disponibles",r.habitaciones.disponibles],
             ["🏨","Ocupadas",r.habitaciones.ocupadas],
@@ -490,50 +485,47 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
             ["🧹","Por limpiar",r.habitaciones.porLimpiar],
             ["🛠️","Fuera servicio",r.habitaciones.fueraServicio]
           ].map((x,i)=><div key={String(x[1])} style={{
-            padding:vistaReporte?"8px 5px":"11px 6px",
+            padding:vistaReporte?"7px 2px":"9px 3px",
             textAlign:"center",
-            borderRight:i<4?"1px solid #eadfdd":"none"
+            borderRight:i<4?"1px solid #eadfdd":"none",
+            minWidth:0
           }}>
-            <span style={{fontSize:vistaReporte?15:17}}>{x[0]}</span>
-            <small style={{display:"block",marginTop:2,color:"#654d4b"}}>{x[1]}</small>
-            <strong style={{display:"block",fontSize:vistaReporte?21:24,marginTop:2,color:"#3c2725"}}>{x[2]}</strong>
+            <span style={{fontSize:vistaReporte?13:15}}>{x[0]}</span>
+            <small style={{display:"block",marginTop:2,color:"#654d4b",fontSize:vistaReporte?8.8:9.8,lineHeight:1.15}}>{x[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?19:22,marginTop:2,color:"#3c2725"}}>{x[2]}</strong>
           </div>)}
         </div>
       </div>
 
+      {/* ALIMENTACIÓN */}
       <div style={{
         ...panel,
-        background:"#fff2f2",
+        background:"#fff8e8",
         margin:0,
-        height:"100%",
-        padding:vistaReporte?10:undefined
+        padding:0,
+        overflow:"hidden",
+        minWidth:0
       }}>
-        <h3 style={{color:"#c43b34",marginTop:0}}>⚠ Pendientes para la siguiente guardia</h3>
-        <div style={{lineHeight:1.8}}>
-          <b>{r.personasPresentes}</b> persona(s) permanecen
-          <br/>
-          <b>{r.habitaciones.ocupadas}</b> habitación(es) ocupadas
-          <br/>
-          <b>{r.habitaciones.porLimpiar}</b> por limpiar.
+        <div style={{
+          padding:vistaReporte?"7px 9px":"8px 10px",
+          fontWeight:800,
+          fontSize:vistaReporte?11.5:12.5,
+          borderBottom:"1px solid #eadfbd"
+        }}>
+          🍽️ Alimentación
         </div>
-      </div>
-    </div>
 
-    <div style={{
-      display:"grid",
-      gridTemplateColumns:"minmax(0,1.35fr) minmax(0,1fr)",
-      gap:vistaReporte?8:14,
-      alignItems:"stretch"
-    }}>
-      <div style={{...panel,background:"#fff8e8",margin:0,padding:vistaReporte?10:undefined}}>
-        <h3 style={{marginTop:0}}>🍽️ Alimentación</h3>
-
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
-          {(["DESAYUNO","ALMUERZO","CENA"] as const).map(c=>{
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))"}}>
+          {(["DESAYUNO","ALMUERZO","CENA"] as const).map((c,i)=>{
             const z=r.alimentacion[c];
-
-            return <div key={c} style={{background:"#fff",padding:10,borderRadius:10}}>
-              <b>{c[0]+c.slice(1).toLowerCase()}</b>
+            return <div key={c} style={{
+              padding:vistaReporte?"7px 5px":"9px 6px",
+              borderRight:i<2?"1px solid #eee3c8":"none",
+              minWidth:0,
+              fontSize:vistaReporte?9:10.2,
+              lineHeight:1.45
+            }}>
+              <b style={{display:"block",fontSize:vistaReporte?10:11.5,marginBottom:2}}>{c[0]+c.slice(1).toLowerCase()}</b>
               <div>Solicitados: <b>{z.solicitados}</b></div>
               <div>Entregados: <b>{z.entregados}</b></div>
               <div style={{color:"#c43b34"}}>Pendientes: <b>{z.pendientes}</b></div>
@@ -543,10 +535,25 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         </div>
       </div>
 
-      <div style={{...panel,background:"#eaf6ff",margin:0,padding:vistaReporte?10:undefined}}>
-        <h3 style={{marginTop:0}}>🥤 Consumos entregados</h3>
+      {/* CONSUMOS ENTREGADOS */}
+      <div style={{
+        ...panel,
+        background:"#eaf6ff",
+        margin:0,
+        padding:0,
+        overflow:"hidden",
+        minWidth:0
+      }}>
+        <div style={{
+          padding:vistaReporte?"7px 9px":"8px 10px",
+          fontWeight:800,
+          fontSize:vistaReporte?11.5:12.5,
+          borderBottom:"1px solid #cfe3f2"
+        }}>
+          🥤 Consumos entregados
+        </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:0}}>
           {[
             ["💧","Agua",r.agua],
             ["🥤","Gaseosa",r.gaseosa],
@@ -554,14 +561,48 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
             ["🧻","Papel",r.papel],
             ["🧴","Shampoo",r.shampoo],
             ["🧼","Jabón",r.jabon]
-          ].map(x=><div key={String(x[1])}>
-            <span>{x[0]}</span>
-            <small style={{display:"block"}}>{x[1]}</small>
-            <strong style={{fontSize:21}}>{x[2]}</strong>
+          ].map(x=><div key={String(x[1])} style={{
+            padding:vistaReporte?"5px 3px":"7px 4px",
+            textAlign:"center",
+            minWidth:0
+          }}>
+            <span style={{fontSize:vistaReporte?12:14}}>{x[0]}</span>
+            <small style={{display:"block",fontSize:vistaReporte?8.5:9.5}}>{x[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?17:20,marginTop:1}}>{x[2]}</strong>
           </div>)}
         </div>
       </div>
 
+      {/* PENDIENTES SIGUIENTE GUARDIA */}
+      <div style={{
+        ...panel,
+        background:"#fff2f2",
+        margin:0,
+        padding:0,
+        overflow:"hidden",
+        minWidth:0
+      }}>
+        <div style={{
+          padding:vistaReporte?"7px 9px":"8px 10px",
+          color:"#c43b34",
+          fontWeight:800,
+          fontSize:vistaReporte?11:12,
+          borderBottom:"1px solid #efdddd",
+          lineHeight:1.25
+        }}>
+          ⚠ Pendientes para la siguiente guardia
+        </div>
+
+        <div style={{
+          padding:vistaReporte?"8px 9px":"10px 10px",
+          lineHeight:1.65,
+          fontSize:vistaReporte?9.5:10.5
+        }}>
+          <div><b>{r.personasPresentes}</b> persona(s) permanecen</div>
+          <div><b>{r.habitaciones.ocupadas}</b> habitación(es) ocupadas</div>
+          <div><b>{r.habitaciones.porLimpiar}</b> por limpiar.</div>
+        </div>
+      </div>
     </div>
 
     <div style={{...panel,padding:vistaReporte?10:undefined}}>
