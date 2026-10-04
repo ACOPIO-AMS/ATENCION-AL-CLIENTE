@@ -46,6 +46,33 @@ type AppUser = {
   permissions?: Record<string, boolean | string | number>;
 };
 type CargoRow = { id: number; type: string; code: string; weight: string; destination: string; description: string; reason: string; quantity: string; unit: string; observations: string };
+type RirmNotificationItem = {
+  idItem: string;
+  tipo: string;
+  codigo: string;
+  modalidad?: string;
+  accion: string;
+};
+
+type RirmSolicitudItem = {
+  idItem?: string;
+  tipo?: string;
+  codigo?: string;
+  ppo?: string;
+  modalidad?: string;
+  etapaActual?: string;
+  subestadoActual?: string;
+  subestado?: string;
+  estado?: string;
+  areaOrigenSolicitud?: string;
+};
+
+type RirmSolicitud = {
+  idSolicitud?: string;
+  areaOrigen?: string;
+  items?: RirmSolicitudItem[];
+};
+
 
 const QUEUE_KEY = "acopio_sync_queue_v1";
 const CLIENT_CACHE_KEY = "acopio_client_cache_v1";
@@ -311,6 +338,61 @@ function hasUserPermission(user: AppUser | null, ...keys: string[]) {
   return keys.some(key => normalized[permissionKey(key)] === true);
 }
 
+function normalizeRirmProfile(value?: string) {
+  const raw = String(value || "").trim().toUpperCase();
+  if (raw === "ADMIN" || raw === "ADMINISTRADOR") return "ADMIN";
+  if (raw === "CHALA" || raw.startsWith("OFICINA CHALA")) return "CHALA";
+  if (raw === "LABORATORIO" || raw === "ASISTENTE A4") return "ASISTENTE A4";
+  if (["GUIAS", "GUÍAS", "RESPONSABLE DE GUIAS", "RESPONSABLE DE GUÍAS"].includes(raw)) return "GUIAS";
+  if (["ATENCION", "ATENCIÓN", "ATENCION AL CLIENTE", "ATENCIÓN AL CLIENTE", "RESPONSABLE DE ATENCION AL CLIENTE", "RESPONSABLE DE ATENCIÓN AL CLIENTE"].includes(raw)) return "ATENCION";
+  return raw;
+}
+
+function rirmUpper(value: unknown) {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+function rirmIsFinal(item: RirmSolicitudItem) {
+  const estado = rirmUpper(item.estado);
+  const etapa = rirmUpper(item.etapaActual);
+  const subestado = rirmUpper(item.subestadoActual || item.subestado);
+  return estado === "FINALIZADO" || etapa === "FINALIZADO" || subestado === "FINALIZADO" || subestado === "RECIBIDO";
+}
+
+function rirmNotificationAction(item: RirmSolicitudItem, solicitud: RirmSolicitud, profile: string) {
+  if (rirmIsFinal(item)) return "";
+
+  let etapa = rirmUpper(item.etapaActual);
+  if (etapa === "LABORATORIO") etapa = "ASISTENTE A4";
+
+  const subestado = rirmUpper(item.subestadoActual || item.subestado);
+  const origen = rirmUpper(item.areaOrigenSolicitud || solicitud.areaOrigen) === "LABORATORIO"
+    ? "ASISTENTE A4"
+    : rirmUpper(item.areaOrigenSolicitud || solicitud.areaOrigen);
+  const tipo = rirmUpper(item.tipo);
+  const especialA4 = /^(?:\d+)?(?:ACP|RP|FACP)$/.test(tipo);
+  const admin = profile === "ADMIN";
+
+  if ((profile === "GUIAS" || admin) && etapa === "GUIAS" && subestado === "SOLICITUD CREADA") return "Coordinar";
+  if ((profile === "GUIAS" || admin) && etapa === "GUIAS" && subestado === "COORDINADO") return "Confirmar";
+
+  if ((profile === "ASISTENTE A4" || admin) && etapa === "ASISTENTE A4") {
+    if (origen === "ASISTENTE A4" && especialA4 && subestado === "SOLICITUD CREADA") return "Recepcionar y finalizar";
+    if (["CONFIRMADO", "PENDIENTE DE RECEPCION"].includes(subestado)) return "Recepcionar";
+  }
+
+  if ((profile === "ATENCION" || admin) && etapa === "ATENCION") {
+    if (["EN LABORATORIO", "PENDIENTE DE RECEPCION", "CONFIRMADO"].includes(subestado)) return "Recepcionar";
+    if (subestado === "RECEPCIONADO") return "Enviar";
+  }
+
+  if ((profile === "CHALA" || admin) && etapa === "CHALA" && subestado === "PENDIENTE DE RECIBIDO") {
+    return "Confirmar recepción";
+  }
+
+  return "";
+}
+
 export default function Home() {
   const [activeCase, setActiveCase] = useState(1);
   const [activeView, setActiveView] = useState<View>("registro");
@@ -380,6 +462,9 @@ export default function Home() {
   const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | "admin" | null>("atencion");
   const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias" | "reporte-guias">("registrar");
   const [rirmSection, setRirmSection] = useState<RirmSection>("pendientes");
+  const [rirmNotifications, setRirmNotifications] = useState<RirmNotificationItem[]>([]);
+  const [rirmNotificationsOpen, setRirmNotificationsOpen] = useState(false);
+  const rirmNotificationBoxRef = useRef<HTMLDivElement | null>(null);
   const [adminSection, setAdminSection] = useState<AdminSection>("panel");
   const guiasFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [guiasHtml, setGuiasHtml] = useState<string>("");
@@ -467,6 +552,57 @@ export default function Home() {
     setOpenModule("rirm");
   }
 
+  async function refreshRirmNotifications(user: AppUser | null = currentUser) {
+    if (!user) {
+      setRirmNotifications([]);
+      return;
+    }
+
+    const profile = normalizeRirmProfile(user.role);
+    if (!["CHALA", "GUIAS", "ASISTENTE A4", "ATENCION", "ADMIN"].includes(profile)) {
+      setRirmNotifications([]);
+      return;
+    }
+
+    try {
+      const rirmUser = {
+        user: user.user,
+        usuario: user.user,
+        name: String(user.name || user.user || "").trim().toUpperCase(),
+        nombre: String(user.name || user.user || "").trim().toUpperCase(),
+        responsableSesion: String(user.name || user.user || "").trim().toUpperCase(),
+        role: profile,
+        perfil: profile,
+      };
+
+      const response = await fetch("/api/registro-ri-rm", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ method: "obtenerSolicitudes", args: [rirmUser] }),
+      });
+      const json = await response.json().catch(() => ({ ok: false }));
+      if (!response.ok || !json?.ok || !Array.isArray(json?.data)) return;
+
+      const pending: RirmNotificationItem[] = [];
+      (json.data as RirmSolicitud[]).forEach((solicitud) => {
+        (Array.isArray(solicitud.items) ? solicitud.items : []).forEach((item) => {
+          const accion = rirmNotificationAction(item, solicitud, profile);
+          if (!accion) return;
+          pending.push({
+            idItem: String(item.idItem || ""),
+            tipo: String(item.tipo || ""),
+            codigo: String(item.codigo || item.ppo || ""),
+            modalidad: String(item.modalidad || ""),
+            accion,
+          });
+        });
+      });
+      setRirmNotifications(pending);
+    } catch {
+      // Una falla temporal de red no borra las notificaciones ya cargadas.
+    }
+  }
+
   function openAdminSection(section: AdminSection) {
     const role = String(currentUser?.role || "").toUpperCase();
     if (!["ADMIN", "ADMINISTRADOR"].includes(role)) return;
@@ -494,6 +630,64 @@ export default function Home() {
       setSessionReady(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setRirmNotifications([]);
+      setRirmNotificationsOpen(false);
+      return;
+    }
+
+    void refreshRirmNotifications(currentUser);
+
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshRirmNotifications(currentUser);
+    }, 90_000);
+
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") void refreshRirmNotifications(currentUser);
+    };
+
+    window.addEventListener("focus", refreshVisible);
+    document.addEventListener("visibilitychange", refreshVisible);
+
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshVisible);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
+    // La consulta usa únicamente los datos de sesión actuales.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.user, currentUser?.name, currentUser?.role]);
+
+  useEffect(() => {
+    const onRirmMessage = (event: MessageEvent) => {
+      const data = event.data || {};
+      if (data.type !== "AMS_RIRM_NOTIFICATIONS" || !Array.isArray(data.items)) return;
+      setRirmNotifications(
+        data.items.map((item: Record<string, unknown>) => ({
+          idItem: String(item.idItem || ""),
+          tipo: String(item.tipo || ""),
+          codigo: String(item.codigo || ""),
+          modalidad: String(item.modalidad || ""),
+          accion: String(item.accion || "Pendiente"),
+        }))
+      );
+    };
+    window.addEventListener("message", onRirmMessage);
+    return () => window.removeEventListener("message", onRirmMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!rirmNotificationsOpen) return;
+    const closeOutside = (event: MouseEvent) => {
+      if (!rirmNotificationBoxRef.current?.contains(event.target as Node)) {
+        setRirmNotificationsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", closeOutside);
+    return () => document.removeEventListener("mousedown", closeOutside);
+  }, [rirmNotificationsOpen]);
 
   async function login() {
     const user = loginUser.trim().toUpperCase();
@@ -558,6 +752,8 @@ export default function Home() {
     setLoginUser("");
     setLoginPin("");
     setLoginError("");
+    setRirmNotifications([]);
+    setRirmNotificationsOpen(false);
     setActiveView("registro");
   }
 
@@ -1588,6 +1784,129 @@ ${documentBody}
       <div className={`sidebar-card connection-${connection}`}><span className="status-dot" /><div><strong>{connectionTitle}</strong><small>{queue.length ? `${queue.length} registro(s) por sincronizar` : connection === "online" ? "Lectura y escritura habilitadas" : connection === "outdated" ? "Actualiza la implementación de Apps Script" : connection === "unconfigured" ? "Falta configurar Apps Script" : "Los registros quedarán en este equipo"}</small>{queue.length > 0 && <button className="sidebar-sync" type="button" onClick={() => void syncQueue(true)} disabled={syncing || connection === "unconfigured" || connection === "outdated"}>{syncing ? "Sincronizando…" : "Sincronizar ahora"}</button>}</div></div>
       <div className="user-card"><span>{currentUser.name.split(" ").map(part => part[0]).slice(0,2).join("")}</span><div><strong>{currentUser.name}</strong><small>{currentUser.role}</small><button type="button" onClick={logout} style={{ marginTop: 5, border: 0, background: "transparent", padding: 0, cursor: "pointer", fontSize: 11, fontWeight: 800, textDecoration: "underline" }}>Cerrar sesión</button></div></div>
     </aside>
+
+    <div
+      ref={rirmNotificationBoxRef}
+      style={{ position: "fixed", right: 72, top: 9, zIndex: 5002 }}
+    >
+      <button
+        type="button"
+        title={rirmNotifications.length ? `${rirmNotifications.length} pendiente(s)` : "Sin pendientes"}
+        aria-label={rirmNotifications.length ? `Notificaciones: ${rirmNotifications.length} pendientes` : "Notificaciones"}
+        onClick={() => setRirmNotificationsOpen(open => !open)}
+        style={{
+          position: "relative",
+          width: 38,
+          height: 34,
+          border: rirmNotifications.length ? "1px solid #ef4444" : "1px solid #c7d6d2",
+          borderRadius: 9,
+          background: "#ffffff",
+          color: "#173f3b",
+          display: "grid",
+          placeItems: "center",
+          fontSize: 18,
+          cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(0,0,0,.10)",
+        }}
+      >
+        🔔
+        {rirmNotifications.length > 0 && (
+          <span
+            style={{
+              position: "absolute",
+              right: -7,
+              top: -7,
+              minWidth: 19,
+              height: 19,
+              padding: "0 5px",
+              borderRadius: 999,
+              background: "#dc2626",
+              color: "#ffffff",
+              border: "2px solid #ffffff",
+              fontSize: 10,
+              fontWeight: 900,
+              lineHeight: "15px",
+              textAlign: "center",
+            }}
+          >
+            {rirmNotifications.length > 99 ? "99+" : rirmNotifications.length}
+          </span>
+        )}
+      </button>
+
+      {rirmNotificationsOpen && (
+        <div
+          style={{
+            position: "absolute",
+            right: 0,
+            top: 42,
+            width: "min(360px, calc(100vw - 24px))",
+            maxHeight: 430,
+            overflowY: "auto",
+            border: "1px solid #d8e3df",
+            borderRadius: 12,
+            background: "#ffffff",
+            color: "#173f3b",
+            boxShadow: "0 14px 36px rgba(0,0,0,.18)",
+          }}
+        >
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid #e7efec" }}>
+            <strong style={{ display: "block", fontSize: 13 }}>Pendientes</strong>
+            <span style={{ fontSize: 11, color: "#637a75" }}>
+              {rirmNotifications.length
+                ? `${rirmNotifications.length} acción(es) requieren tu atención`
+                : "No tienes acciones pendientes"}
+            </span>
+          </div>
+
+          {rirmNotifications.length === 0 ? (
+            <div style={{ padding: 18, textAlign: "center", color: "#637a75", fontSize: 12 }}>
+              Todo al día.
+            </div>
+          ) : (
+            rirmNotifications.slice(0, 20).map((item, index) => (
+              <button
+                key={`${item.idItem || item.codigo}-${index}`}
+                type="button"
+                onClick={() => {
+                  setRirmNotificationsOpen(false);
+                  openRirmSection("pendientes");
+                }}
+                style={{
+                  width: "100%",
+                  border: 0,
+                  borderBottom: index < Math.min(rirmNotifications.length, 20) - 1 ? "1px solid #eef3f1" : 0,
+                  background: "#ffffff",
+                  padding: "11px 14px",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                  <strong style={{ fontSize: 12, color: "#173f3b" }}>
+                    {item.tipo || "—"} - {item.codigo || "—"}
+                  </strong>
+                  <span style={{ fontSize: 10, fontWeight: 900, color: "#b45309", background: "#fef3c7", borderRadius: 999, padding: "3px 7px", whiteSpace: "nowrap" }}>
+                    {item.accion}
+                  </span>
+                </span>
+                {item.modalidad && (
+                  <span style={{ display: "block", marginTop: 5, fontSize: 10, color: "#637a75" }}>
+                    {item.modalidad}
+                  </span>
+                )}
+              </button>
+            ))
+          )}
+
+          {rirmNotifications.length > 20 && (
+            <div style={{ padding: "9px 14px", borderTop: "1px solid #eef3f1", color: "#637a75", fontSize: 10 }}>
+              Se muestran los primeros 20 pendientes.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
 
     <button type="button" onClick={logout} title="Cerrar sesión" aria-label="Cerrar sesión"
       style={{ position: "fixed", right: 10, top: 10, zIndex: 5000, border: "1px solid #c7d6d2", borderRadius: 9, background: "#ffffff", color: "#173f3b", padding: "7px 10px", fontSize: 12, fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.10)" }}>
