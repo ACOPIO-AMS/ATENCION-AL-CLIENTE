@@ -90,8 +90,8 @@ function Grafico({data=[],compact=false}:{data?:{fecha:string;cantidad:number}[]
   }
 
   const w=900;
-  const h=compact?150:230;
-  const pad=compact?30:38;
+  const h=compact?132:230;
+  const pad=compact?26:38;
   const max=Math.max(1,...data.map(x=>x.cantidad));
   const pts=data.map((x,i)=>{
     const cx=data.length===1?w/2:pad+i*(w-pad*2)/(data.length-1);
@@ -103,7 +103,7 @@ function Grafico({data=[],compact=false}:{data?:{fecha:string;cantidad:number}[]
     <svg viewBox={`0 0 ${w} ${h}`} style={{
       width:"100%",
       minWidth:compact?360:620,
-      height:compact?155:240
+      height:compact?138:240
     }}>
       <line x1={pad} y1={h-pad} x2={w-pad} y2={h-pad} stroke="currentColor" opacity=".25"/>
       <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="3"/>
@@ -114,8 +114,8 @@ function Grafico({data=[],compact=false}:{data?:{fecha:string;cantidad:number}[]
         const etiqueta=m?`${m[3]}/${m[2]}`:x.fecha;
         return <g key={x.fecha}>
           <circle cx={cx} cy={cy} r="5" fill="currentColor"/>
-          <text x={cx} y={cy-10} textAnchor="middle" fontSize="12">{x.cantidad}</text>
-          <text x={cx} y={h-12} textAnchor="middle" fontSize="11">{etiqueta}</text>
+          <text x={cx} y={cy-9} textAnchor="middle" fontSize={compact?13:12}>{x.cantidad}</text>
+          <text x={cx} y={h-9} textAnchor="middle" fontSize={compact?12:11}>{etiqueta}</text>
         </g>;
       })}
     </svg>
@@ -270,9 +270,9 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
   return <section style={{
     ...page,
     ...(vistaReporte?{
-      gap:10,
-      padding:"10px 12px",
-      fontSize:12
+      gap:5,
+      padding:"6px 8px",
+      fontSize:12.5
     }:{})
   }}>
     {load&&<Loader text={load}/>}
@@ -316,10 +316,10 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         background:"#0b4f75",
         color:"#fff",
         borderRadius:12,
-        padding:"10px 14px",
+        padding:"7px 10px",
         display:"grid",
-        gridTemplateColumns:"minmax(260px,1.4fr) repeat(3,minmax(115px,.55fr)) auto",
-        gap:12,
+        gridTemplateColumns:"minmax(220px,1.2fr) repeat(3,minmax(95px,.48fr)) auto",
+        gap:6,
         alignItems:"center"
       }}>
         <div>
@@ -328,18 +328,18 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         </div>
 
         <div>
-          <small style={{opacity:.82}}>Fecha</small>
-          <div style={{fontWeight:800}}>{desde===hasta?desde:`${desde} – ${hasta}`}</div>
+          <small style={{opacity:.82,fontSize:10.5}}>Fecha</small>
+          <div style={{fontWeight:800,fontSize:12.5}}>{desde===hasta?desde:`${desde} – ${hasta}`}</div>
         </div>
 
         <div>
-          <small style={{opacity:.82}}>Guardia</small>
-          <div style={{fontWeight:800}}>{guardia||"Todas"}</div>
+          <small style={{opacity:.82,fontSize:10.5}}>Guardia</small>
+          <div style={{fontWeight:800,fontSize:12.5}}>{guardia||"Todas"}</div>
         </div>
 
         <div>
-          <small style={{opacity:.82}}>Turno</small>
-          <div style={{fontWeight:800}}>{turno||"Todos"}</div>
+          <small style={{opacity:.82,fontSize:10.5}}>Turno</small>
+          <div style={{fontWeight:800,fontSize:12.5}}>{turno||"Todos"}</div>
         </div>
 
         <button
@@ -418,7 +418,7 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
     <div style={{
       display:"grid",
       gridTemplateColumns:"minmax(0,.9fr) minmax(0,1.45fr) minmax(0,1.2fr) minmax(0,.9fr) minmax(0,.85fr)",
-      gap:vistaReporte?8:12,
+      gap:vistaReporte?5:12,
       alignItems:"stretch",
       overflowX:"auto"
     }}>
@@ -432,11 +432,11 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         minWidth:0
       }}>
         <div style={{
-          padding:vistaReporte?"7px 9px":"8px 10px",
+          padding:vistaReporte?"5px 7px":"8px 10px",
           background:"#eef9f4",
           color:"#0b5d8d",
           fontWeight:800,
-          fontSize:vistaReporte?11.5:12.5,
+          fontSize:vistaReporte?12.5:12.5,
           borderBottom:"1px solid #d7e6e0"
         }}>
           👥 Movimiento de personas
@@ -444,14 +444,14 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))"}}>
           {cards.map((c,i)=><div key={c[1]} style={{
-            padding:vistaReporte?"7px 4px":"9px 5px",
+            padding:vistaReporte?"5px 3px":"9px 5px",
             textAlign:"center",
             borderRight:i<2?"1px solid #d8e4df":"none",
             minWidth:0
           }}>
-            <span style={{fontSize:vistaReporte?14:16}}>{c[0]}</span>
-            <small style={{display:"block",marginTop:2,color:"#45615a",fontSize:vistaReporte?9.5:10.5}}>{c[1]}</small>
-            <strong style={{display:"block",fontSize:vistaReporte?20:23,marginTop:2,color:"#173c34"}}>{c[2]}</strong>
+            <span style={{fontSize:vistaReporte?15:16}}>{c[0]}</span>
+            <small style={{display:"block",marginTop:1,color:"#45615a",fontSize:vistaReporte?10.5:10.5}}>{c[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?22:23,marginTop:1,color:"#173c34"}}>{c[2]}</strong>
           </div>)}
         </div>
       </div>
@@ -466,11 +466,11 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         minWidth:0
       }}>
         <div style={{
-          padding:vistaReporte?"7px 9px":"8px 10px",
+          padding:vistaReporte?"5px 7px":"8px 10px",
           background:"#fff4f3",
           color:"#c8473d",
           fontWeight:800,
-          fontSize:vistaReporte?11.5:12.5,
+          fontSize:vistaReporte?12.5:12.5,
           borderBottom:"1px solid #ead9d7"
         }}>
           🛏️ Habitaciones
@@ -484,14 +484,14 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
             ["🧹","Por limpiar",r.habitaciones.porLimpiar],
             ["🛠️","Fuera servicio",r.habitaciones.fueraServicio]
           ].map((x,i)=><div key={String(x[1])} style={{
-            padding:vistaReporte?"7px 2px":"9px 3px",
+            padding:vistaReporte?"5px 2px":"9px 3px",
             textAlign:"center",
             borderRight:i<4?"1px solid #eadfdd":"none",
             minWidth:0
           }}>
-            <span style={{fontSize:vistaReporte?13:15}}>{x[0]}</span>
-            <small style={{display:"block",marginTop:2,color:"#654d4b",fontSize:vistaReporte?8.8:9.8,lineHeight:1.15}}>{x[1]}</small>
-            <strong style={{display:"block",fontSize:vistaReporte?19:22,marginTop:2,color:"#3c2725"}}>{x[2]}</strong>
+            <span style={{fontSize:vistaReporte?14:15}}>{x[0]}</span>
+            <small style={{display:"block",marginTop:1,color:"#654d4b",fontSize:vistaReporte?9.5:9.8,lineHeight:1.1}}>{x[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?21:22,marginTop:1,color:"#3c2725"}}>{x[2]}</strong>
           </div>)}
         </div>
       </div>
@@ -506,9 +506,9 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         minWidth:0
       }}>
         <div style={{
-          padding:vistaReporte?"7px 9px":"8px 10px",
+          padding:vistaReporte?"5px 7px":"8px 10px",
           fontWeight:800,
-          fontSize:vistaReporte?11.5:12.5,
+          fontSize:vistaReporte?12.5:12.5,
           borderBottom:"1px solid #eadfbd"
         }}>
           🍽️ Alimentación
@@ -518,13 +518,13 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
           {(["DESAYUNO","ALMUERZO","CENA"] as const).map((c,i)=>{
             const z=r.alimentacion[c];
             return <div key={c} style={{
-              padding:vistaReporte?"7px 5px":"9px 6px",
+              padding:vistaReporte?"5px 4px":"9px 6px",
               borderRight:i<2?"1px solid #eee3c8":"none",
               minWidth:0,
-              fontSize:vistaReporte?9:10.2,
-              lineHeight:1.45
+              fontSize:vistaReporte?10.2:10.2,
+              lineHeight:vistaReporte?1.28:1.45
             }}>
-              <b style={{display:"block",fontSize:vistaReporte?10:11.5,marginBottom:2}}>{c[0]+c.slice(1).toLowerCase()}</b>
+              <b style={{display:"block",fontSize:vistaReporte?11.2:11.5,marginBottom:1}}>{c[0]+c.slice(1).toLowerCase()}</b>
               <div>Solicitados: <b>{z.solicitados}</b></div>
               <div>Entregados: <b>{z.entregados}</b></div>
               <div style={{color:"#c43b34"}}>Pendientes: <b>{z.pendientes}</b></div>
@@ -544,9 +544,9 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         minWidth:0
       }}>
         <div style={{
-          padding:vistaReporte?"7px 9px":"8px 10px",
+          padding:vistaReporte?"5px 7px":"8px 10px",
           fontWeight:800,
-          fontSize:vistaReporte?11.5:12.5,
+          fontSize:vistaReporte?12.5:12.5,
           borderBottom:"1px solid #cfe3f2"
         }}>
           🥤 Consumos entregados
@@ -561,13 +561,13 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
             ["🧴","Shampoo",r.shampoo],
             ["🧼","Jabón",r.jabon]
           ].map(x=><div key={String(x[1])} style={{
-            padding:vistaReporte?"5px 3px":"7px 4px",
+            padding:vistaReporte?"4px 3px":"7px 4px",
             textAlign:"center",
             minWidth:0
           }}>
-            <span style={{fontSize:vistaReporte?12:14}}>{x[0]}</span>
-            <small style={{display:"block",fontSize:vistaReporte?8.5:9.5}}>{x[1]}</small>
-            <strong style={{display:"block",fontSize:vistaReporte?17:20,marginTop:1}}>{x[2]}</strong>
+            <span style={{fontSize:vistaReporte?13:14}}>{x[0]}</span>
+            <small style={{display:"block",fontSize:vistaReporte?9.5:9.5,lineHeight:1.05}}>{x[1]}</small>
+            <strong style={{display:"block",fontSize:vistaReporte?19:20,marginTop:0}}>{x[2]}</strong>
           </div>)}
         </div>
       </div>
@@ -582,10 +582,10 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         minWidth:0
       }}>
         <div style={{
-          padding:vistaReporte?"7px 9px":"8px 10px",
+          padding:vistaReporte?"5px 7px":"8px 10px",
           color:"#c43b34",
           fontWeight:800,
-          fontSize:vistaReporte?11:12,
+          fontSize:vistaReporte?12.2:12,
           borderBottom:"1px solid #efdddd",
           lineHeight:1.25
         }}>
@@ -593,9 +593,9 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         </div>
 
         <div style={{
-          padding:vistaReporte?"8px 9px":"10px 10px",
-          lineHeight:1.65,
-          fontSize:vistaReporte?9.5:10.5
+          padding:vistaReporte?"5px 7px":"10px 10px",
+          lineHeight:vistaReporte?1.35:1.65,
+          fontSize:vistaReporte?10.5:10.5
         }}>
           <div><b>{r.personasPresentes}</b> persona(s) permanecen</div>
           <div><b>{r.habitaciones.ocupadas}</b> habitación(es) ocupadas</div>
@@ -604,10 +604,10 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
       </div>
     </div>
 
-    <div style={{...panel,padding:vistaReporte?10:undefined}}>
+    <div style={{...panel,padding:vistaReporte?7:undefined}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap"}}>
-        <h3 style={{margin:vistaReporte?0:undefined}}>Personas del periodo seleccionado</h3>
-        {vistaReporte&&<div style={{fontSize:11,fontWeight:700,color:"#60706d"}}>
+        <h3 style={{margin:vistaReporte?0:undefined,fontSize:vistaReporte?13.5:undefined}}>Personas del periodo seleccionado</h3>
+        {vistaReporte&&<div style={{fontSize:10.8,fontWeight:700,color:"#60706d"}}>
           Todos: {totalPersonas} · Recibidos: {r.personasRecibidas} · Salieron: {r.personasSalieron} · Permanecen: {r.personasPresentes}
         </div>}
       </div>
@@ -636,13 +636,14 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         </button>)}
       </div>}
 
-      <div style={{overflowX:"auto",marginTop:vistaReporte?7:0}}>
+      <div style={{overflowX:"auto",marginTop:vistaReporte?4:0}}>
         <table style={{
           width:"100%",
           minWidth:vistaReporte?0:1320,
-          fontSize:vistaReporte?10.5:12,
+          fontSize:vistaReporte?11.2:12,
           borderCollapse:"collapse",
-          tableLayout:vistaReporte?"fixed":"auto"
+          tableLayout:"auto",
+          lineHeight:vistaReporte?1.2:undefined
         }}>
           <thead>
             <tr>
@@ -668,7 +669,7 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
                 .join(" · ");
 
               return <tr key={`${x.idIngreso}-${x.dni}`}>
-                <td style={{padding:vistaReporte?5:8,borderBottom:"1px solid #eee",fontWeight:700}}>
+                <td style={{padding:vistaReporte?4:8,borderBottom:"1px solid #eee",fontWeight:700}}>
                   {x.dni||"-"}
                 </td>
                 <td><b>{x.nombre}</b></td>
@@ -713,16 +714,17 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
       alignItems:"stretch"
     }}>
       {(r.reasignaciones||[]).length>0&&(
-        <div style={{...panel,padding:vistaReporte?10:undefined,margin:0}}>
+        <div style={{...panel,padding:vistaReporte?7:undefined,margin:0}}>
           <h3 style={{marginTop:0}}>↗ Comidas reasignadas</h3>
 
           <div style={{overflowX:"auto"}}>
             <table style={{
               width:"100%",
               minWidth:vistaReporte?0:980,
-              fontSize:vistaReporte?10:12,
+              fontSize:vistaReporte?11.2:12,
               borderCollapse:"collapse",
-              tableLayout:vistaReporte?"fixed":"auto"
+              tableLayout:"auto",
+              lineHeight:vistaReporte?1.2:undefined
             }}>
               <thead>
                 <tr>
@@ -738,7 +740,7 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
 
               <tbody>
                 {(r.reasignaciones||[]).map((x,i)=><tr key={x.id||`${x.servicio}-${x.dniSolicitante}-${i}`}>
-                  <td style={{padding:vistaReporte?5:7,borderBottom:"1px solid #eee"}}>
+                  <td style={{padding:vistaReporte?4:7,borderBottom:"1px solid #eee"}}>
                     {x.fechaHora?fechaHora(x.fechaHora):x.fechaOperativa||"—"}
                   </td>
                   <td style={{textAlign:"center"}}>{x.servicio}</td>
@@ -754,7 +756,7 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         </div>
       )}
 
-      <div style={{...panel,padding:vistaReporte?10:undefined,margin:0}}>
+      <div style={{...panel,padding:vistaReporte?7:undefined,margin:0}}>
         <h3 style={{marginTop:0}}>📈 Cantidad de personas que ingresaron por fecha</h3>
         <Grafico data={r.ingresosPorFecha} compact={vistaReporte}/>
       </div>
