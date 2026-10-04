@@ -38,6 +38,11 @@ type ReporteData = {
   guardia?: string;
   guardiaDesde?: string;
   guardiaHasta?: string;
+  guardiaAnuladas?: string;
+  guardiaAnuladasDesde?: string;
+  guardiaAnuladasHasta?: string;
+  guardiaAnuladasFechaDesde?: string;
+  guardiaAnuladasFechaHasta?: string;
   totales?: Partial<Totales>;
   registros?: ReporteFila[];
   resumen?: string[];
@@ -171,7 +176,12 @@ export default function ReporteGuias() {
     );
   }, [filas, buscar]);
 
-  const guardiaTexto = [reporte.guardia, reporte.guardiaDesde && reporte.guardiaHasta ? `${reporte.guardiaDesde} – ${reporte.guardiaHasta}` : ""]
+  const guardiaAnuladasTexto = [
+    reporte.guardiaAnuladas || reporte.guardia,
+    (reporte.guardiaAnuladasDesde || reporte.guardiaDesde) && (reporte.guardiaAnuladasHasta || reporte.guardiaHasta)
+      ? `${reporte.guardiaAnuladasDesde || reporte.guardiaDesde} – ${reporte.guardiaAnuladasHasta || reporte.guardiaHasta}`
+      : "",
+  ]
     .filter(Boolean)
     .join(" · ");
 
@@ -275,17 +285,17 @@ export default function ReporteGuias() {
         </div>
 
         <div className="rg-card">
-          <div className="rg-card-title red">✚ &nbsp;Guías anuladas (solo de la guardia)</div>
+          <div className="rg-card-title red">✚ &nbsp;Guías anuladas {guardiaAnuladasTexto ? `(última guardia: ${guardiaAnuladasTexto})` : "(última guardia cerrada)"}</div>
           <div className="rg-anulados"><div><small>Total anuladas</small><strong>{totales.anulado}</strong></div></div>
         </div>
       </div>
 
       <div className={cargando ? "rg-card rg-list rg-loading" : "rg-card rg-list"}>
         <div className="rg-list-head">
-          <div className="rg-list-title">▤ &nbsp;Listado de guías de la guardia</div>
+          <div className="rg-list-title">▤ &nbsp;Listado de guías del día</div>
           <div className="rg-list-tools">
             <div className="rg-list-meta">
-              Total registros: <b>{filas.length}</b>{guardiaTexto ? ` · ${guardiaTexto}` : ""}
+              Total registros: <b>{filas.length}</b> · Reporte operativo
             </div>
             <input
               className="rg-search"
