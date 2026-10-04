@@ -314,10 +314,47 @@ function permissionKey(value: string) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 }
 
+const PERMISSION_ALIAS_GROUPS: string[][] = [
+  ["ATENCION_AL_CLIENTE"],
+  ["NUEVO_INGRESO", "ATENCION_NUEVO", "ATENCION_NUEVO_INGRESO"],
+  ["REPORTE_DIARIO", "ATENCION_REPORTE", "ATENCION_REPORTE_DIARIO"],
+  ["POR_REGULARIZAR", "ATENCION_REGULARIZAR", "ATENCION_POR_REGULARIZAR"],
+  ["BUSCAR", "ATENCION_BUSCAR"],
+  ["BD_CLIENTES", "B_CLIENTES", "ATENCION_CLIENTES", "ATENCION_BD_CLIENTES"],
+  ["ESTADIA_SERVICIOS_Y_CONSUMOS", "ATENCION_ESTADIA", "ATENCION_ESTADIA_SERVICIOS_Y_CONSUMOS", "ESTADIA"],
+  ["SALIDA_DE_PROVEEDORES", "ATENCION_SALIDA", "ATENCION_SALIDA_PROVEEDORES", "SALIDA_PROVEEDORES"],
+  ["CONTROL_DE_HABITACIONES", "ATENCION_HABITACIONES", "HABITACIONES"],
+  ["RESUMEN_DIARIO_GUARDIA", "ATENCION_RESUMEN_GUARDIA", "RESUMEN_GUARDIA"],
+
+  ["CARGOS_Y_SALIDAS"],
+  ["REGISTRAR_SALIDA", "CARGOS_REGISTRAR", "SALIDA_REGISTRAR"],
+  ["BUSCAR_SALIDAS", "CARGOS_BUSCAR", "SALIDA_BUSCAR"],
+  ["PENDIENTES_DE_RECEPCION", "CARGOS_RECEPCION"],
+
+  ["REGISTRO_DE_GUIAS"],
+  ["REGISTRAR", "GUIAS_REGISTRAR", "GUIA_REGISTRAR"],
+  ["HISTORIAL_DE_REGISTROS", "GUIAS_HISTORIAL", "GUIA_HISTORIAL"],
+  ["INDICADORES", "GUIAS_INDICADORES", "GUIA_INDICADORES"],
+  ["REGISTRO_DE_SACOS_MINEROS", "GUIAS_SACOS", "GUIA_SACOS"],
+  ["CARGO_GUIAS_Y_TICKETS", "GUIAS_CARGO", "GUIA_CARGO"],
+  ["REPORTE_DE_GUIAS", "GUIAS_REPORTE", "GUIA_REPORTE"],
+
+  ["REGISTRO_RI_RM", "RI_RM"],
+  ["PENDIENTES"],
+  ["NUEVA_SOLICITUD"],
+  ["HISTORIAL_BUSCAR", "MIS_SOLICITUDES"],
+];
+
+function permissionAliases(key: string) {
+  const normalized = permissionKey(key);
+  const group = PERMISSION_ALIAS_GROUPS.find(items => items.includes(normalized));
+  return group || [normalized];
+}
+
 function permissionAllowed(value: unknown) {
   if (value === true || value === 1) return true;
   const normalized = String(value ?? "").trim().toUpperCase();
-  return normalized === "SI" || normalized === "SÍ" || normalized === "TRUE" || normalized === "1";
+  return normalized === "SI" || normalized === "SÍ" || normalized === "TRUE" || normalized === "1" || normalized === "X";
 }
 
 function normalizePermissions(value: unknown): Record<string, boolean> {
@@ -331,11 +368,15 @@ function hasUserPermission(user: AppUser | null, ...keys: string[]) {
   if (!user) return false;
   const role = String(user.role || "").toUpperCase();
   if (["ADMIN", "ADMINISTRADOR"].includes(role)) return true;
+
   const normalized: Record<string, boolean> = {};
   Object.entries(user.permissions || {}).forEach(([key, value]) => {
     normalized[permissionKey(key)] = permissionAllowed(value);
   });
-  return keys.some(key => normalized[permissionKey(key)] === true);
+
+  return keys.some(key =>
+    permissionAliases(key).some(alias => normalized[alias] === true)
+  );
 }
 
 function normalizeRirmProfile(value?: string) {
@@ -470,54 +511,75 @@ export default function Home() {
   const [guiasHtml, setGuiasHtml] = useState<string>("");
 
   function openFirstAuthorized(user: AppUser) {
-    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Nuevo ingreso")) {
+    // Cada submódulo respeta su propio permiso, aunque el encabezado del módulo
+    // esté guardado con una clave antigua o no esté marcado.
+    if (hasUserPermission(user, "Nuevo ingreso")) {
       setActiveView("registro"); setOpenModule("atencion"); return;
     }
-    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Reporte diario")) {
+    if (hasUserPermission(user, "Reporte diario")) {
       setActiveView("hoy"); setOpenModule("atencion"); void loadToday(); return;
     }
-    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Por regularizar")) {
+    if (hasUserPermission(user, "Por regularizar")) {
       setActiveView("pendientes"); setOpenModule("atencion"); void loadPending(); return;
     }
-    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "Buscar")) {
+    if (hasUserPermission(user, "Buscar")) {
       setActiveView("buscar"); setOpenModule("atencion"); return;
     }
-    if (hasUserPermission(user, "ATENCIÓN AL CLIENTE") && hasUserPermission(user, "BD Clientes")) {
+    if (hasUserPermission(user, "BD Clientes")) {
       setActiveView("personas"); setOpenModule("atencion"); void loadClients(); return;
     }
-    if (hasUserPermission(user, "CARGOS Y SALIDAS") && hasUserPermission(user, "Registrar salida")) {
+    if (hasUserPermission(user, "Estadía, Servicios y Consumos")) {
+      setActiveView("estadia"); setOpenModule("atencion"); return;
+    }
+    if (hasUserPermission(user, "Salida de Proveedores")) {
+      setActiveView("salidaProveedores"); setOpenModule("atencion"); return;
+    }
+    if (hasUserPermission(user, "Control de Habitaciones")) {
+      setActiveView("habitaciones"); setOpenModule("atencion"); return;
+    }
+    if (hasUserPermission(user, "Resumen diario / guardia")) {
+      setActiveView("resumenGuardia"); setOpenModule("atencion"); return;
+    }
+
+    if (hasUserPermission(user, "Registrar salida")) {
       setActiveView("cargos"); setOpenModule("cargos"); return;
     }
-    if (hasUserPermission(user, "CARGOS Y SALIDAS") && hasUserPermission(user, "Buscar salidas")) {
+    if (hasUserPermission(user, "Buscar salidas")) {
       setActiveView("buscarSalidas"); setOpenModule("cargos"); return;
     }
-    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Registrar")) {
+    if (hasUserPermission(user, "Pendientes de recepción")) {
+      setActiveView("recepcionCargos"); setOpenModule("cargos"); void loadCargoReceipts(); return;
+    }
+
+    if (hasUserPermission(user, "Registrar")) {
       setGuiasSection("registrar"); setActiveView("guias"); setOpenModule("guias"); return;
     }
-    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Historial de registros")) {
+    if (hasUserPermission(user, "Historial de registros")) {
       setGuiasSection("historial"); setActiveView("guias"); setOpenModule("guias"); return;
     }
-    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Indicadores")) {
+    if (hasUserPermission(user, "Indicadores")) {
       setGuiasSection("indicadores"); setActiveView("guias"); setOpenModule("guias"); return;
     }
-    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Registro de Sacos Mineros")) {
+    if (hasUserPermission(user, "Registro de Sacos Mineros")) {
       setGuiasSection("sacos"); setActiveView("guias"); setOpenModule("guias"); return;
     }
-    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Reporte de guías")) {
+    if (hasUserPermission(user, "Cargo - Guías y Tickets")) {
+      setGuiasSection("cargo-guias"); setActiveView("guias"); setOpenModule("guias"); return;
+    }
+    if (hasUserPermission(user, "Reporte de guías")) {
       setGuiasSection("reporte-guias"); setActiveView("guias"); setOpenModule("guias"); return;
     }
-    if (hasUserPermission(user, "REGISTRO RI-RM") && hasUserPermission(user, "Pendientes")) {
+
+    if (hasUserPermission(user, "Pendientes")) {
       setRirmSection("pendientes"); setActiveView("rirm"); setOpenModule("rirm"); return;
     }
-    if (hasUserPermission(user, "REGISTRO RI-RM") && hasUserPermission(user, "Nueva solicitud")) {
+    if (hasUserPermission(user, "Nueva solicitud")) {
       setRirmSection("nueva-solicitud"); setActiveView("rirm"); setOpenModule("rirm"); return;
     }
-    if (
-      hasUserPermission(user, "REGISTRO RI-RM") &&
-      (hasUserPermission(user, "Historial / Buscar") || hasUserPermission(user, "Mis solicitudes"))
-    ) {
+    if (hasUserPermission(user, "Historial / Buscar", "Mis solicitudes")) {
       setRirmSection("historial-buscar"); setActiveView("rirm"); setOpenModule("rirm"); return;
     }
+
     if (["ADMIN", "ADMINISTRADOR"].includes(String(user.role || "").toUpperCase())) {
       setAdminSection("panel"); setActiveView("admin"); setOpenModule("admin"); return;
     }
@@ -612,23 +674,53 @@ export default function Home() {
   }
 
   useEffect(() => {
-    try {
-      const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
-      if (saved?.user && saved?.name && saved?.role && saved.permissions) {
-        const restored: AppUser = { ...saved, permissions: normalizePermissions(saved.permissions) };
+    let active = true;
+
+    async function restoreSession() {
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
+        if (!(saved?.user && saved?.name && saved?.role && saved.permissions)) {
+          if (saved) window.localStorage.removeItem(SESSION_KEY);
+          return;
+        }
+
+        let restored: AppUser = { ...saved, permissions: normalizePermissions(saved.permissions) };
+
+        // Refresca permisos desde USUARIOS al volver a abrir/recargar la app.
+        // Si no hay conexión, conserva temporalmente la sesión guardada.
+        try {
+          const bootstrap = await sheetsApi<{
+            usuario?: { user?: string; name?: string; role?: string; active?: boolean };
+            permisos?: Record<string, boolean | string | number>;
+            permissions?: Record<string, boolean | string | number>;
+          }>("bootstrap", { user: saved.user, usuario: saved.user });
+
+          const bootstrapUser = bootstrap?.usuario || {};
+          restored = {
+            user: String(bootstrapUser.user || saved.user),
+            name: String(bootstrapUser.name || saved.name),
+            role: String(bootstrapUser.role || saved.role),
+            permissions: normalizePermissions(bootstrap?.permissions ?? bootstrap?.permisos ?? saved.permissions),
+          };
+        } catch {
+          // Mantiene la sesión anterior si la red está temporalmente limitada.
+        }
+
+        if (!active) return;
         window.localStorage.setItem(SESSION_KEY, JSON.stringify(restored));
         window.localStorage.setItem("usuario", restored.user);
         setCurrentUser(restored);
         setEvent(current => ({ ...current, responsible: restored.name }));
         openFirstAuthorized(restored);
-      } else if (saved) {
+      } catch {
         window.localStorage.removeItem(SESSION_KEY);
+      } finally {
+        if (active) setSessionReady(true);
       }
-    } catch {
-      window.localStorage.removeItem(SESSION_KEY);
-    } finally {
-      setSessionReady(true);
     }
+
+    void restoreSession();
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
