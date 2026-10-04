@@ -94,7 +94,7 @@ function Grafico({data=[],compact=false}:{data?:{fecha:string;cantidad:number}[]
   const pad=compact?30:38;
   const max=Math.max(1,...data.map(x=>x.cantidad));
   const pts=data.map((x,i)=>{
-    const cx=pad+(data.length===1?0:i*(w-pad*2)/(data.length-1));
+    const cx=data.length===1?w/2:pad+i*(w-pad*2)/(data.length-1);
     const cy=h-pad-x.cantidad*(h-pad*2)/max;
     return `${cx},${cy}`;
   }).join(" ");
@@ -108,12 +108,14 @@ function Grafico({data=[],compact=false}:{data?:{fecha:string;cantidad:number}[]
       <line x1={pad} y1={h-pad} x2={w-pad} y2={h-pad} stroke="currentColor" opacity=".25"/>
       <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="3"/>
       {data.map((x,i)=>{
-        const cx=pad+(data.length===1?0:i*(w-pad*2)/(data.length-1));
+        const cx=data.length===1?w/2:pad+i*(w-pad*2)/(data.length-1);
         const cy=h-pad-x.cantidad*(h-pad*2)/max;
+        const m=String(x.fecha||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const etiqueta=m?`${m[3]}/${m[2]}`:x.fecha;
         return <g key={x.fecha}>
           <circle cx={cx} cy={cy} r="5" fill="currentColor"/>
           <text x={cx} y={cy-10} textAnchor="middle" fontSize="12">{x.cantidad}</text>
-          <text x={cx} y={h-12} textAnchor="middle" fontSize="11">{x.fecha.slice(5)}</text>
+          <text x={cx} y={h-12} textAnchor="middle" fontSize="11">{etiqueta}</text>
         </g>;
       })}
     </svg>
@@ -178,30 +180,29 @@ function BadgeEstado({value}:{value?:string}){
   </span>;
 }
 
-export default function ResumenGuardia({responsable}:{responsable:string}){
-  const hoy=new Date().toLocaleDateString("en-CA",{timeZone:"America/Lima"});
+export default function ResumenGuardia({responsable:_responsable}:{responsable:string}){
+  const ahora=new Date();
+  const horaLima=Number(new Intl.DateTimeFormat("en-US",{
+    timeZone:"America/Lima",
+    hour:"2-digit",
+    hourCycle:"h23"
+  }).format(ahora));
+  const fechaReporteActual=horaLima>=19
+    ?new Date(ahora.getTime()+24*60*60*1000)
+    :ahora;
+  const hoy=fechaReporteActual.toLocaleDateString("en-CA",{timeZone:"America/Lima"});
 
   const[r,setR]=useState<Resumen|null>(null);
   const[desde,setDesde]=useState(hoy);
   const[hasta,setHasta]=useState(hoy);
   const[guardia,setGuardia]=useState("");
   const[turno,setTurno]=useState("");
-  const[resp,setResp]=useState(responsable||"");
-  const[usuarios,setUsuarios]=useState<string[]>([]);
   const[msg,setMsg]=useState("");
   const[load,setLoad]=useState("");
   const[mov,setMov]=useState<"TODOS"|"RECIBIDOS"|"SALIERON"|"PERMANECEN">("TODOS");
   const[vistaReporte,setVistaReporte]=useState(false);
+  const[actualizacion,setActualizacion]=useState(0);
 
-  useEffect(()=>{
-    setResp(responsable||"");
-  },[responsable]);
-
-  useEffect(()=>{
-    void estadiaApi<string[]>("estadiaListarResponsablesAtencion")
-      .then(setUsuarios)
-      .catch(()=>setUsuarios([]));
-  },[]);
 
   useEffect(()=>{
     let vivo=true;
@@ -214,8 +215,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
           desde,
           hasta,
           guardia,
-          turno,
-          responsableFiltro:resp
+          turno
         });
 
         if(vivo){
@@ -236,7 +236,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
       vivo=false;
       window.clearTimeout(t);
     };
-  },[desde,hasta,guardia,turno,resp]);
+  },[desde,hasta,guardia,turno,actualizacion]);
 
   const personasFiltradas=useMemo(()=>{
     if(!r)return [];
@@ -287,8 +287,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
             {guardia||"Todas las guardias"}
             {" · "}
             {turno||"Todos los turnos"}
-            {" · "}
-            {resp||"Todos los responsables"}
           </p>
         </div>
 
@@ -320,7 +318,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         borderRadius:12,
         padding:"10px 14px",
         display:"grid",
-        gridTemplateColumns:"minmax(260px,1.4fr) repeat(4,minmax(115px,.55fr)) auto",
+        gridTemplateColumns:"minmax(260px,1.4fr) repeat(3,minmax(115px,.55fr)) auto",
         gap:12,
         alignItems:"center"
       }}>
@@ -342,11 +340,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         <div>
           <small style={{opacity:.82}}>Turno</small>
           <div style={{fontWeight:800}}>{turno||"Todos"}</div>
-        </div>
-
-        <div>
-          <small style={{opacity:.82}}>Responsable</small>
-          <div style={{fontWeight:800}}>{resp||"Todos"}</div>
         </div>
 
         <button
@@ -403,16 +396,22 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
         </select>
       </label>
 
-      <label>
-        Responsable
-        <select style={input} value={resp} onChange={e=>setResp(e.target.value)}>
-          <option value="">Todos</option>
-          {responsable&&!usuarios.includes(responsable)&&(
-            <option value={responsable}>{responsable}</option>
-          )}
-          {usuarios.map(x=><option key={x} value={x}>{x}</option>)}
-        </select>
-      </label>
+      <div style={{display:"flex",alignItems:"end"}}>
+        <button
+          type="button"
+          onClick={()=>setActualizacion(v=>v+1)}
+          disabled={!!load}
+          style={{
+            ...input,
+            cursor:load?"wait":"pointer",
+            fontWeight:800,
+            background:"#fff",
+            color:"#0b4f75"
+          }}
+        >
+          🔄 {load?"Actualizando...":"Actualizar"}
+        </button>
+      </div>
     </div>}
 
 
@@ -720,7 +719,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
           <div style={{overflowX:"auto"}}>
             <table style={{
               width:"100%",
-              minWidth:vistaReporte?0:1100,
+              minWidth:vistaReporte?0:980,
               fontSize:vistaReporte?10:12,
               borderCollapse:"collapse",
               tableLayout:vistaReporte?"fixed":"auto"
@@ -733,7 +732,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
                   <th>DNI solicitante</th>
                   <th>Entregado a</th>
                   <th>DNI receptor</th>
-                  <th>Usuario</th>
                   <th>Observación</th>
                 </tr>
               </thead>
@@ -748,7 +746,6 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
                   <td style={{textAlign:"center"}}>{x.dniSolicitante||"—"}</td>
                   <td><b>{x.entregadoA||"—"}</b></td>
                   <td style={{textAlign:"center"}}>{x.dniDestino||"—"}</td>
-                  <td>{x.usuario||"—"}</td>
                   <td>{x.observacion||"—"}</td>
                 </tr>)}
               </tbody>
