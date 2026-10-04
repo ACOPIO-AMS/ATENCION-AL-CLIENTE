@@ -14,6 +14,7 @@ const SalidaProveedores = lazy(() => import("./components/atencion/SalidaProveed
 const ControlHabitaciones = lazy(() => import("./components/atencion/ControlHabitaciones"));
 const ResumenGuardia = lazy(() => import("./components/atencion/ResumenGuardia"));
 const CargoGuiasTickets = lazy(() => import("./components/guias/CargoGuiasTickets"));
+const ReporteGuias = lazy(() => import("./components/guias/ReporteGuias"));
 
 function ModuleLoader() {
   return <section style={{ minHeight: 240, display: "grid", placeItems: "center", color: "#52706a", fontWeight: 700 }}>Cargando módulo…</section>;
@@ -377,7 +378,7 @@ export default function Home() {
   const [cargoReceiptSel,setCargoReceiptSel]=useState<string[]>([]);
   const [cargoReceiptBusy,setCargoReceiptBusy]=useState(false);
   const [openModule, setOpenModule] = useState<"atencion" | "cargos" | "guias" | "rirm" | "admin" | null>("atencion");
-  const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias">("registrar");
+  const [guiasSection, setGuiasSection] = useState<"registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias" | "reporte-guias">("registrar");
   const [rirmSection, setRirmSection] = useState<RirmSection>("pendientes");
   const [adminSection, setAdminSection] = useState<AdminSection>("panel");
   const guiasFrameRef = useRef<HTMLIFrameElement | null>(null);
@@ -417,6 +418,9 @@ export default function Home() {
     if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Registro de Sacos Mineros")) {
       setGuiasSection("sacos"); setActiveView("guias"); setOpenModule("guias"); return;
     }
+    if (hasUserPermission(user, "REGISTRO DE GUÍAS") && hasUserPermission(user, "Reporte de guías")) {
+      setGuiasSection("reporte-guias"); setActiveView("guias"); setOpenModule("guias"); return;
+    }
     if (hasUserPermission(user, "REGISTRO RI-RM") && hasUserPermission(user, "Pendientes")) {
       setRirmSection("pendientes"); setActiveView("rirm"); setOpenModule("rirm"); return;
     }
@@ -436,7 +440,7 @@ export default function Home() {
   }
 
   useEffect(() => {
-    if (activeView !== "guias" || guiasSection === "cargo-guias" || guiasHtml) return;
+    if (activeView !== "guias" || guiasSection === "cargo-guias" || guiasSection === "reporte-guias" || guiasHtml) return;
     let active = true;
     void import("./lib/guias-html").then((module) => {
       if (active) setGuiasHtml(module.GUIAS_HTML_INTEGRADO);
@@ -446,11 +450,11 @@ export default function Home() {
     return () => { active = false; };
   }, [activeView, guiasSection, guiasHtml]);
 
-  function openGuiasSection(section: "registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias") {
+  function openGuiasSection(section: "registrar" | "historial" | "indicadores" | "sacos" | "cargo-guias" | "reporte-guias") {
     setGuiasSection(section);
     setActiveView("guias");
     setOpenModule("guias");
-    if (section === "cargo-guias") return;
+    if (section === "cargo-guias" || section === "reporte-guias") return;
     window.setTimeout(() => {
       const frameWindow = guiasFrameRef.current?.contentWindow as (Window & { mostrarPagina?: (pagina: string) => void }) | null;
       frameWindow?.mostrarPagina?.(section);
@@ -1806,6 +1810,10 @@ ${documentBody}
         guiasSection === "cargo-guias" ? (
           <section style={{ padding: 18, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
             <Suspense fallback={<ModuleLoader />}><CargoGuiasTickets user={currentUser} /></Suspense>
+          </section>
+        ) : guiasSection === "reporte-guias" ? (
+          <section style={{ padding: 0, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
+            <Suspense fallback={<ModuleLoader />}><ReporteGuias /></Suspense>
           </section>
         ) : (
           <section style={{ padding: 0, margin: 0, width: "100%", minHeight: "calc(100vh - 92px)", background: "#f4f6f8" }}>
