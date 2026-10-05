@@ -4,7 +4,7 @@ import {btn,duracionDesde,estadiaApi,EstadiaPersona,fechaHora,input,kpi,Loader,p
 
 type Comida="DESAYUNO"|"ALMUERZO"|"CENA";
 type Estado={solicitados:number;entregados:number;pendientes:number;reasignados:number};
-type EstadoSrv={personas:Record<string,Record<string,any>>;resumen:Record<Comida,Estado>;consumos:{AGUA:number;GASEOSA:number;GALLETAS:number}};
+type EstadoSrv={personas:Record<string,Record<string,any>>;resumen:Record<Comida,Estado>;consumos:{AGUA:number;GASEOSA:number;GALLETAS:number;"PAPEL HIGIÉNICO":number;SHAMPOO:number;"JABÓN":number}};
 
 const COMIDAS:Comida[]=["DESAYUNO","ALMUERZO","CENA"];
 
@@ -15,7 +15,7 @@ const vacio=():EstadoSrv=>({
     ALMUERZO:{solicitados:0,entregados:0,pendientes:0,reasignados:0},
     CENA:{solicitados:0,entregados:0,pendientes:0,reasignados:0}
   },
-  consumos:{AGUA:0,GASEOSA:0,GALLETAS:0}
+  consumos:{AGUA:0,GASEOSA:0,GALLETAS:0,"PAPEL HIGIÉNICO":0,SHAMPOO:0,"JABÓN":0}
 });
 
 export default function EstadiaServicios({responsable}:{responsable:string}){
@@ -33,7 +33,10 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
 
   const[agua,setAgua]=useState(0);
   const[gaseosa,setGaseosa]=useState(0);
-  const[galletas,setGalletas]=useState(1);
+  const[galletas,setGalletas]=useState(0);
+  const[papelHigienico,setPapelHigienico]=useState(0);
+  const[shampoo,setShampoo]=useState(0);
+  const[jabon,setJabon]=useState(0);
   const[msg,setMsg]=useState("");
   const[load,setLoad]=useState("");
   const[ok,setOk]=useState("");
@@ -96,7 +99,10 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
     setSol({DESAYUNO:false,ALMUERZO:false,CENA:false});
     setAgua(0);
     setGaseosa(0);
-    setGalletas(1);
+    setGalletas(0);
+    setPapelHigienico(0);
+    setShampoo(0);
+    setJabon(0);
   };
 
   const exito=(t:string)=>{
@@ -218,6 +224,59 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
       return;
     }
     await confirmarEntrega(x,c);
+  }
+
+  async function entregarSeleccionados(c:Comida){
+    const pendientes=eleg.filter(x=>estadoComida(x,c)==="PENDIENTE");
+
+    setMenuComida(null);
+    setMsg("");
+
+    if(!pendientes.length){
+      setMsg(`Ninguna de las personas seleccionadas tiene ${c.toLowerCase()} pendiente.`);
+      return;
+    }
+
+    let observacion="";
+    if(fueraHorario(c)){
+      observacion=window.prompt(
+        `La entrega masiva de ${c.toLowerCase()} está fuera del horario normal. Ingresa el motivo/observación:`
+      )?.trim()||"";
+
+      if(!observacion){
+        setMsg("La observación es obligatoria para entregar fuera de horario.");
+        return;
+      }
+    }
+
+    setLoad(`Entregando ${c.toLowerCase()} a ${pendientes.length} persona(s)...`);
+
+    try{
+      await estadiaApi("estadiaRegistrarServiciosLote",{
+        personas:pendientes,
+        servicios:[{servicio:c,cantidad:1}],
+        responsable,
+        modo:"ENTREGA",
+        observacion
+      });
+
+      await cargar(true);
+
+      if(detalleComida?.servicio){
+        const d=await estadiaApi<any>(
+          "estadiaDetalleAlimentacion",
+          {servicio:detalleComida.servicio}
+        );
+        setDetalleComida(d);
+      }
+
+      exito(`${c[0]+c.slice(1).toLowerCase()} entregado a ${pendientes.length} persona(s) seleccionada(s)`);
+
+    }catch(e){
+      setMsg(e instanceof Error?e.message:"Error al realizar la entrega masiva");
+    }finally{
+      setLoad("");
+    }
   }
 
   function reasignarUno(x:EstadiaPersona,c:Comida){
@@ -344,12 +403,22 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
   }
 
   const celdaComida=(x:EstadiaPersona,c:Comida)=>{
-    const v=estadoComida(x,c),mk=key(x)+"|"+c;
+    const v=estadoComida(x,c);
     if(v!=="PENDIENTE")return badgeComida(x,c);
+
+    const filaSeleccionada=sel.includes(key(x));
+    const pendientesSeleccionados=eleg.filter(y=>estadoComida(y,c)==="PENDIENTE");
+    const entregaMasiva=filaSeleccionada&&pendientesSeleccionados.length>0;
+
     return <div style={{position:"relative",display:"inline-block"}}>
       <button onClick={()=>setMenuComida(menuComida?.k===key(x)&&menuComida?.c===c?null:{k:key(x),c})} style={{border:0,cursor:"pointer",background:"transparent",padding:0}}>{badgeComida(x,c)}</button>
       {menuComida?.k===key(x)&&menuComida?.c===c&&<div style={{position:"absolute",zIndex:30,top:"100%",left:0,marginTop:4,background:"#fff",border:"1px solid #d9e1df",borderRadius:10,padding:6,boxShadow:"0 8px 24px rgba(0,0,0,.14)",display:"flex",gap:6}}>
-        <button style={{...btn,padding:"6px 9px",fontSize:11}} onClick={()=>void entregarUno(x,c)}>✓ Entregar</button>
+        <button
+          style={{...btn,padding:"6px 9px",fontSize:11,whiteSpace:"nowrap"}}
+          onClick={()=>void (entregaMasiva?entregarSeleccionados(c):entregarUno(x,c))}
+        >
+          {entregaMasiva?`✓ Entregar seleccionados (${pendientesSeleccionados.length})`:"✓ Entregar"}
+        </button>
         <button style={{...btn,padding:"6px 9px",fontSize:11,background:"#596bd8"}} onClick={()=>void reasignarUno(x,c)}>↗ Reasignar</button>
       </div>}
     </div>;
@@ -480,7 +549,13 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
             {" · "}
             🥤 Gaseosa <b>{estado.consumos.GASEOSA}</b>
             {" · "}
-            🍪 Galletas <b>{estado.consumos.GALLETAS}</b>
+            🍪 Galletas <b>{estado.consumos.GALLETAS||0}</b>
+            {" · "}
+            🧻 Papel higiénico <b>{estado.consumos["PAPEL HIGIÉNICO"]||0}</b>
+            {" · "}
+            🧴 Shampoo <b>{estado.consumos.SHAMPOO||0}</b>
+            {" · "}
+            🧼 Jabón <b>{estado.consumos["JABÓN"]||0}</b>
           </div>
         </div>
 
@@ -626,6 +701,27 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
                       {estado.personas[key(x)]?.GALLETAS||0}
                     </b>
 
+                    &nbsp;&nbsp;
+
+                    🧻{" "}
+                    <b>
+                      {estado.personas[key(x)]?.["PAPEL HIGIÉNICO"]||0}
+                    </b>
+
+                    &nbsp;&nbsp;
+
+                    🧴{" "}
+                    <b>
+                      {estado.personas[key(x)]?.SHAMPOO||0}
+                    </b>
+
+                    &nbsp;&nbsp;
+
+                    🧼{" "}
+                    <b>
+                      {estado.personas[key(x)]?.["JABÓN"]||0}
+                    </b>
+
                   </td>
 
                   <td style={td}>
@@ -657,9 +753,23 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
           <h3 style={{marginTop:0}}>🥤 Registrar consumos</h3>
           <div style={{fontSize:13,marginBottom:10}}><b>{sel.length}</b> persona(s) seleccionada(s) · cantidad para cada persona</div>
           <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"end"}}>
-            {[["💧 Agua",agua,setAgua],["🥤 Gaseosa",gaseosa,setGaseosa],["🍪 Galletas",galletas,setGalletas]].map(([lab,val,setter]:any)=><div key={lab} style={{minWidth:125}}><b style={{fontSize:12}}>{lab}</b><div style={{display:"flex",alignItems:"center",gap:6,marginTop:5}}><button style={{...btn,padding:"5px 9px"}} onClick={()=>setter(Math.max(0,val-1))}>−</button><strong style={{minWidth:20,textAlign:"center"}}>{val}</strong><button style={{...btn,padding:"5px 9px"}} onClick={()=>setter(val+1)}>+</button></div></div>)}
+            {[
+              ["💧 Agua",agua,setAgua],
+              ["🥤 Gaseosa",gaseosa,setGaseosa],
+              ["🍪 Galletas",galletas,setGalletas],
+              ["🧻 Papel higiénico",papelHigienico,setPapelHigienico],
+              ["🧴 Shampoo",shampoo,setShampoo],
+              ["🧼 Jabón",jabon,setJabon]
+            ].map(([lab,val,setter]:any)=><div key={lab} style={{minWidth:125}}><b style={{fontSize:12}}>{lab}</b><div style={{display:"flex",alignItems:"center",gap:6,marginTop:5}}><button style={{...btn,padding:"5px 9px"}} onClick={()=>setter(Math.max(0,val-1))}>−</button><strong style={{minWidth:20,textAlign:"center"}}>{val}</strong><button style={{...btn,padding:"5px 9px"}} onClick={()=>setter(val+1)}>+</button></div></div>)}
           </div>
-          <button disabled={!!load||!sel.length} style={{...btn,marginTop:12}} onClick={()=>void guardar("ENTREGA",[{servicio:"AGUA",cantidad:agua},{servicio:"GASEOSA",cantidad:gaseosa},{servicio:"GALLETAS",cantidad:galletas}].filter(x=>x.cantidad>0))}>Registrar consumos</button>
+          <button disabled={!!load||!sel.length} style={{...btn,marginTop:12}} onClick={()=>void guardar("ENTREGA",[
+            {servicio:"AGUA",cantidad:agua},
+            {servicio:"GASEOSA",cantidad:gaseosa},
+            {servicio:"GALLETAS",cantidad:galletas},
+            {servicio:"PAPEL HIGIÉNICO",cantidad:papelHigienico},
+            {servicio:"SHAMPOO",cantidad:shampoo},
+            {servicio:"JABÓN",cantidad:jabon}
+          ].filter(x=>x.cantidad>0))}>Registrar consumos</button>
         </div>
       </div>
 
@@ -841,7 +951,7 @@ export default function EstadiaServicios({responsable}:{responsable:string}){
       </div></div>}
 
       {histPersona&&<div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(5,28,34,.55)",display:"grid",placeItems:"center",padding:20}}><div style={{...panel,width:"min(1000px,96vw)",maxHeight:"88vh",overflow:"auto"}}><div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center"}}><div><h2 style={{margin:0}}>Historial de servicios y consumos</h2><p style={{margin:"5px 0 12px"}}><b>{histPersona.nombre}</b> · DNI {histPersona.dni} · Hab. {histPersona.habitacion||"-"}</p></div><button style={{...btn,background:"#687775"}} onClick={()=>{setHistPersona(null);setHist([])}}>Cerrar</button></div>
-        <div style={{display:"grid",gap:10}}>{Object.entries(hist.reduce((acc:any,h:any)=>{const f=String(h.fechaOperativa||"");if(!acc[f])acc[f]=[];acc[f].push(h);return acc;},{} as Record<string,any[]>)).sort(([a],[b])=>String(b).localeCompare(String(a))).map(([f,movs]:any)=>{const estado=(c:string)=>{const a=movs.filter((h:any)=>h.servicio===c);if(a.some((h:any)=>h.estado==="ENTREGADO"))return "✓ Entregado";if(a.some((h:any)=>String(h.estado).includes("REASIGN")))return "↗ Reasignado";if(a.some((h:any)=>h.estado==="SOLICITADO"))return "⏳ Pendiente";return "—";};const suma=(c:string)=>movs.filter((h:any)=>h.servicio===c&&["ENTREGADO","ATENDIDO"].includes(h.estado)).reduce((n:number,h:any)=>n+(Number(h.cantidad)||0),0);return <div key={f} style={{...panel,padding:12}}><b style={{fontSize:15}}>{fechaOpTexto(f)}</b><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginTop:8,fontSize:12}}><div>☕ Desayuno<br/><b>{estado("DESAYUNO")}</b></div><div>🍽️ Almuerzo<br/><b>{estado("ALMUERZO")}</b></div><div>🌙 Cena<br/><b>{estado("CENA")}</b></div><div>💧 Agua <b>{suma("AGUA")}</b> · 🥤 <b>{suma("GASEOSA")}</b> · 🍪 <b>{suma("GALLETAS")}</b></div></div><details style={{marginTop:9}}><summary style={{cursor:"pointer",fontWeight:700}}>Ver detalle de movimientos</summary><div style={{overflowX:"auto",marginTop:8}}><table style={{width:"100%",fontSize:11,borderCollapse:"collapse"}}><thead><tr><th style={th}>Hora</th><th style={th}>Servicio</th><th style={th}>Cant.</th><th style={th}>Estado</th><th style={th}>Responsable</th><th style={th}>Observación</th></tr></thead><tbody>{movs.map((h:any,i:number)=><tr key={i}><td style={td}>{horaTexto(h.fechaHora)}</td><td style={td}><b>{h.servicio}</b></td><td style={td}>{h.cantidad}</td><td style={td}>{h.estado}</td><td style={td}>{h.responsable||"-"}</td><td style={td}>{h.observacion||"-"}{h.entregadoA?` · Entregado a: ${h.entregadoA}`:""}</td></tr>)}</tbody></table></div></details></div>})}</div>
+        <div style={{display:"grid",gap:10}}>{Object.entries(hist.reduce((acc:any,h:any)=>{const f=String(h.fechaOperativa||"");if(!acc[f])acc[f]=[];acc[f].push(h);return acc;},{} as Record<string,any[]>)).sort(([a],[b])=>String(b).localeCompare(String(a))).map(([f,movs]:any)=>{const estado=(c:string)=>{const a=movs.filter((h:any)=>h.servicio===c);if(a.some((h:any)=>h.estado==="ENTREGADO"))return "✓ Entregado";if(a.some((h:any)=>String(h.estado).includes("REASIGN")))return "↗ Reasignado";if(a.some((h:any)=>h.estado==="SOLICITADO"))return "⏳ Pendiente";return "—";};const suma=(c:string)=>movs.filter((h:any)=>h.servicio===c&&["ENTREGADO","ATENDIDO"].includes(h.estado)).reduce((n:number,h:any)=>n+(Number(h.cantidad)||0),0);return <div key={f} style={{...panel,padding:12}}><b style={{fontSize:15}}>{fechaOpTexto(f)}</b><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginTop:8,fontSize:12}}><div>☕ Desayuno<br/><b>{estado("DESAYUNO")}</b></div><div>🍽️ Almuerzo<br/><b>{estado("ALMUERZO")}</b></div><div>🌙 Cena<br/><b>{estado("CENA")}</b></div><div>💧 Agua <b>{suma("AGUA")}</b> · 🥤 <b>{suma("GASEOSA")}</b> · 🍪 <b>{suma("GALLETAS")}</b> · 🧻 <b>{suma("PAPEL HIGIÉNICO")}</b> · 🧴 <b>{suma("SHAMPOO")}</b> · 🧼 <b>{suma("JABÓN")}</b></div></div><details style={{marginTop:9}}><summary style={{cursor:"pointer",fontWeight:700}}>Ver detalle de movimientos</summary><div style={{overflowX:"auto",marginTop:8}}><table style={{width:"100%",fontSize:11,borderCollapse:"collapse"}}><thead><tr><th style={th}>Hora</th><th style={th}>Servicio</th><th style={th}>Cant.</th><th style={th}>Estado</th><th style={th}>Responsable</th><th style={th}>Observación</th></tr></thead><tbody>{movs.map((h:any,i:number)=><tr key={i}><td style={td}>{horaTexto(h.fechaHora)}</td><td style={td}><b>{h.servicio}</b></td><td style={td}>{h.cantidad}</td><td style={td}>{h.estado}</td><td style={td}>{h.responsable||"-"}</td><td style={td}>{h.observacion||"-"}{h.entregadoA?` · Entregado a: ${h.entregadoA}`:""}</td></tr>)}</tbody></table></div></details></div>})}</div>
       </div></div>}
 
 
