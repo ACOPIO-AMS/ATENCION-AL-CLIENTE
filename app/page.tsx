@@ -93,7 +93,8 @@ const SUPPORTED_BACKEND_VERSIONS = [
   "AMS-2026-10-01-V17-PROVEEDOR-BD-SALIDAS",
   "AMS-2026-10-02-V18-INTEGRAL",
 "AMS-2026-10-02-V20-ALIMENTACION",
-  "AMS-2026-10-02-V21-ALIMENTACION"
+  "AMS-2026-10-02-V21-ALIMENTACION",
+  "AMS-2026-10-05-V22-RENDIMIENTO"
 ];
 class SheetsApiError extends Error {
   status: number;
@@ -569,6 +570,7 @@ export default function Home() {
   const failedInCycleRef = useRef<Set<string>>(new Set());
   const backendVerifiedRef = useRef(false);
   const enqueueLockRef = useRef(false);
+  const lastRecentFetchRef = useRef(0);
   const [busy, setBusy] = useState(false);
   const [regularizingId, setRegularizingId] = useState<string | null>(null);
   const [pendingEvents, setPendingEvents] = useState<SheetEvent[]>([]);
@@ -734,6 +736,19 @@ export default function Home() {
       return;
     }
 
+    // No consulta RI-RM para usuarios que ni siquiera tienen acceso a ese módulo.
+    if (!hasUserPermission(
+      user,
+      "REGISTRO RI-RM",
+      "Pendientes",
+      "Nueva solicitud",
+      "Historial / Buscar",
+      "Mis solicitudes"
+    )) {
+      setRirmNotifications([]);
+      return;
+    }
+
     const profile = normalizeRirmProfile(user.role);
     if (!["CHALA", "GUIAS", "ASISTENTE A4", "ATENCION", "ADMIN"].includes(profile)) {
       setRirmNotifications([]);
@@ -789,52 +804,71 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
+    let refreshTimer: number | undefined;
 
-    async function restoreSession() {
-      try {
-        const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
-        if (!(saved?.user && saved?.name && saved?.role && saved.permissions)) {
-          if (saved) window.localStorage.removeItem(SESSION_KEY);
-          return;
-        }
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(SESSION_KEY) || "null") as AppUser | null;
 
-        let restored: AppUser = { ...saved, permissions: normalizePermissions(saved.permissions) };
-
-        // Refresca permisos desde USUARIOS al volver a abrir/recargar la app.
-        // Si no hay conexión, conserva temporalmente la sesión guardada.
-        try {
-          const bootstrap = await sheetsApi<{
-            usuario?: { user?: string; name?: string; role?: string; active?: boolean };
-            permisos?: Record<string, boolean | string | number>;
-            permissions?: Record<string, boolean | string | number>;
-          }>("bootstrap", { user: saved.user, usuario: saved.user });
-
-          const bootstrapUser = bootstrap?.usuario || {};
-          restored = {
-            user: String(bootstrapUser.user || saved.user),
-            name: String(bootstrapUser.name || saved.name),
-            role: String(bootstrapUser.role || saved.role),
-            permissions: normalizePermissions(bootstrap?.permissions ?? bootstrap?.permisos ?? saved.permissions),
-          };
-        } catch {
-          // Mantiene la sesión anterior si la red está temporalmente limitada.
-        }
-
-        if (!active) return;
-        window.localStorage.setItem(SESSION_KEY, JSON.stringify(restored));
-        window.localStorage.setItem("usuario", restored.user);
-        setCurrentUser(restored);
-        setEvent(current => ({ ...current, responsible: restored.name }));
-        openFirstAuthorized(restored);
-      } catch {
-        window.localStorage.removeItem(SESSION_KEY);
-      } finally {
-        if (active) setSessionReady(true);
+      if (!(saved?.user && saved?.name && saved?.role && saved.permissions)) {
+        if (saved) window.localStorage.removeItem(SESSION_KEY);
+        setSessionReady(true);
+        return () => { active = false; };
       }
+
+      // ARRANQUE RÁPIDO:
+      // usa inmediatamente la sesión local para no esperar a Google Sheets
+      // cada vez que se abre o recarga la aplicación.
+      const restored: AppUser = {
+        ...saved,
+        permissions: normalizePermissions(saved.permissions),
+      };
+
+      window.localStorage.setItem("usuario", restored.user);
+      setCurrentUser(restored);
+      setEvent(current => ({ ...current, responsible: restored.name }));
+      openFirstAuthorized(restored);
+      setSessionReady(true);
+
+      // Los permisos se verifican en segundo plano después de pintar la app.
+      refreshTimer = window.setTimeout(() => {
+        void sheetsApi<{
+          usuario?: { user?: string; name?: string; role?: string; active?: boolean };
+          permisos?: Record<string, boolean | string | number>;
+          permissions?: Record<string, boolean | string | number>;
+        }>("bootstrap", { user: restored.user, usuario: restored.user })
+          .then((bootstrap) => {
+            if (!active) return;
+            const bootstrapUser = bootstrap?.usuario || {};
+            const refreshed: AppUser = {
+              user: String(bootstrapUser.user || restored.user),
+              name: String(bootstrapUser.name || restored.name),
+              role: String(bootstrapUser.role || restored.role),
+              permissions: normalizePermissions(
+                bootstrap?.permissions ?? bootstrap?.permisos ?? restored.permissions
+              ),
+            };
+            window.localStorage.setItem(SESSION_KEY, JSON.stringify(refreshed));
+            window.localStorage.setItem("usuario", refreshed.user);
+            setCurrentUser(refreshed);
+            setEvent(current => current.responsible === refreshed.name
+              ? current
+              : { ...current, responsible: refreshed.name });
+          })
+          .catch(() => {
+            // Si la red es limitada, la sesión local sigue funcionando.
+          });
+      }, 800);
+    } catch {
+      window.localStorage.removeItem(SESSION_KEY);
+      setSessionReady(true);
     }
 
-    void restoreSession();
-    return () => { active = false; };
+    return () => {
+      active = false;
+      if (refreshTimer) window.clearTimeout(refreshTimer);
+    };
+    // Se ejecuta una sola vez al abrir la app.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -844,20 +878,35 @@ export default function Home() {
       return;
     }
 
-    void refreshRirmNotifications(currentUser);
+    let lastRefresh = 0;
+    let busyRefresh = false;
 
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") void refreshRirmNotifications(currentUser);
-    }, 90_000);
+    const refresh = () => {
+      if (busyRefresh || document.visibilityState !== "visible") return;
+      busyRefresh = true;
+      lastRefresh = Date.now();
+      void refreshRirmNotifications(currentUser).finally(() => {
+        busyRefresh = false;
+      });
+    };
+
+    // No compite con login/bootstrap ni con el primer render.
+    const initial = window.setTimeout(refresh, 1800);
+
+    // Antes era cada 90 s + cada focus. Ahora se reduce la carga del backend.
+    const timer = window.setInterval(refresh, 180_000);
 
     const refreshVisible = () => {
-      if (document.visibilityState === "visible") void refreshRirmNotifications(currentUser);
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastRefresh < 60_000) return;
+      refresh();
     };
 
     window.addEventListener("focus", refreshVisible);
     document.addEventListener("visibilitychange", refreshVisible);
 
     return () => {
+      window.clearTimeout(initial);
       window.clearInterval(timer);
       window.removeEventListener("focus", refreshVisible);
       document.removeEventListener("visibilitychange", refreshVisible);
@@ -907,8 +956,11 @@ export default function Home() {
       const data = await sheetsApi<{
         authenticated: boolean;
         user: string;
+        usuario?: string;
         name: string;
+        nombre?: string;
         role: string;
+        rol?: string;
         permissions?: Record<string, boolean | string | number>;
         permisos?: Record<string, boolean | string | number>;
         data?: {
@@ -917,26 +969,42 @@ export default function Home() {
           permisos?: Record<string, boolean | string | number>;
         };
       }>("login", { user, pin });
+
       const nested = data?.data || {};
+      const loggedUser = String(data?.user || data?.usuario || nested.user || user).trim().toUpperCase();
 
-      // V16: después de validar usuario + PIN, refrescar los permisos directamente
-      // desde la hoja USUARIOS mediante bootstrap_. Así la sesión no depende de una
-      // respuesta de login incompleta ni de permisos antiguos guardados en el navegador.
-      const loggedUser = String(data?.user || nested.user || user).trim().toUpperCase();
-      const bootstrap = await sheetsApi<{
-        usuario?: { user?: string; name?: string; role?: string; active?: boolean };
-        permisos?: Record<string, boolean | string | number>;
-        permissions?: Record<string, boolean | string | number>;
-      }>("bootstrap", { user: loggedUser, usuario: loggedUser });
+      let rawPermissions =
+        data?.permissions ??
+        data?.permisos ??
+        nested.permissions ??
+        nested.permisos;
 
-      const bootstrapUser = bootstrap?.usuario || {};
-      const rawPermissions = bootstrap?.permissions ?? bootstrap?.permisos ?? data?.permissions ?? data?.permisos ?? nested.permissions ?? nested.permisos ?? {};
-      const session: AppUser = {
-        user: String(bootstrapUser.user || loggedUser),
-        name: String(bootstrapUser.name || data?.name || nested.name || nested.nombre || ""),
-        role: String(bootstrapUser.role || data?.role || nested.role || nested.rol || ""),
-        permissions: normalizePermissions(rawPermissions),
+      let session: AppUser = {
+        user: loggedUser,
+        name: String(data?.name || data?.nombre || nested.name || nested.nombre || ""),
+        role: String(data?.role || data?.rol || nested.role || nested.rol || ""),
+        permissions: normalizePermissions(rawPermissions || {}),
       };
+
+      // El backend actual ya devuelve permisos en login, así evitamos una segunda
+      // llamada a Apps Script. Solo usamos bootstrap como compatibilidad si faltan.
+      if (rawPermissions === undefined || rawPermissions === null) {
+        const bootstrap = await sheetsApi<{
+          usuario?: { user?: string; name?: string; role?: string; active?: boolean };
+          permisos?: Record<string, boolean | string | number>;
+          permissions?: Record<string, boolean | string | number>;
+        }>("bootstrap", { user: loggedUser, usuario: loggedUser });
+
+        const bootstrapUser = bootstrap?.usuario || {};
+        rawPermissions = bootstrap?.permissions ?? bootstrap?.permisos ?? {};
+        session = {
+          user: String(bootstrapUser.user || session.user),
+          name: String(bootstrapUser.name || session.name),
+          role: String(bootstrapUser.role || session.role),
+          permissions: normalizePermissions(rawPermissions),
+        };
+      }
+
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       window.localStorage.setItem("usuario", session.user);
       setCurrentUser(session);
@@ -1076,12 +1144,25 @@ export default function Home() {
         void syncQueue();
         return;
       }
-      void sheetsApi<SheetEvent[]>("recent", { limit: 8 }).then(rows => {
-        setRecent(current => {
-          const locals = current.filter(item => item.status === "Por sincronizar");
-          return [...locals, ...rows.map(recentFromSheet)].slice(0, 8);
-        });
-      }).catch(() => undefined);
+      const necesitaRecientesAtencion =
+        hasUserPermission(
+          currentUser,
+          "Nuevo ingreso",
+          "Reporte diario",
+          "Por regularizar",
+          "Buscar",
+          "BD Clientes"
+        );
+
+      if (necesitaRecientesAtencion && Date.now() - lastRecentFetchRef.current >= 60_000) {
+        lastRecentFetchRef.current = Date.now();
+        void sheetsApi<SheetEvent[]>("recent", { limit: 8 }).then(rows => {
+          setRecent(current => {
+            const locals = current.filter(item => item.status === "Por sincronizar");
+            return [...locals, ...rows.map(recentFromSheet)].slice(0, 8);
+          });
+        }).catch(() => undefined);
+      }
     } catch (error) {
       backendVerifiedRef.current = false;
       setConnection(connectionFromError(error));
@@ -1203,60 +1284,106 @@ export default function Home() {
     let active = true;
     let refreshing = false;
     let serviceWorkerRegistration: ServiceWorkerRegistration | undefined;
+    let serviceWorkerRegisterTimer: number | undefined;
     let serviceWorkerUpdateTimer: number | undefined;
+    let serviceWorkerInitialUpdate: number | undefined;
+    let lastSwUpdate = 0;
+
     const reloadForNewVersion = () => {
       if (refreshing) return;
       refreshing = true;
       window.location.reload();
     };
+
     const checkForAppUpdate = () => {
-      if (navigator.onLine && serviceWorkerRegistration) void serviceWorkerRegistration.update();
+      if (!navigator.onLine || !serviceWorkerRegistration) return;
+      if (Date.now() - lastSwUpdate < 5 * 60_000) return;
+      lastSwUpdate = Date.now();
+      void serviceWorkerRegistration.update();
     };
+
     const checkVisibleVersion = () => {
       if (document.visibilityState === "visible") checkForAppUpdate();
     };
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.addEventListener("controllerchange", reloadForNewVersion);
-      void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then((registration) => {
-        if (!active) return;
-        serviceWorkerRegistration = registration;
-        void registration.update();
-        serviceWorkerUpdateTimer = window.setInterval(checkForAppUpdate, 60_000);
-      });
+
+      // El registro del SW no compite con el primer render ni con el login.
+      serviceWorkerRegisterTimer = window.setTimeout(() => {
+        void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then((registration) => {
+          if (!active) return;
+          serviceWorkerRegistration = registration;
+
+          // Deja que la interfaz termine de cargar antes de buscar una versión nueva.
+          serviceWorkerInitialUpdate = window.setTimeout(checkForAppUpdate, 15_000);
+          serviceWorkerUpdateTimer = window.setInterval(checkForAppUpdate, 10 * 60_000);
+        }).catch(() => undefined);
+      }, 2500);
     }
+
     document.addEventListener("visibilitychange", checkVisibleVersion);
-    const online = () => { void checkConnection(true); };
+
+    const online = () => {
+      if (queueRef.current.length) {
+        void syncQueue(true);
+      } else if (window.localStorage.getItem(SESSION_KEY)) {
+        void checkConnection(false);
+      }
+    };
     const offline = () => setConnection("offline");
+
     window.addEventListener("online", online);
     window.addEventListener("offline", offline);
-    const initialCheck = window.setTimeout(() => {
-      let restored: QueueItem[] = [];
-      try { restored = safeArray<QueueItem>(JSON.parse(window.localStorage.getItem(QUEUE_KEY) || "[]")); } catch { restored = []; }
-      queueRef.current = restored;
-      setQueue(restored);
-      void checkConnection(true);
-    }, 0);
-    const timer = window.setInterval(() => {
-      if (!navigator.onLine) return;
-      if (queueRef.current.length) void syncQueue();
-      else void checkConnection(false);
-    }, 30_000);
+
+    // Restaurar la cola es local e inmediato. No consulta Sheets al abrir el login.
+    let restored: QueueItem[] = [];
+    try {
+      restored = safeArray<QueueItem>(JSON.parse(window.localStorage.getItem(QUEUE_KEY) || "[]"));
+    } catch {
+      restored = [];
+    }
+    queueRef.current = restored;
+    setQueue(restored);
+
+    if (restored.length && navigator.onLine) {
+      window.setTimeout(() => { void syncQueue(true); }, 500);
+    }
+
     return () => {
       active = false;
       window.removeEventListener("online", online);
       window.removeEventListener("offline", offline);
       document.removeEventListener("visibilitychange", checkVisibleVersion);
       if ("serviceWorker" in navigator) navigator.serviceWorker.removeEventListener("controllerchange", reloadForNewVersion);
-      window.clearTimeout(initialCheck);
       if (retryTimerRef.current) window.clearTimeout(retryTimerRef.current);
       if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
       if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      if (serviceWorkerRegisterTimer) window.clearTimeout(serviceWorkerRegisterTimer);
+      if (serviceWorkerInitialUpdate) window.clearTimeout(serviceWorkerInitialUpdate);
       if (serviceWorkerUpdateTimer) window.clearInterval(serviceWorkerUpdateTimer);
-      window.clearInterval(timer);
     };
-    // La comprobación se inicia una sola vez; las funciones usan referencias estables para la cola.
+    // Solo restaura recursos locales; la conexión se verifica después del login.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Una sola comprobación después de pintar la sesión y luego cada 2 minutos.
+    const initial = window.setTimeout(() => { void checkConnection(true); }, 600);
+    const timer = window.setInterval(() => {
+      if (!navigator.onLine || document.visibilityState !== "visible") return;
+      if (queueRef.current.length) void syncQueue();
+      else void checkConnection(false);
+    }, 120_000);
+
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.user]);
 
   useEffect(() => {
     try {
@@ -1284,13 +1411,19 @@ export default function Home() {
 
   useEffect(() => {
     if (!draftReady || regularizingId) return;
-    try {
-      window.localStorage.setItem(ENTRY_DRAFT_KEY, JSON.stringify({
-        activeCase, dateTime, event, participants, regularizingId: null,
-      }));
-    } catch {
-      // Si el almacenamiento local está bloqueado, el formulario continúa funcionando.
-    }
+
+    // Evita escribir localStorage en cada tecla; agrupa los cambios.
+    const timer = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(ENTRY_DRAFT_KEY, JSON.stringify({
+          activeCase, dateTime, event, participants, regularizingId: null,
+        }));
+      } catch {
+        // Si el almacenamiento local está bloqueado, el formulario continúa funcionando.
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
   }, [draftReady, activeCase, dateTime, event, participants, regularizingId]);
 
   function updateParticipant(id: number, changes: Partial<Participant>) { setParticipants((current) => current.map((person) => person.id === id ? { ...person, ...changes } : person)); }
