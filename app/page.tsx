@@ -226,22 +226,136 @@ function validFullName(value: string) {
   return /^[A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){2,}$/i.test(value.trim());
 }
 
+const SHEETS_RETRY_SAFE_ACTIONS = new Set([
+  "health",
+  "login",
+  "bootstrap",
+  "searchPerson",
+  "recent",
+  "today",
+  "search",
+  "pending",
+  "listPeople",
+  "getEvent",
+  "lookupCargoProvider",
+  "previewCargoCorrelative",
+  "getCargo",
+  "searchCargoExits",
+  "cargoPendingReceipts",
+  "estadiaListarPresentes",
+  "estadiaEstadoServicios",
+  "estadiaHistorialPersona",
+  "estadiaPendientesAlimentacion",
+  "estadiaListarHabitaciones",
+  "estadiaListarResponsablesAtencion",
+  "estadiaResumenGuardia",
+  "adminUsuarios",
+  "adminAuditoria",
+  "adminBuscarRegistroGuias",
+  "adminBuscarRegistroAtencion",
+  "adminBuscarRegistroCargos",
+  "adminBuscarRegistroRirm",
+]);
+
+function sheetsRetryable(error: unknown) {
+  return error instanceof SheetsApiError &&
+    (error.status === 0 || error.status === 429 || error.status >= 500);
+}
+
+function waitSheetsRetry(ms: number) {
+  return new Promise<void>(resolve => window.setTimeout(resolve, ms));
+}
+
 async function sheetsApi<T>(action: string, payload: Record<string, unknown> = {}): Promise<T> {
-  const controller = new AbortController();
   const writeAction = action === "saveEvent" || action === "regularizeEvent";
   const timeout = writeAction ? 25_000 : action === "searchPerson" || action === "health" ? 10_000 : 25_000;
-  const timer = window.setTimeout(() => controller.abort(), timeout);
-  try {
-    const response = await fetch("/api/sheets", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ action, payload }), signal: controller.signal, keepalive: writeAction });
-    const result = await response.json().catch(() => ({ ok: false, error: "Respuesta inválida.", configured: true }));
-    if (!response.ok || !result.ok) throw new SheetsApiError(result.error || "No se pudo completar la operación.", response.status, result.configured !== false);
-    return result.data as T;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw new SheetsApiError("La conexión tardó demasiado; se reintentará automáticamente.", 0, true);
-    throw error;
-  } finally {
-    window.clearTimeout(timer);
+  const attempts = SHEETS_RETRY_SAFE_ACTIONS.has(action) ? 2 : 1;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch("/api/sheets", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json",
+          "cache-control": "no-cache",
+        },
+        body: JSON.stringify({ action, payload }),
+        signal: controller.signal,
+        keepalive: writeAction,
+        cache: "no-store",
+      });
+
+      const raw = await response.text();
+      let result: { ok?: boolean; data?: unknown; error?: string; configured?: boolean };
+
+      try {
+        result = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new SheetsApiError(
+          "El servidor devolvió una respuesta no válida. Se intentará nuevamente automáticamente.",
+          response.status >= 500 ? response.status : 502,
+          true,
+        );
+      }
+
+      if (!response.ok || !result?.ok) {
+        throw new SheetsApiError(
+          result?.error || "No se pudo completar la operación.",
+          response.status,
+          result?.configured !== false,
+        );
+      }
+
+      return result.data as T;
+    } catch (error) {
+      let normalized: unknown = error;
+
+      if (error instanceof DOMException && error.name === "AbortError") {
+        normalized = new SheetsApiError(
+          "La conexión tardó demasiado. Se intentará nuevamente automáticamente.",
+          0,
+          true,
+        );
+      } else if (error instanceof TypeError) {
+        normalized = new SheetsApiError(
+          "No se pudo establecer comunicación con el servidor. Verifica la conexión.",
+          0,
+          true,
+        );
+      }
+
+      lastError = normalized;
+
+      if (attempt < attempts && sheetsRetryable(normalized)) {
+        await waitSheetsRetry(500 * attempt);
+        continue;
+      }
+
+      if (
+        normalized instanceof SheetsApiError &&
+        /respuesta no válida/i.test(normalized.message)
+      ) {
+        throw new SheetsApiError(
+          "No se pudo interpretar la respuesta del servidor después del reintento. Vuelve a intentar.",
+          normalized.status,
+          normalized.configured,
+        );
+      }
+
+      throw normalized;
+    } finally {
+      window.clearTimeout(timer);
+    }
   }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new SheetsApiError("No se pudo completar la operación.", 0, true);
 }
 
 function recentFromSheet(item: SheetEvent): RecentItem {
