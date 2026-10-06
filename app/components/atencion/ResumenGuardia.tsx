@@ -1,7 +1,7 @@
 "use client";
 
 import {useEffect,useMemo,useState} from "react";
-import {estadiaApi,fechaHora,input,kpi,Loader,page,panel} from "./estadiaApi";
+import {btn,estadiaApi,fechaHora,input,kpi,Loader,page,panel} from "./estadiaApi";
 
 type Comida="DESAYUNO"|"ALMUERZO"|"CENA";
 
@@ -180,8 +180,9 @@ function BadgeEstado({value}:{value?:string}){
   </span>;
 }
 
-export default function ResumenGuardia({responsable:_responsable}:{responsable:string}){
+export default function ResumenGuardia({responsable}:{responsable:string}){
   const ahora=new Date();
+  const hoyCalendario=ahora.toLocaleDateString("en-CA",{timeZone:"America/Lima"});
   const horaLima=Number(new Intl.DateTimeFormat("en-US",{
     timeZone:"America/Lima",
     hour:"2-digit",
@@ -202,6 +203,108 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
   const[mov,setMov]=useState<"TODOS"|"RECIBIDOS"|"SALIERON"|"PERMANECEN">("TODOS");
   const[vistaReporte,setVistaReporte]=useState(false);
   const[actualizacion,setActualizacion]=useState(0);
+
+  const[reasignar,setReasignar]=useState<{
+    persona:PersonaPeriodo;
+    comida:Comida;
+    dniDestino:string;
+    entregadoA:string;
+    observacion:string;
+  }|null>(null);
+
+  const esPendiente=(v?:string)=>
+    String(v||"").trim().toUpperCase().startsWith("PENDIENTE");
+
+  async function confirmarReasignacion(){
+    if(!reasignar)return;
+
+    const dniDestino=reasignar.dniDestino.replace(/\D/g,"");
+    const entregadoA=reasignar.entregadoA
+      .trim()
+      .replace(/\s+/g," ")
+      .toUpperCase();
+
+    if(!/^\d{8}$/.test(dniDestino)){
+      setMsg("El DNI de la persona receptora debe tener 8 dígitos.");
+      return;
+    }
+
+    if(entregadoA.split(" ").filter(Boolean).length<2){
+      setMsg("Ingresa los nombres completos de la persona que recibió la comida.");
+      return;
+    }
+
+    setLoad(`Reasignando ${reasignar.comida.toLowerCase()}...`);
+    setMsg("");
+
+    try{
+      await estadiaApi("estadiaReasignarAlimentacion",{
+        idIngreso:reasignar.persona.idIngreso,
+        dni:reasignar.persona.dni,
+        servicio:reasignar.comida,
+        entregadoA,
+        dniDestino,
+        responsable,
+        observacion:reasignar.observacion.trim()
+      });
+
+      setReasignar(null);
+      setActualizacion(v=>v+1);
+      setMsg("✓ Comida reasignada correctamente.");
+
+    }catch(e){
+      setMsg(e instanceof Error?e.message:"Error al reasignar la comida.");
+    }finally{
+      setLoad("");
+    }
+  }
+
+  const celdaComida=(x:PersonaPeriodo,c:Comida)=>{
+    const valor=x.alimentacion?.[c];
+
+    /*
+     * Si la persona ya salió y la comida quedó pendiente,
+     * solo se habilita REASIGNAR.
+     *
+     * Se limita al día calendario actual porque el backend
+     * reasigna únicamente solicitudes pendientes de hoy.
+     */
+    const yaSalio=!!x.fechaSalida;
+    const esHoy=desde===hoyCalendario&&hasta===hoyCalendario;
+    const puedeReasignar=yaSalio&&esPendiente(valor)&&esHoy;
+
+    return <div style={{
+      display:"flex",
+      alignItems:"center",
+      justifyContent:"center",
+      gap:5,
+      flexWrap:"wrap"
+    }}>
+      <BadgeEstado value={valor}/>
+
+      {puedeReasignar&&(
+        <button
+          type="button"
+          onClick={()=>setReasignar({
+            persona:x,
+            comida:c,
+            dniDestino:"",
+            entregadoA:"",
+            observacion:""
+          })}
+          style={{
+            ...btn,
+            padding:"4px 7px",
+            fontSize:10.5,
+            background:"#596bd8",
+            whiteSpace:"nowrap"
+          }}
+        >
+          ↗ Reasignar
+        </button>
+      )}
+    </div>;
+  };
 
 
   useEffect(()=>{
@@ -681,13 +784,13 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
                 </td>
                 <td style={{textAlign:"center"}}>{x.zona||"-"}</td>
                 <td style={{textAlign:"center"}}>
-                  <BadgeEstado value={x.alimentacion?.DESAYUNO}/>
+                  {celdaComida(x,"DESAYUNO")}
                 </td>
                 <td style={{textAlign:"center"}}>
-                  <BadgeEstado value={x.alimentacion?.ALMUERZO}/>
+                  {celdaComida(x,"ALMUERZO")}
                 </td>
                 <td style={{textAlign:"center"}}>
-                  <BadgeEstado value={x.alimentacion?.CENA}/>
+                  {celdaComida(x,"CENA")}
                 </td>
                 <td>{cons||"—"}</td>
               </tr>;
@@ -761,6 +864,107 @@ export default function ResumenGuardia({responsable:_responsable}:{responsable:s
         <Grafico data={r.ingresosPorFecha} compact={vistaReporte}/>
       </div>
     </div>
+
+
+    {reasignar&&(
+      <div style={{
+        position:"fixed",
+        inset:0,
+        zIndex:10000,
+        background:"rgba(5,28,34,.55)",
+        display:"grid",
+        placeItems:"center",
+        padding:20
+      }}>
+        <div style={{
+          ...panel,
+          width:"min(520px,96vw)",
+          maxHeight:"85vh",
+          overflow:"auto"
+        }}>
+          <h2 style={{marginTop:0}}>
+            ↗ Reasignar {reasignar.comida.toLowerCase()}
+          </h2>
+
+          <p style={{fontSize:13,lineHeight:1.45}}>
+            <b>{reasignar.persona.nombre}</b> ya registró su salida y la comida
+            continúa pendiente. En este caso solo puede reasignarse.
+          </p>
+
+          <label style={{display:"block",marginBottom:10}}>
+            DNI de quien recibió *
+            <input
+              style={input}
+              inputMode="numeric"
+              maxLength={8}
+              value={reasignar.dniDestino}
+              onChange={e=>
+                setReasignar(m=>m?{
+                  ...m,
+                  dniDestino:e.target.value.replace(/\D/g,"").slice(0,8)
+                }:m)
+              }
+              placeholder="8 dígitos"
+            />
+          </label>
+
+          <label style={{display:"block",marginBottom:10}}>
+            Nombres completos *
+            <input
+              style={input}
+              value={reasignar.entregadoA}
+              onChange={e=>
+                setReasignar(m=>m?{
+                  ...m,
+                  entregadoA:e.target.value.toUpperCase()
+                }:m)
+              }
+              placeholder="Nombres y apellidos"
+            />
+          </label>
+
+          <label style={{display:"block",marginBottom:12}}>
+            Observación
+            <input
+              style={input}
+              value={reasignar.observacion}
+              onChange={e=>
+                setReasignar(m=>m?{
+                  ...m,
+                  observacion:e.target.value
+                }:m)
+              }
+              placeholder="Opcional"
+            />
+          </label>
+
+          <div style={{
+            display:"flex",
+            justifyContent:"flex-end",
+            gap:10,
+            flexWrap:"wrap"
+          }}>
+            <button
+              type="button"
+              style={{...btn,background:"#6b7775"}}
+              onClick={()=>setReasignar(null)}
+              disabled={!!load}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              style={{...btn,background:"#596bd8"}}
+              onClick={()=>void confirmarReasignacion()}
+              disabled={!!load}
+            >
+              ↗ Confirmar reasignación
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
 
     {msg&&<div style={panel}>{msg}</div>}
   </section>;
