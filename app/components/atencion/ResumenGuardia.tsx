@@ -212,6 +212,9 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
     observacion:string;
   }|null>(null);
 
+  const[pendienteAbierto,setPendienteAbierto]=useState<string>("");
+  const[errorReasignar,setErrorReasignar]=useState("");
+
   const esPendiente=(v?:string)=>
     String(v||"").trim().toUpperCase().startsWith("PENDIENTE");
 
@@ -224,18 +227,20 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
       .replace(/\s+/g," ")
       .toUpperCase();
 
+    setErrorReasignar("");
+
     if(!/^\d{8}$/.test(dniDestino)){
-      setMsg("El DNI de la persona receptora debe tener 8 dígitos.");
+      setErrorReasignar("El DNI de la persona receptora debe tener 8 dígitos.");
       return;
     }
 
-    if(entregadoA.split(" ").filter(Boolean).length<2){
-      setMsg("Ingresa los nombres completos de la persona que recibió la comida.");
+    if(entregadoA.length<5 || entregadoA.split(" ").filter(Boolean).length<2){
+      setErrorReasignar("Ingresa los nombres completos de la persona que recibió la comida.");
       return;
     }
 
     setLoad(`Reasignando ${reasignar.comida.toLowerCase()}...`);
-    setMsg("");
+    setErrorReasignar("");
 
     try{
       await estadiaApi("estadiaReasignarAlimentacion",{
@@ -249,11 +254,17 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
       });
 
       setReasignar(null);
+      setPendienteAbierto("");
+      setErrorReasignar("");
       setActualizacion(v=>v+1);
       setMsg("✓ Comida reasignada correctamente.");
 
     }catch(e){
-      setMsg(e instanceof Error?e.message:"Error al reasignar la comida.");
+      setErrorReasignar(
+        e instanceof Error
+          ?e.message
+          :"Error al reasignar la comida."
+      );
     }finally{
       setLoad("");
     }
@@ -262,48 +273,64 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
   const celdaComida=(x:PersonaPeriodo,c:Comida)=>{
     const valor=x.alimentacion?.[c];
 
-    /*
-     * Si la persona ya salió y la comida quedó pendiente,
-     * solo se habilita REASIGNAR.
-     *
-     * Se limita al día calendario actual porque el backend
-     * reasigna únicamente solicitudes pendientes de hoy.
-     */
     const yaSalio=!!x.fechaSalida;
     const esHoy=desde===hoyCalendario&&hasta===hoyCalendario;
     const puedeReasignar=yaSalio&&esPendiente(valor)&&esHoy;
 
-    return <div style={{
-      display:"flex",
-      alignItems:"center",
-      justifyContent:"center",
-      gap:5,
-      flexWrap:"wrap"
-    }}>
-      <BadgeEstado value={valor}/>
+    const clave=`${x.idIngreso}|${x.dni}|${c}`;
+    const mostrarOpcion=puedeReasignar&&pendienteAbierto===clave;
 
-      {puedeReasignar&&(
+    if(puedeReasignar){
+      return <div style={{
+        display:"flex",
+        alignItems:"center",
+        justifyContent:"center",
+        gap:5,
+        flexWrap:"wrap"
+      }}>
         <button
           type="button"
-          onClick={()=>setReasignar({
-            persona:x,
-            comida:c,
-            dniDestino:"",
-            entregadoA:"",
-            observacion:""
-          })}
+          title="Haz clic para ver la acción disponible"
+          onClick={()=>setPendienteAbierto(v=>v===clave?"":clave)}
           style={{
-            ...btn,
-            padding:"4px 7px",
-            fontSize:10.5,
-            background:"#596bd8",
-            whiteSpace:"nowrap"
+            border:0,
+            padding:0,
+            margin:0,
+            background:"transparent",
+            cursor:"pointer"
           }}
         >
-          ↗ Reasignar
+          <BadgeEstado value={valor}/>
         </button>
-      )}
-    </div>;
+
+        {mostrarOpcion&&(
+          <button
+            type="button"
+            onClick={()=>{
+              setErrorReasignar("");
+              setReasignar({
+                persona:x,
+                comida:c,
+                dniDestino:"",
+                entregadoA:"",
+                observacion:""
+              });
+            }}
+            style={{
+              ...btn,
+              padding:"4px 7px",
+              fontSize:10.5,
+              background:"#596bd8",
+              whiteSpace:"nowrap"
+            }}
+          >
+            ↗ Reasignar
+          </button>
+        )}
+      </div>;
+    }
+
+    return <BadgeEstado value={valor}/>;
   };
 
 
@@ -938,6 +965,20 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
             />
           </label>
 
+          {errorReasignar&&(
+            <div style={{
+              marginBottom:12,
+              padding:"9px 10px",
+              borderRadius:8,
+              background:"#fff1f0",
+              color:"#b42318",
+              fontSize:12,
+              fontWeight:700
+            }}>
+              {errorReasignar}
+            </div>
+          )}
+
           <div style={{
             display:"flex",
             justifyContent:"flex-end",
@@ -947,7 +988,7 @@ export default function ResumenGuardia({responsable}:{responsable:string}){
             <button
               type="button"
               style={{...btn,background:"#6b7775"}}
-              onClick={()=>setReasignar(null)}
+              onClick={()=>{setReasignar(null);setErrorReasignar("");}}
               disabled={!!load}
             >
               Cancelar
